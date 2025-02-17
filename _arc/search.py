@@ -5,6 +5,7 @@ import os
 import pickle
 from collections import namedtuple
 from concurrent.futures import ThreadPoolExecutor
+import re
 
 import backoff
 import numpy as np
@@ -17,6 +18,7 @@ from arc_prompt import get_init_archive, get_prompt, get_reflexion_prompt
 
 openai_client = openai.OpenAI()
 gemini_client = genai.Client(api_key=os.getenv('GOOGLE_AI_API_KEY'))
+
 from utils import random_id, format_arc_data, eval_solution, list_to_string, bootstrap_confidence_interval
 
 Info = namedtuple('Info', ['name', 'author', 'content', 'iteration_idx'])
@@ -348,6 +350,13 @@ def search(args):
         with open(file_path, 'w') as json_file:
             json.dump(archive, json_file, indent=4)
 
+def get_upper_bound(upper_bound_string):
+    match = re.search(r'\(([\d.]+)%,\s*([\d.]+)%\)', upper_bound_string)
+    if match:
+        return float(match.group(2))
+    else:
+        return 0.0
+    
 
 def evaluate(args):
     file_path = os.path.join(args.save_dir, f"{args.expr_name}_run_archive.json")
@@ -359,14 +368,34 @@ def evaluate(args):
         with open(eval_file_path, 'r') as json_file:
             eval_archive = json.load(json_file)
 
+    evaluation_candidates = [] # only choosing top agents to evaluate
+    
     current_idx = 0
     while (current_idx < len(archive)):
         with open(file_path, 'r') as json_file:
             archive = json.load(json_file)
-        if current_idx < len(eval_archive):
+        
+        sorted_archive = sorted(archive, key=lambda x: get_upper_bound(x['fitness']), reverse=True)
+        
+        count = 0
+        max_agents = args.max_agents
+
+        for archived_agent in archive:
+            if archived_agent['generation'] == "initial":
+                evaluation_candidates.append(archived_agent)
+        for archived_agent in sorted_archive:
+            if archived_agent['generation'] == "initial":
+                continue
+            if count >= max_agents:
+                break
+            evaluation_candidates.append(archived_agent)
+            count += 1
+            
+            
+        if current_idx < len(evaluation_candidates):
             current_idx += 1
             continue
-        sol = archive[current_idx]
+        sol = evaluation_candidates[current_idx]
         print(f"current_gen: {sol['generation']}, current_idx: {current_idx}")
         try:
             acc_list = evaluate_forward_fn(args, sol["code"])
@@ -447,9 +476,10 @@ if __name__ == "__main__":
     parser.add_argument('--debug', action='store_true', default=True)
     parser.add_argument('--save_dir', type=str, default='results/')
     parser.add_argument('--expr_name', type=str, default='arc_gpt3.5_results')
-    parser.add_argument('--n_generation', type=int, default=25)
+    parser.add_argument('--n_generation', type=int, default=20)
     parser.add_argument('--reflect_max', type=int, default=3)
     parser.add_argument('--debug_max', type=int, default=3)
+    parser.add_argument('--max_agents', type=int, default=5)
 
     args = parser.parse_args()
     # search

@@ -5,6 +5,7 @@ import os
 import random
 from collections import namedtuple
 from concurrent.futures import ThreadPoolExecutor
+import re
 
 import backoff
 import numpy as np
@@ -55,18 +56,21 @@ def get_json_response_from_gpt(
             combined_prompt += f"User: {content}\n\n"
         elif role == "assistant":
             combined_prompt += f"Assistant: {content}\n\n"
-
-    response = gemini_client.models.generate_content(
-        model='gemini-1.5-flash-8b',
-        contents=combined_prompt,
-        config=types.GenerateContentConfig(
-            temperature=temperature,
-            max_output_tokens=1024,
-            stop_sequences=None,
-            response_mime_type='application/json'
-            
+    try:
+        response = gemini_client.models.generate_content(
+            model='gemini-1.5-flash-8b',
+            contents=combined_prompt,
+            config=types.GenerateContentConfig(
+                temperature=temperature,
+                max_output_tokens=1024,
+                stop_sequences=None,
+                response_mime_type='application/json'
+                
+            )
         )
-    )
+    except Exception as e:
+        print(e)
+        raise e
     content = response.text
     json_dict = json.loads(content)
     assert not json_dict is None
@@ -79,6 +83,7 @@ def get_json_response_from_gpt_reflect(
         msg_list,
         temperature=0.8
 ):
+    print('Messaging openai')
     response = client.chat.completions.create(
         model='gpt-4o-mini-2024-07-18',
         messages=msg_list,
@@ -262,7 +267,14 @@ def search(args):
         with open(file_path, 'w') as json_file:
             json.dump(archive, json_file, indent=4)
 
-
+def get_upper_bound(upper_bound_string):
+    match = re.search(r'\(([\d.]+)%,\s*([\d.]+)%\)', upper_bound_string)
+    if match:
+        return float(match.group(2))
+    else:
+        return 0.0
+    
+    
 def evaluate(args):
     file_path = os.path.join(args.save_dir, f"{args.expr_name}_run_archive.json")
     eval_file_path = str(os.path.join(args.save_dir, f"{args.expr_name}_run_archive.json")).strip(".json") + "_evaluate.json"
@@ -272,15 +284,33 @@ def evaluate(args):
     if os.path.exists(eval_file_path):
         with open(eval_file_path, 'r') as json_file:
             eval_archive = json.load(json_file)
-
+            
+    evaluation_candidates = [] # only choosing top agents to evaluate
+    
     current_idx = 0
     while (current_idx < len(archive)):
         with open(file_path, 'r') as json_file:
             archive = json.load(json_file)
-        if current_idx < len(eval_archive):
+        sorted_archive = sorted(archive, key=lambda x: get_upper_bound(x['fitness']), reverse=True)
+        
+        count = 0
+        max_agents = args.max_agents
+
+        for archived_agent in archive:
+            if archived_agent['generation'] == "initial":
+                evaluation_candidates.append(archived_agent)
+        for archived_agent in sorted_archive:
+            if archived_agent['generation'] == "initial":
+                continue
+            if count >= max_agents:
+                break
+            evaluation_candidates.append(archived_agent)
+            count += 1
+            
+        if current_idx < len(evaluation_candidates):
             current_idx += 1
             continue
-        sol = archive[current_idx]
+        sol = evaluation_candidates[current_idx]
         print(f"current_gen: {sol['generation']}, current_idx: {current_idx}")
         current_idx += 1
         try:
@@ -367,8 +397,9 @@ if __name__ == "__main__":
     parser.add_argument('--debug', action='store_true', default=True)
     parser.add_argument('--save_dir', type=str, default='results/')
     parser.add_argument('--expr_name', type=str, default="drop_gpt3.5_results")
-    parser.add_argument('--n_generation', type=int, default=30)
+    parser.add_argument('--n_generation', type=int, default=20)
     parser.add_argument('--debug_max', type=int, default=3)
+    parser.add_argument('--max_agents', type=int, default=5)
 
     args = parser.parse_args()
     # search
