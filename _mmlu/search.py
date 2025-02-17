@@ -16,8 +16,6 @@ from google.genai import types
 
 from mmlu_prompt import get_init_archive, get_prompt, get_reflexion_prompt
 
-client = openai.OpenAI()
-
 openai_client = openai.OpenAI()
 gemini_client = genai.Client(api_key=os.getenv('GOOGLE_AI_API_KEY'))
 
@@ -79,7 +77,7 @@ def get_json_response_from_gpt_reflect(
         temperature=0.8
 ):
     print('Calling GPT-4o')
-    response = client.chat.completions.create(
+    response = openai.chat.completions.create(
         model='gpt-4o-mini-2024-07-18',
         messages=msg_list,
         temperature=temperature, max_tokens=4096, stop=None, response_format={"type": "json_object"}
