@@ -9,10 +9,13 @@ import backoff
 import numpy as np
 import openai
 from tqdm import tqdm
+from google import genai
+from google.genai import types
 
 from gpqa_prompt import get_init_archive, get_prompt, get_reflexion_prompt
 
-client = openai.OpenAI()
+openai_client = openai.OpenAI()
+gemini_client = genai.Client(api_key=os.getenv('GOOGLE_AI_API_KEY'))
 
 from utils import load_questions, random_id, bootstrap_confidence_interval
 
@@ -29,21 +32,39 @@ SEARCHING_MODE = True
 @backoff.on_exception(backoff.expo, openai.RateLimitError)
 def get_json_response_from_gpt(
         msg,
-        model,
         system_message,
         temperature=0.5
 ):
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": system_message},
-            {"role": "user", "content": msg},
-        ],
-        temperature=temperature, max_tokens=4096, stop=None, response_format={"type": "json_object"}
+    messages = [
+        {"role": "system", "content": system_message},
+        {"role": "user", "content": msg},
+    ]
+    
+    combined_prompt = ""
+
+    for msg in messages:
+        role = msg["role"]
+        content = msg["content"]
+        if role == "system":
+            combined_prompt += f"System: {content}\n\n"
+        elif role == "user":
+            combined_prompt += f"User: {content}\n\n"
+        elif role == "assistant":
+            combined_prompt += f"Assistant: {content}\n\n"
+
+    response = gemini_client.models.generate_content(
+        model='gemini-1.5-flash-8b',
+        contents=combined_prompt,
+        config=types.GenerateContentConfig(
+            temperature=temperature,
+            max_output_tokens=1024,
+            stop_sequences=None,
+            response_mime_type='application/json'
+            
+        )
     )
-    content = response.choices[0].message.content
+    content = response.text
     json_dict = json.loads(content)
-    # cost = response.usage.completion_tokens / 1000000 * 15 + response.usage.prompt_tokens / 1000000 * 5
     assert not json_dict is None
     return json_dict
 
@@ -51,11 +72,9 @@ def get_json_response_from_gpt(
 @backoff.on_exception(backoff.expo, openai.RateLimitError)
 def get_json_response_from_gpt_reflect(
         msg_list,
-        model,
         temperature=0.8
 ):
-    response = client.chat.completions.create(
-        model=model,
+    response = openai_client.chat.completions.create(
         messages=msg_list,
         temperature=temperature, max_tokens=4096, stop=None, response_format={"type": "json_object"}
     )
@@ -71,12 +90,11 @@ class LLMAgentBase():
     """
 
     def __init__(self, output_fields: list, agent_name: str,
-                 role='helpful assistant', model='gpt-3.5-turbo-0125', temperature=0.5) -> None:
+                 role='helpful assistant', temperature=0.5) -> None:
         self.output_fields = output_fields
         self.agent_name = agent_name
 
         self.role = role
-        self.model = model
         self.temperature = temperature
 
         # give each instance a unique id
@@ -110,7 +128,7 @@ class LLMAgentBase():
         system_prompt, prompt = self.generate_prompt(input_infos, instruction)
         try:
             response_json = {}
-            response_json = get_json_response_from_gpt(prompt, self.model, system_prompt, self.temperature)
+            response_json = get_json_response_from_gpt(prompt, system_prompt, self.temperature)
             assert len(response_json) == len(self.output_fields), "not returning enough fields"
         except Exception as e:
             # print(e)
@@ -183,17 +201,17 @@ def search(args):
             {"role": "user", "content": prompt},
         ]
         try:
-            next_solution = get_json_response_from_gpt_reflect(msg_list, args.model)
+            next_solution = get_json_response_from_gpt_reflect(msg_list)
 
             Reflexion_prompt_1, Reflexion_prompt_2 = get_reflexion_prompt(archive[-1] if n > 0 else None)
             # Reflexion 1
             msg_list.append({"role": "assistant", "content": str(next_solution)})
             msg_list.append({"role": "user", "content": Reflexion_prompt_1})
-            next_solution = get_json_response_from_gpt_reflect(msg_list, args.model)
+            next_solution = get_json_response_from_gpt_reflect(msg_list)
             # Reflexion 2
             msg_list.append({"role": "assistant", "content": str(next_solution)})
             msg_list.append({"role": "user", "content": Reflexion_prompt_2})
-            next_solution = get_json_response_from_gpt_reflect(msg_list, args.model)
+            next_solution = get_json_response_from_gpt_reflect(msg_list)
         except Exception as e:
             print("During LLM generate new solution:")
             print(e)
@@ -213,7 +231,7 @@ def search(args):
                 msg_list.append({"role": "assistant", "content": str(next_solution)})
                 msg_list.append({"role": "user", "content": f"Error during evaluation:\n{e}\nCarefully consider where you went wrong in your latest implementation. Using insights from previous attempts, try to debug the current code to implement the same thought. Repeat your previous thought in 'thought', and put your thinking for debugging in 'debug_thought'"})
                 try:
-                    next_solution = get_json_response_from_gpt_reflect(msg_list, args.model)
+                    next_solution = get_json_response_from_gpt_reflect(msg_list)
                 except Exception as e:
                     print("During LLM generate new solution:")
                     print(e)
@@ -364,10 +382,6 @@ if __name__ == "__main__":
     parser.add_argument('--expr_name', type=str, default="gpqa_gpt3.5_results")
     parser.add_argument('--n_generation', type=int, default=30)
     parser.add_argument('--debug_max', type=int, default=3)
-    parser.add_argument('--model',
-                        type=str,
-                        default='gpt-4o-2024-05-13',
-                        choices=['gpt-4-turbo-2024-04-09', 'gpt-3.5-turbo-0125', 'gpt-4o-2024-05-13'])
 
     args = parser.parse_args()
     # search
