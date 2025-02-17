@@ -75,6 +75,7 @@ def get_json_response_from_gpt_reflect(
         temperature=0.8
 ):
     response = openai_client.chat.completions.create(
+        model='gpt-4o-mini-2024-07-18',
         messages=msg_list,
         temperature=temperature, max_tokens=4096, stop=None, response_format={"type": "json_object"}
     )
