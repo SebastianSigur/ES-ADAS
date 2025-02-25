@@ -479,11 +479,14 @@ return answer
 ```
 
 # Your task
-You are deeply familiar with LLM prompting techniques and LLM agent works from the literature. Your goal is to maximize "fitness" by proposing interestingly new agents. 
-Observe the discovered architectures carefully and think about what insights, lessons, or stepping stones can be learned from them.
-Be creative to think about the next interesting architecture to try. You are encouraged to draw inspiration from related LLM agent papers or academic papers from other research areas.
-Using the knowledge learned from the archive and the inspiration from academic literature to give the next interesting architecture.
+# Your task
+You are deeply familiar with LLM prompting techniques and LLM agent works from the literature.
+Your goal is to maximize "fitness" by designing an improved agent that is specifically tailored for a given category (e.g., "[CATEGORY]"). You are provided with a selected agent as inspiration: [SELECTED_AGENT].
+Your task is to mutate and refine this agent to create a better-performing variant that meets the category constraints.
+Observe the discovered architectures carefully and consider the insights, lessons, or stepping stones they provide.
+Draw inspiration from related LLM agent papers or academic literature from other research areas. Focus on modifications that can enhance performance while optimizing resource usage in line with the specified category.
 THINK OUTSIDE THE BOX.
+
 """
 
 Reflexion_prompt_1 = f""""[EXAMPLE]Carefully review the proposed new architecture and reflect on the following points:"
@@ -524,13 +527,38 @@ def get_init_archive():
     return [COT, COT_SC, Reflexion, LLM_debate, Take_a_step_back, QD, Role_Assignment]
 
 
-def get_prompt(current_archive, adaptive=False):
+# def get_prompt(current_archive, adaptive=False):
+#     archive_str = ",\n".join([json.dumps(sol) for sol in current_archive])
+#     archive_str = f"[{archive_str}]"
+#     prompt = base.replace("[ARCHIVE]", archive_str)
+#     prompt = prompt.replace("[EXAMPLE]", json.dumps(EXAMPLE))
+
+#     return system_prompt, prompt
+
+
+def get_prompt(current_archive, selected_agent=None, category=None, adaptive=False):
+    # Convert the archive to a JSON string
     archive_str = ",\n".join([json.dumps(sol) for sol in current_archive])
     archive_str = f"[{archive_str}]"
+    # Replace [ARCHIVE] and [EXAMPLE] as before
     prompt = base.replace("[ARCHIVE]", archive_str)
     prompt = prompt.replace("[EXAMPLE]", json.dumps(EXAMPLE))
-
+    
+    # Replace the new placeholders:
+    # For the category, if provided, otherwise use an empty string.
+    if category is not None:
+        prompt = prompt.replace("[CATEGORY]", category)
+    else:
+        prompt = prompt.replace("[CATEGORY]", "")
+    
+    # For the selected agent, if provided, we convert it to a JSON string
+    if selected_agent is not None:
+        prompt = prompt.replace("[SELECTED_AGENT]", json.dumps(selected_agent))
+    else:
+        prompt = prompt.replace("[SELECTED_AGENT]", "")
+    
     return system_prompt, prompt
+
 
 
 def get_reflexion_prompt(prev_example):

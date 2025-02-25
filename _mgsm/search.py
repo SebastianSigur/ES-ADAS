@@ -166,6 +166,92 @@ class AgentSystem():
         pass
 
 
+#-------------------------------------------------------------------------------------------------------#
+def create_map_elites(
+    archive,
+    bins_dim1=3,
+    bins_dim2=3,
+    min_dim1=None,
+    max_dim1=None,
+    min_dim2=None,
+    max_dim2=None
+):
+    """
+    Creates a map elites grid from the candidate archive based on two dimensions:
+      - Dimension 1: Performance (obtained by get_upper_bound(agent['fitness']))
+      - Dimension 2: API calls (agent['api_calls'])
+    
+    Parameters:
+        archive (list): List of candidate dictionaries.
+        bins_dim1 (int): Number of bins (cells) for the performance dimension. (Default is 3.)
+        bins_dim2 (int): Number of bins (cells) for the API calls dimension. (Default is 3.)
+        min_dim1 (float, optional): Minimum performance value. If None, computed from the archive.
+        max_dim1 (float, optional): Maximum performance value. If None, computed from the archive.
+        min_dim2 (int, optional): Minimum API calls value. If None, computed from the archive.
+        max_dim2 (int, optional): Maximum API calls value. If None, computed from the archive.
+    
+    Returns:
+        dict: A dictionary mapping cell coordinates (i, j) to the best candidate (elite) in that cell.
+    """
+
+    # Collect performance and API calls values from candidates with these fields.
+    fitness_values = [get_upper_bound(agent['fitness']) for agent in archive if 'fitness' in agent]
+    api_calls_values = [agent['api_calls'] for agent in archive if 'api_calls' in agent]
+
+    # If no valid values, return an empty map.
+    if not fitness_values or not api_calls_values:
+        return {}
+
+    # Determine bounds if not provided.
+    if min_dim1 is None:
+        min_dim1 = min(fitness_values)
+    if max_dim1 is None:
+        max_dim1 = max(fitness_values)
+    if min_dim2 is None:
+        min_dim2 = min(api_calls_values)
+    if max_dim2 is None:
+        max_dim2 = max(api_calls_values)
+
+    # Initialize grid dictionary with cells set to None.
+    grid = {(i, j): None for i in range(bins_dim1) for j in range(bins_dim2)}
+
+    for agent in archive:
+        if 'fitness' not in agent or 'api_calls' not in agent:
+            continue
+
+        new_fitness = get_upper_bound(agent['fitness'])
+        new_api_calls = agent['api_calls']
+
+        # Normalize values to [0, 1] based on provided or computed bounds.
+        norm_fitness = (new_fitness - min_dim1) / (max_dim1 - min_dim1) if max_dim1 != min_dim1 else 0
+        norm_api_calls = (new_api_calls - min_dim2) / (max_dim2 - min_dim2) if max_dim2 != min_dim2 else 0
+
+        # Determine cell indices.
+        cell_i = min(int(norm_fitness * bins_dim1), bins_dim1 - 1)
+        cell_j = min(int(norm_api_calls * bins_dim2), bins_dim2 - 1)
+        cell = (cell_i, cell_j)
+
+        # If the cell is empty, assign the candidate.
+        if grid[cell] is None:
+            grid[cell] = agent
+        else:
+            # Retrieve current elite's metrics.
+            current_agent = grid[cell]
+            current_fitness = get_upper_bound(current_agent['fitness'])
+            current_api_calls = current_agent['api_calls']
+
+            # Pareto dominance condition:
+            # New candidate must be at least as good in both dimensions,
+            # and strictly better in at least one.
+            if ((new_fitness >= current_fitness and new_api_calls <= current_api_calls) and 
+                (new_fitness > current_fitness or new_api_calls < current_api_calls)):
+                grid[cell] = agent
+
+    return grid
+#-------------------------------------------------------------------------------------------------------#
+
+
+
 def search(args):
 
     ## Initializes and loads archive (uses save_dir & expr_name as locations to load and save archive )
@@ -180,6 +266,13 @@ def search(args):
     else:
         archive = get_init_archive()
         start = 0
+    
+    #-------------------------------------------------------------------------------------------------------#
+    ## Ensure each candidate has an 'api_calls' field (for map elites dimension). Default to 0 if missing.
+    for solution in archive:
+        if 'api_calls' not in solution:
+            solution['api_calls'] = 0
+    #------------------------------------------------------------------------------------------------------#
 
     ## Loops over every solution in the archive and ensures that they have a fitness score
     ## Note: Computes fitness using evaluate_forward_fn() and bootstrap_confidence_interval()
@@ -204,14 +297,38 @@ def search(args):
         with open(file_path, 'w') as json_file:
             json.dump(archive, json_file, indent=4)
     
-
+    # ------------------------------------------------------------
+    # Your CODE Here: Compute current map elites using predefined function create_map(). Get fitness scores from above
+    map_elites = create_map_elites(archive,
+                                   bins_dim1=args.bins_dim1,bins_dim2=args.bins_dim2,
+                                   min_dim1=args.min_dim1,max_dim1=args.max_dim1,
+                                   min_dim2=args.min_dim2,max_dim2=args.max_dim2)
+    # ------------------------------------------------------------
+    
     ## Generates n new solutions (n_generation parameter)
     for n in range(start, args.n_generation):
+
+        # Your CODE Here: Randomly choses a cell in the map. Then passes stores the respective agent of that cell and the category in two new variables agent & category
+        # ------------------------------------------------------------
+        if map_elites:
+            cell = random.choice(list(map_elites.keys()))
+            selected_agent = map_elites[cell]
+            # Map cell coordinates to descriptive text.
+            performance_mapping = {0: "medium accuracy", 1: "high accuracy", 2: "very high accuracy"}
+            api_calls_mapping = {0: "few API calls", 1: "medium number of API calls", 2: "medium-high number of API calls"}
+            cell_i, cell_j = cell
+            # Default to 'unknown' if the index is out of the expected range.
+            category_text = f"{performance_mapping.get(cell_i, 'unknown accuracy')}, {api_calls_mapping.get(cell_j, 'unknown API calls')}"
+        else:
+            selected_agent = None
+            category_text = None
+        # ------------------------------------------------------------
+
 
         ## Uses pre-defined system prompt to generate new solution
         ## Performs two relfexions to improve quality of new solution
         print(f"============Generation {n + 1}=================")
-        system_prompt, prompt = get_prompt(archive)
+        system_prompt, prompt = get_prompt(archive, selected_agent, category_text)
         msg_list = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompt},
@@ -274,6 +391,20 @@ def search(args):
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         with open(file_path, 'w') as json_file:
             json.dump(archive, json_file, indent=4)
+
+        # ------------------------------------------------------------
+        # Your CODE Here: Updates map of elites in case of better performance achieved for that specific cell.
+        map_elites = create_map_elites(archive,
+                                   bins_dim1=args.bins_dim1,bins_dim2=args.bins_dim2,
+                                   min_dim1=args.min_dim1,max_dim1=args.max_dim1,
+                                   min_dim2=args.min_dim2,max_dim2=args.max_dim2)
+               
+        # Your CODE Here: Store the map of elites after every generation as a new file.
+        map_file_path = os.path.join(args.save_dir, f"{args.expr_name}_map_elites_gen{n+1}.json")
+        with open(map_file_path, 'w') as f:
+            json.dump(map_elites, f, indent=4)
+        # ------------------------------------------------------------
+
 
 def get_upper_bound(upper_bound_string):
     match = re.search(r'\(([\d.]+)%,\s*([\d.]+)%\)', upper_bound_string)
@@ -431,6 +562,18 @@ if __name__ == "__main__":
     parser.add_argument('--n_generation', type=int, default=5)
     parser.add_argument('--debug_max', type=int, default=3)
     parser.add_argument('--max_agents', type=int, default=2)
+
+    # ------------------------------------------------------------
+    # Map elites parameters:
+    parser.add_argument('--bins_dim1', type=int, default=3, help="Number of bins for performance dimension (default 3)")
+    parser.add_argument('--bins_dim2', type=int, default=3, help="Number of bins for API calls dimension (default 3)")
+    parser.add_argument('--min_dim1', type=float, default=None, help="Minimum performance value (if not provided, computed from archive)")
+    parser.add_argument('--max_dim1', type=float, default=None, help="Maximum performance value (if not provided, computed from archive)")
+    parser.add_argument('--min_dim2', type=int, default=None, help="Minimum api_calls value (if not provided, computed from archive)")
+    parser.add_argument('--max_dim2', type=int, default=None, help="Maximum api_calls value (if not provided, computed from archive)")
+    # ------------------------------------------------------------
+
+
 
 
     args = parser.parse_args()
