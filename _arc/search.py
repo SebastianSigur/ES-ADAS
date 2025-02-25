@@ -392,7 +392,7 @@ def evaluate(args):
             count += 1
             
             
-        if current_idx < len(evaluation_candidates):
+        if current_idx < len(eval_archive):
             current_idx += 1
             continue
         sol = evaluation_candidates[current_idx]

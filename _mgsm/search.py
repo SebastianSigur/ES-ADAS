@@ -281,20 +281,20 @@ def evaluate(args):
             eval_archive = json.load(json_file)
 
     evaluation_candidates = [] # only choosing top agents to evaluate
-    
+    print(f"len(archive): {len(archive)}")
     current_idx = 0
     while (current_idx < len(archive)):
         with open(file_path, 'r') as json_file:
             archive = json.load(json_file)
             
         sorted_archive = sorted(archive, key=lambda x: get_upper_bound(x['fitness']), reverse=True)
-        
         count = 0
         max_agents = args.max_agents
-
+        initial_count = 0
         for archived_agent in archive:
             if archived_agent['generation'] == "initial":
                 evaluation_candidates.append(archived_agent)
+                initial_count += 1
         for archived_agent in sorted_archive:
             if archived_agent['generation'] == "initial":
                 continue
@@ -302,13 +302,16 @@ def evaluate(args):
                 break
             evaluation_candidates.append(archived_agent)
             count += 1
-        
-        if current_idx < len(evaluation_candidates):
+            
+        if len(eval_archive) - initial_count >= args.max_agents:
+            break
+        if current_idx < len(eval_archive):
             current_idx += 1
             continue
         sol = evaluation_candidates[current_idx]
         print(f"current_gen: {sol['generation']}, current_idx: {current_idx}")
         current_idx += 1
+        
         try:
             acc_list = evaluate_forward_fn(args, sol["code"])
         except Exception as e:
