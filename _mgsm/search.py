@@ -191,9 +191,8 @@ def create_map_elites(
         max_dim2 (int, optional): Maximum API calls value. If None, computed from the archive.
     
     Returns:
-        dict: A dictionary mapping cell coordinates (i, j) to the best candidate (elite) in that cell.
+        dict: A dictionary mapping cell keys (as strings, e.g. "0,1") to the best candidate (elite) in that cell.
     """
-
     # Collect performance and API calls values from candidates with these fields.
     fitness_values = [get_upper_bound(agent['fitness']) for agent in archive if 'fitness' in agent]
     api_calls_values = [agent['api_calls'] for agent in archive if 'api_calls' in agent]
@@ -212,8 +211,8 @@ def create_map_elites(
     if max_dim2 is None:
         max_dim2 = max(api_calls_values)
 
-    # Initialize grid dictionary with cells set to None.
-    grid = {(i, j): None for i in range(bins_dim1) for j in range(bins_dim2)}
+    # Initialize grid dictionary with string keys.
+    grid = {f"{i},{j}": None for i in range(bins_dim1) for j in range(bins_dim2)}
 
     for agent in archive:
         if 'fitness' not in agent or 'api_calls' not in agent:
@@ -229,14 +228,14 @@ def create_map_elites(
         # Determine cell indices.
         cell_i = min(int(norm_fitness * bins_dim1), bins_dim1 - 1)
         cell_j = min(int(norm_api_calls * bins_dim2), bins_dim2 - 1)
-        cell = (cell_i, cell_j)
+        cell_key = f"{cell_i},{cell_j}"
 
         # If the cell is empty, assign the candidate.
-        if grid[cell] is None:
-            grid[cell] = agent
+        if grid[cell_key] is None:
+            grid[cell_key] = agent
         else:
             # Retrieve current elite's metrics.
-            current_agent = grid[cell]
+            current_agent = grid[cell_key]
             current_fitness = get_upper_bound(current_agent['fitness'])
             current_api_calls = current_agent['api_calls']
 
@@ -245,7 +244,7 @@ def create_map_elites(
             # and strictly better in at least one.
             if ((new_fitness >= current_fitness and new_api_calls <= current_api_calls) and 
                 (new_fitness > current_fitness or new_api_calls < current_api_calls)):
-                grid[cell] = agent
+                grid[cell_key] = agent
 
     return grid
 #-------------------------------------------------------------------------------------------------------#
@@ -316,7 +315,9 @@ def search(args):
             # Map cell coordinates to descriptive text.
             performance_mapping = {0: "medium accuracy", 1: "high accuracy", 2: "very high accuracy"}
             api_calls_mapping = {0: "few API calls", 1: "medium number of API calls", 2: "medium-high number of API calls"}
-            cell_i, cell_j = cell
+            cell_parts = cell.split(',')
+            cell_i, cell_j = map(int, cell_parts)
+
             # Default to 'unknown' if the index is out of the expected range.
             category_text = f"{performance_mapping.get(cell_i, 'unknown accuracy')}, {api_calls_mapping.get(cell_j, 'unknown API calls')}"
         else:
