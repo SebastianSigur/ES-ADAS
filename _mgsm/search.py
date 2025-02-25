@@ -167,6 +167,8 @@ class AgentSystem():
 
 
 def search(args):
+
+    ## Initializes and loads archive (uses save_dir & expr_name as locations to load and save archive )
     file_path = os.path.join(args.save_dir, f"{args.expr_name}_run_archive.json")
     if os.path.exists(file_path):
         with open(file_path, 'r') as json_file:
@@ -179,6 +181,8 @@ def search(args):
         archive = get_init_archive()
         start = 0
 
+    ## Loops over every solution in the archive and ensures that they have a fitness score
+    ## Note: Computes fitness using evaluate_forward_fn() and bootstrap_confidence_interval()
     for solution in archive:
         if 'fitness' in solution:
             continue
@@ -199,8 +203,13 @@ def search(args):
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         with open(file_path, 'w') as json_file:
             json.dump(archive, json_file, indent=4)
+    
 
+    ## Generates n new solutions (n_generation parameter)
     for n in range(start, args.n_generation):
+
+        ## Uses pre-defined system prompt to generate new solution
+        ## Performs two relfexions to improve quality of new solution
         print(f"============Generation {n + 1}=================")
         system_prompt, prompt = get_prompt(archive)
         msg_list = [
@@ -208,6 +217,7 @@ def search(args):
             {"role": "user", "content": prompt},
         ]
         try:
+
             next_solution = get_json_response_from_gpt_reflect(msg_list)
 
             Reflexion_prompt_1, Reflexion_prompt_2 = get_reflexion_prompt(archive[-1] if n > 0 else None)
@@ -224,7 +234,8 @@ def search(args):
             print(e)
             n -= 1
             continue
-
+        
+        ## Re-evaluation of new solution (debug_max number of re-evaluations)
         acc_list = []
         for _ in range(args.debug_max):
             try:
@@ -247,7 +258,8 @@ def search(args):
         if not acc_list:
             n -= 1
             continue
-
+        
+        ## Fitness computation & adding to archive (if evaluation is passed, fitness score is computed) 
         fitness_str = bootstrap_confidence_interval(acc_list)
         next_solution['fitness'] = fitness_str
         next_solution['generation'] = n + 1
@@ -270,7 +282,10 @@ def get_upper_bound(upper_bound_string):
     else:
         return 0.0
 
+## Used to thoroughly evaluate the new archive
 def evaluate(args):
+
+    ## Loads archive and previous evaluaiton results. Prepares file for storing new, thorough evaluations
     file_path = os.path.join(args.save_dir, f"{args.expr_name}_run_archive.json")
     eval_file_path = str(os.path.join(args.save_dir, f"{args.expr_name}_run_archive.json")).strip(".json") + "_evaluate.json"
     with open(file_path, 'r') as json_file:
@@ -280,13 +295,16 @@ def evaluate(args):
         with open(eval_file_path, 'r') as json_file:
             eval_archive = json.load(json_file)
 
+    ## Iterative evaluation of candidate agents
+    ## Note: Selects candidate agents for evaluation (only include initial + max_agents top performing agents)
     evaluation_candidates = [] # only choosing top agents to evaluate
     print(f"len(archive): {len(archive)}")
     current_idx = 0
     while (current_idx < len(archive)):
         with open(file_path, 'r') as json_file:
             archive = json.load(json_file)
-            
+        
+        ## Selects candidates agent (only initial + top performing)            
         sorted_archive = sorted(archive, key=lambda x: get_upper_bound(x['fitness']), reverse=True)
         count = 0
         max_agents = args.max_agents
@@ -302,7 +320,7 @@ def evaluate(args):
                 break
             evaluation_candidates.append(archived_agent)
             count += 1
-            
+
         if len(eval_archive) - initial_count >= args.max_agents:
             break
         if current_idx < len(eval_archive):
@@ -312,6 +330,7 @@ def evaluate(args):
         print(f"current_gen: {sol['generation']}, current_idx: {current_idx}")
         current_idx += 1
         
+        ## Evaluates candidate performance (uses evaluate_forward_fn)
         try:
             acc_list = evaluate_forward_fn(args, sol["code"])
         except Exception as e:
@@ -321,15 +340,19 @@ def evaluate(args):
         sol['test_fitness'] = fitness_str
         eval_archive.append(sol)
 
+        ## Saves result of evaluation in new file path
         # save results
         os.makedirs(os.path.dirname(eval_file_path), exist_ok=True)
         with open(eval_file_path, 'w') as json_file:
             json.dump(eval_archive, json_file, indent=4)
 
-
+## Used to evaluate a single agent (during search() and evaluate())
 def evaluate_forward_fn(args, forward_str):
     # dynamically define forward()
     # modified from https://github.com/luchris429/DiscoPOP/blob/main/scripts/launch_evo.py
+
+    ## Creates callable function: Converts text description into executable function
+    ## and assigns it as an attribute to the agent
     namespace = {}
     exec(forward_str, globals(), namespace)
     names = list(namespace.keys())
@@ -339,6 +362,12 @@ def evaluate_forward_fn(args, forward_str):
     if not callable(func):
         raise AssertionError(f"{func} is not callable")
     setattr(AgentSystem, "forward", func)
+
+    ## Preparing Evaluation Examples: Creates n number of examples of the environment task
+    ## Note 1: Example shuffled using shuffle_seed
+    ## Note 2: valid_size is number of examples used for evaluation of new agent during search
+    ## Note 3: valide_size + test_size is used during evaluate() for more thorough evaluation
+    ## Note 4: This is then repeated n_repeat times
 
     # set seed 0 for valid set
     examples = get_all_examples()
@@ -350,6 +379,7 @@ def evaluate_forward_fn(args, forward_str):
     else:
         examples = examples[args.valid_size:args.valid_size + args.test_size] * args.n_repreat
 
+    ## Creates Queue of example tasks to solve (formatts them in a proper way)
     questions = [example['inputs'] for example in examples]
     answers = [example['targets'] for example in examples]
 
@@ -361,12 +391,15 @@ def evaluate_forward_fn(args, forward_str):
         taskInfo = Info('task', 'User', q, -1)
         task_queue.append(taskInfo)
 
+    ## Parallel evaluation of examples (max_workers defines how many examples processed in parallel)
     agentSystem = AgentSystem()
 
     acc_list = []
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         results = list(tqdm(executor.map(agentSystem.forward, task_queue), total=len(task_queue)))
 
+    ## Scores the performance as confidence interval
+    ## Note: The score is either 0 or 1 and results in a percentage then on average
     for q_idx, res in enumerate(results):
         try:
             if isinstance(res, Info):
@@ -397,7 +430,7 @@ if __name__ == "__main__":
     parser.add_argument('--expr_name', type=str, default="mgsm_gpt3.5_results")
     parser.add_argument('--n_generation', type=int, default=5)
     parser.add_argument('--debug_max', type=int, default=3)
-    parser.add_argument('--max_agents', type=int, default=1)
+    parser.add_argument('--max_agents', type=int, default=2)
 
 
     args = parser.parse_args()
