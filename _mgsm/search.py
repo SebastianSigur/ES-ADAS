@@ -269,7 +269,8 @@ def count_api_calls(code):
         )
         content = response.text
         api_json = json.loads(content)
-        return api_json.get("api_calls", 0)
+        # Convert the result to an int
+        return int(float(api_json.get("api_calls", 0)))
     except Exception as e:
         print("Error assessing API calls:", e)
         return 0
