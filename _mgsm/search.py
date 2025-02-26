@@ -250,6 +250,30 @@ def create_map_elites(
 #-------------------------------------------------------------------------------------------------------#
 
 
+#-------------------------------------------------------------------------------------------------------#
+def count_api_calls(code):
+    """
+    Uses Gemini to analyze the given code and returns the number of API calls made.
+    The response is expected to be a JSON object with a key 'api_calls'.
+    """
+    try:
+        response = gemini_client.models.generate_content(
+            model='gemini-1.5-flash-8b',
+            contents="Analyze the following code and return only the number of API calls that the code makes. Return a JSON object with key 'api_calls':\n" + code,
+            config=types.GenerateContentConfig(
+                temperature=0.0,
+                max_output_tokens=256,
+                stop_sequences=None,
+                response_mime_type='application/json'
+            )
+        )
+        content = response.text
+        api_json = json.loads(content)
+        return api_json.get("api_calls", 0)
+    except Exception as e:
+        print("Error assessing API calls:", e)
+        return 0
+#-------------------------------------------------------------------------------------------------------#
 
 def search(args):
 
@@ -266,11 +290,16 @@ def search(args):
         archive = get_init_archive()
         start = 0
     
-    #-------------------------------------------------------------------------------------------------------#
-    ## Ensure each candidate has an 'api_calls' field (for map elites dimension). Default to 0 if missing.
+    #-------------------------------------------------------------------------------------------------------#    
+    ## Call Gemini to assess the code of each agent in the archive.
+    ## Gemini's response should include only the number of API calls made. Add that information to each solution.
     for solution in archive:
-        if 'api_calls' not in solution:
-            solution['api_calls'] = 0
+        solution["api_calls"] = count_api_calls(solution["code"])
+
+    # ## Ensure each candidate has an 'api_calls' field (for map elites dimension). Default to 0 if missing.
+    # for solution in archive:
+    #     if 'api_calls' not in solution:
+    #         solution['api_calls'] = 0
     #------------------------------------------------------------------------------------------------------#
 
     ## Loops over every solution in the archive and ensures that they have a fitness score
@@ -297,7 +326,7 @@ def search(args):
             json.dump(archive, json_file, indent=4)
     
     # ------------------------------------------------------------
-    # Your CODE Here: Compute current map elites using predefined function create_map(). Get fitness scores from above
+    # Compute current map elites using predefined function create_map(). Get fitness scores from above
     map_elites = create_map_elites(archive,
                                    bins_dim1=args.bins_dim1,bins_dim2=args.bins_dim2,
                                    min_dim1=args.min_dim1,max_dim1=args.max_dim1,
@@ -307,7 +336,7 @@ def search(args):
     ## Generates n new solutions (n_generation parameter)
     for n in range(start, args.n_generation):
 
-        # Your CODE Here: Randomly choses a cell in the map. Then passes stores the respective agent of that cell and the category in two new variables agent & category
+        # Randomly choses a cell in the map. Then passes stores the respective agent of that cell and the category in two new variables agent & category
         # ------------------------------------------------------------
         if map_elites:
             cell = random.choice(list(map_elites.keys()))
@@ -382,6 +411,12 @@ def search(args):
         next_solution['fitness'] = fitness_str
         next_solution['generation'] = n + 1
 
+        # ------------------------------------------------------------
+        ## Call Gemini again similar to before to assess the number of API calls made and add it to next_solution
+        next_solution["api_calls"] = count_api_calls(next_solution["code"])
+        # ------------------------------------------------------------
+
+
         if 'debug_thought' in next_solution:
             del next_solution['debug_thought']
         if 'reflection' in next_solution:
@@ -392,15 +427,15 @@ def search(args):
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         with open(file_path, 'w') as json_file:
             json.dump(archive, json_file, indent=4)
-
+        
         # ------------------------------------------------------------
-        # Your CODE Here: Updates map of elites in case of better performance achieved for that specific cell.
+        # Updates map of elites in case of better performance achieved for that specific cell.
         map_elites = create_map_elites(archive,
                                    bins_dim1=args.bins_dim1,bins_dim2=args.bins_dim2,
                                    min_dim1=args.min_dim1,max_dim1=args.max_dim1,
                                    min_dim2=args.min_dim2,max_dim2=args.max_dim2)
                
-        # Your CODE Here: Store the map of elites after every generation as a new file.
+        # Store the map of elites after every generation as a new file.
         map_file_path = os.path.join(args.save_dir, f"{args.expr_name}_map_elites_gen{n+1}.json")
         with open(map_file_path, 'w') as f:
             json.dump(map_elites, f, indent=4)
@@ -560,7 +595,7 @@ if __name__ == "__main__":
     parser.add_argument('--debug', action='store_true', default=True)
     parser.add_argument('--save_dir', type=str, default='results/')
     parser.add_argument('--expr_name', type=str, default="mgsm_gpt3.5_results")
-    parser.add_argument('--n_generation', type=int, default=20)
+    parser.add_argument('--n_generation', type=int, default=5)
     parser.add_argument('--debug_max', type=int, default=5)
     parser.add_argument('--max_agents', type=int, default=2)
 
