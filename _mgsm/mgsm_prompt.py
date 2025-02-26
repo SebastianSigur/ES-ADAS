@@ -479,27 +479,38 @@ return answer
 ```
 
 # Your task
-# Your task
 You are deeply familiar with LLM prompting techniques and LLM agent works from the literature.
-Your goal is to maximize "fitness" by designing an improved agent that is specifically tailored for a given category (e.g., "[CATEGORY]"). You are provided with a selected agent as inspiration: [SELECTED_AGENT].
+Your goal is to maximize "fitness" by designing an improved agent that is specifically tailored to the category: [CATEGORY]. You are provided with a selected agent as inspiration: [SELECTED_AGENT].
 Your task is to mutate and refine this agent to create a better-performing variant that meets the category constraints.
 Observe the discovered architectures carefully and consider the insights, lessons, or stepping stones they provide.
 Draw inspiration from related LLM agent papers or academic literature from other research areas. Focus on modifications that can enhance performance while optimizing resource usage in line with the specified category.
 THINK OUTSIDE THE BOX.
 
+IMPORTANT RULES:
+[RULES]
+These rules MUST be followed strictly. Any solution that violates these rules will be rejected.
+
 """
+
 
 Reflexion_prompt_1 = f""""[EXAMPLE]Carefully review the proposed new architecture and reflect on the following points:"
 
-1. **Interestingness**: Assess whether your proposed architecture is interesting or innovative compared to existing methods in the archive. If you determine that the proposed architecture is not interesting, suggest a new architecture that addresses these shortcomings. 
+Before providing your solution, you MUST verify:
+1. Does your implementation follow this critical rule?:
+Look through the code again independently. You have to detect if the code breaks the rules. REMEMBER the rules are as follows:
+[RULES]
+
+2. **Interestingness**: Assess whether your proposed architecture is interesting or innovative compared to existing methods in the archive. If you determine that the proposed architecture is not interesting, suggest a new architecture that addresses these shortcomings. 
 - Make sure to check the difference between the proposed architecture and previous attempts.
 - Compare the proposal and the architectures in the archive CAREFULLY, including their actual differences in the implementation.
 - Decide whether the current architecture is innovative.
 - USE CRITICAL THINKING!
 
-2. **Implementation Mistakes**: Identify any mistakes you may have made in the implementation. Review the code carefully, debug any issues you find, and provide a corrected version. REMEMBER checking "## WRONG Implementation examples" in the prompt.
+3. **Implementation Mistakes**:
+Identify any mistakes you may have made in the implementation. Review the code carefully, debug any issues you find, and provide a corrected version. REMEMBER checking "## WRONG Implementation examples" in the prompt.
+REMEMBER checking "## WRONG Implementation examples" in the prompt. MAKE SURE TO FOLLOW THE RULES STRICTLY: [RULES]
 
-3. **Improvement**: Based on the proposed architecture, suggest improvements in the detailed implementation that could increase its performance or effectiveness. In this step, focus on refining and optimizing the existing implementation without altering the overall design framework, except if you want to propose a different architecture if the current is not interesting.
+4. **Improvement**: Based on the proposed architecture, suggest improvements in the detailed implementation that could increase its performance or effectiveness. In this step, focus on refining and optimizing the existing implementation without altering the overall design framework, except if you want to propose a different architecture if the current is not interesting.
 - Observe carefully about whether the implementation is actually doing what it is supposed to do.
 - Check if there is redundant code or unnecessary steps in the implementation. Replace them with effective implementation.
 - Try to avoid the implementation being too similar to the previous agent.
@@ -507,6 +518,8 @@ Reflexion_prompt_1 = f""""[EXAMPLE]Carefully review the proposed new architectur
 And then, you need to improve or revise the implementation, or implement the new proposed architecture based on the reflection.
 
 Your response should be organized as follows:
+
+"rule_verification": Explain the rules you must follow, and explain how you verified rule compliance.
 
 "reflection": Provide your thoughts on the interestingness of the architecture, identify any mistakes in the implementation, and suggest improvements.
 
@@ -517,23 +530,25 @@ Your response should be organized as follows:
 "code": Provide the corrected code or an improved implementation. Make sure you actually implement your fix and improvement in this code.
 """
 
+
 Reflexion_prompt_2 = """Using the tips in "## WRONG Implementation examples" section, revise the code further.
+Make sure to follow the rules strictly: [RULES]
 Your response should be organized as follows:
 Put your new reflection thinking in "reflection". Repeat the previous "thought" and "name", and update the corrected version of the code in "code".
 """
 
+RULES = lambda api_threshold: (
+    "RULE: In the forward() function, every single occurrence of LLMAgentBase(...)(...) counts as one usage. "
+    "This means that if you call an LLMAgentBase instance more than once—even if it's the same instance—each call is counted separately. "
+    f"The total number of such calls must be lower thannot exceed {api_threshold}. "
+    "This includes calls made inside loops, conditionals, or any nested structures. "
+    "No exceptions: every call is counted individually. "
+    "Strict adherence to this rule is mandatory."
+)
+
 
 def get_init_archive():
     return [COT, COT_SC, Reflexion, LLM_debate, Take_a_step_back, QD, Role_Assignment]
-
-
-# def get_prompt(current_archive, adaptive=False):
-#     archive_str = ",\n".join([json.dumps(sol) for sol in current_archive])
-#     archive_str = f"[{archive_str}]"
-#     prompt = base.replace("[ARCHIVE]", archive_str)
-#     prompt = prompt.replace("[EXAMPLE]", json.dumps(EXAMPLE))
-
-#     return system_prompt, prompt
 
 
 def get_prompt(current_archive, selected_agent=None, category=None, adaptive=False):
@@ -543,6 +558,9 @@ def get_prompt(current_archive, selected_agent=None, category=None, adaptive=Fal
     # Replace [ARCHIVE] and [EXAMPLE] as before
     prompt = base.replace("[ARCHIVE]", archive_str)
     prompt = prompt.replace("[EXAMPLE]", json.dumps(EXAMPLE))
+    api_calls_text = category.split(',')[1].strip() 
+    rules = RULES(api_calls_text)
+    prompt = prompt.replace("[RULES]", rules)
     
     # Replace the new placeholders:
     # For the category, if provided, otherwise use an empty string.
@@ -561,7 +579,17 @@ def get_prompt(current_archive, selected_agent=None, category=None, adaptive=Fal
 
 
 
-def get_reflexion_prompt(prev_example):
+def get_reflexion_prompt(prev_example, category=None):
     prev_example_str = "Here is the previous agent you tried:\n" + json.dumps(prev_example) + "\n\n"
     r1 = Reflexion_prompt_1.replace("[EXAMPLE]", prev_example_str) if prev_example else Reflexion_prompt_1.replace("[EXAMPLE]", "")
+    api_calls_text = category.split(',')[1].strip() 
+    rules = RULES(api_calls_text)
+    r1 = r1.replace("[RULES]", rules)
+    Reflexion_prompt_2 = """Using the tips in "## WRONG Implementation examples" section, revise the code further.
+    Make sure to follow the rules strictly: [RULES]
+    Your response should be organized as follows:
+    Put your new reflection thinking in "reflection". Repeat the previous "thought" and "name", and update the corrected version of the code in "code".
+    """
+    Reflexion_prompt_2 = Reflexion_prompt_2.replace("[RULES]", rules)
+
     return r1, Reflexion_prompt_2

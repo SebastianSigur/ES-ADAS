@@ -251,15 +251,22 @@ def create_map_elites(
 
 
 #-------------------------------------------------------------------------------------------------------#
-def count_api_calls(code):
+def count_api_calls(forward_code):
     """
     Uses Gemini to analyze the given code and returns the number of API calls made.
-    The response is expected to be a JSON object with a key 'api_calls'.
+    Each call to `LLMAgentBase(...)(...)` counts as one API call.
+    The analysis accounts for loops, multiple agents, or recursive calls.
+    Returns a JSON object with the 'api_calls' field as an integer.
     """
+    system_prompt = ("You are a code analysis expert. Given a Python function, predict the number of API calls it makes to an LLM. "
+                     "Each call to `LLMAgentBase(...)(...)` counts as one API call. Account for loops, multiple agents, or recursive calls. "
+                     "Return a JSON object with the 'api_calls' field as an integer.")
+    user_message = f"Analyze the following code and predict the number of API calls per execution:\n\n```python\n{forward_code}\n```"
+    
     try:
         response = gemini_client.models.generate_content(
             model='gemini-1.5-flash-8b',
-            contents="Analyze the following code and return only the number of API calls that the code makes. Return a JSON object with key 'api_calls':\n" + code,
+            contents=system_prompt + user_message,
             config=types.GenerateContentConfig(
                 temperature=0.0,
                 max_output_tokens=256,
@@ -269,7 +276,6 @@ def count_api_calls(code):
         )
         content = response.text
         api_json = json.loads(content)
-        # Convert the result to an int
         return int(float(api_json.get("api_calls", 0)))
     except Exception as e:
         print("Error assessing API calls:", e)
@@ -368,7 +374,7 @@ def search(args):
 
             next_solution = get_json_response_from_gpt_reflect(msg_list)
 
-            Reflexion_prompt_1, Reflexion_prompt_2 = get_reflexion_prompt(archive[-1] if n > 0 else None)
+            Reflexion_prompt_1, Reflexion_prompt_2 = get_reflexion_prompt(archive[-1] if n > 0 else None, category=category_text)
             # Reflexion 1
             msg_list.append({"role": "assistant", "content": str(next_solution)})
             msg_list.append({"role": "user", "content": Reflexion_prompt_1})
