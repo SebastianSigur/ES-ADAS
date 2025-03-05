@@ -1,14 +1,32 @@
 {
-    "Integrated Evaluation and Synthesis,0": {
-        "thought": "**Insights:**\nTo refine the existing architecture, I propose an integrated approach that combines the extraction of principles with a structured reasoning process in a single step. This will allow the model to not only identify relevant principles but also apply them directly to solve the task in a coherent manner.\n\n**Overall Idea:**\nThis architecture will guide the agent to extract relevant mathematical principles and generate a clear, step-by-step solution based on those principles. It aims to balance clarity and creativity without significantly increasing API call usage.\n\n**Implementation:**\n1. Define a clear instruction that prompts the model to identify mathematical principles relevant to the task and generate a systematic solution based on those principles.\n2. Use a single LLMAgentBase instance to execute this instruction, ensuring that principle extraction and reasoning occur in one API call.\n3. Output will include both reasoning and final answer, structured clearly to enhance understanding.",
-        "name": "Integrated Principle-Based Reasoning",
-        "code": "def forward(self, taskInfo):\n    # Instruction for extracting principles and generating reasoning and answer\n    combined_instruction = \"Identify the mathematical principles involved in solving this task. Explain your reasoning step-by-step and provide the final answer clearly.\"\n    agent = LLMAgentBase([\"thinking\", \"answer\"], \"Integrated Reasoning Agent\")\n\n    # Execute the combined instruction to extract principles and reason in one call\n    thinking, answer = agent([taskInfo], combined_instruction)\n    return answer",
-        "fitness": "95% Bootstrap Confidence Interval: (9.4%, 21.9%), Median: 15.6%",
-        "generation": 8,
-        "api_calls": 1,
-        "structure_label": "Integrated Evaluation and Synthesis"
+    "Diversity-Driven Exploration,0": null,
+    "Diversity-Driven Exploration,1": {
+        "thought": "Similar to Quality-Diversity methods, let LLM generate multiple diverse interesting solutions could help. By encouraging the model to explore different reasoning paths, we can increase the chances of finding the best solution.",
+        "name": "Quality-Diversity",
+        "code": "def forward(self, taskInfo):\n    # Instruction for initial reasoning\n    cot_initial_instruction = \"Please think step by step and then solve the task.\"\n\n    # Instruction for giving diverse answers\n    qd_instruction = \"Given previous attempts, try to come up with another interesting way to solve the task.\"\n    cot_agent = LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent')\n\n    # Instruction for final decision-making based on collected reasoning and answers\n    final_decision_instruction = \"Given all the above solutions, reason over them carefully and provide a final answer.\"\n    final_decision_agent = LLMAgentBase(['thinking', 'answer'], 'Final Decision Agent', temperature=0.1)\n    \n    N_max = 3 # Maximum number of attempts\n\n    # Initial attempt\n    cot_inputs = [taskInfo]\n    possible_answers = []\n    thinking, answer = cot_agent(cot_inputs, cot_initial_instruction, 0)\n\n    # Add the answer to the list of possible answers\n    possible_answers.extend([thinking, answer])\n\n    for i in range(N_max):\n        # Reflect on previous attempts and generate another interesting answer\n        cot_inputs.extend([thinking, answer])\n\n        # Generate another interesting answer\n        thinking, answer = cot_agent(cot_inputs, qd_instruction, i + 1)\n        possible_answers.extend([thinking, answer])\n\n    # Make the final decision based on all generated answers\n    thinking, answer = final_decision_agent([taskInfo] + possible_answers, final_decision_instruction)\n    return answer\n",
+        "api_calls": 7,
+        "structure_label": "Diversity-Driven Exploration",
+        "generation": "initial",
+        "fitness": "95% Bootstrap Confidence Interval: (50.0%, 67.2%), Median: 58.6%"
     },
-    "Integrated Evaluation and Synthesis,1": null,
+    "Iterative Self-Improvement,0": {
+        "thought": "**Insights:**\nThe current architecture emphasizes iterative self-refinement but misses the opportunity for generating multiple diverse answers in a single call. By allowing the expert agent to provide varied reasoning outputs within one API call, we can enhance the performance and maintain compliance with the API call limit.\n**Overall Idea:**\nThe new architecture will focus on a single expert that generates multiple diverse answers from the same call, evaluating them collectively to select the best response. This reduces the potential for errors in the feedback process and enhances the robustness of the reasoning.\n**Implementation:**\n1. Implement a single call to the expert agent that generates varying perspectives or answers.\n2. Use the output of the expert agent to evaluate and select the best response, ensuring a more efficient and effective reasoning process.",
+        "name": "Diverse Output Expert",
+        "code": "def forward(self, taskInfo):\n    # Instruction for generating diverse answers based on the task\n    diverse_instruction = \"Please think step by step and provide three different perspectives or answers to the task. After generating the answers, decide which is the best one.\"\n    \n    # Instantiate a single expert agent to generate diverse answers\n    expert_agent = LLMAgentBase(['thinking', 'answer'], 'Diverse Output Expert')\n    \n    # Get diverse outputs from the expert agent\n    outputs = expert_agent([taskInfo], diverse_instruction)\n    \n    # Select the best answer from the diverse outputs\n    return outputs[1]  # Assuming the best answer is in the second position of the returned outputs.",
+        "fitness": "95% Bootstrap Confidence Interval: (22.7%, 38.3%), Median: 30.5%",
+        "generation": 2,
+        "api_calls": 1,
+        "structure_label": "Iterative Self-Improvement"
+    },
+    "Iterative Self-Improvement,1": {
+        "thought": "To enhance its performance, an LLM can iteratively improve its answer based on feedback. By reflecting on its previous attempts and incorporating feedback, the model can refine its reasoning and provide a more accurate solution.",
+        "name": "Self-Refine (Reflexion)",
+        "code": "def forward(self, taskInfo):\n    # Instruction for initial reasoning\n    cot_initial_instruction = \"Please think step by step and then solve the task.\"\n\n    # Instruction for reflecting on previous attempts and feedback to improve\n    cot_reflect_instruction = \"Given previous attempts and feedback, carefully consider where you could go wrong in your latest attempt. Using insights from previous attempts, try to solve the task better.\"\n    cot_agent = LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent')\n\n    # Instruction for providing feedback and correcting the answer\n    critic_instruction = \"Please review the answer above and criticize on where might be wrong. If you are absolutely sure it is correct, output 'True' in 'correct'.\"\n    critic_agent = LLMAgentBase(['feedback', 'correct'], 'Critic Agent')\n    \n    N_max = 5 # Maximum number of attempts\n\n    # Initial attempt\n    cot_inputs = [taskInfo]\n    thinking, answer = cot_agent(cot_inputs, cot_initial_instruction, 0)\n\n    for i in range(N_max):\n        # Get feedback and correct status from the critic\n        feedback, correct = critic_agent([taskInfo, thinking, answer], critic_instruction, i)\n        if correct.content == 'True':\n            break\n            \n        # Add feedback to the inputs for the next iteration\n        cot_inputs.extend([thinking, answer, feedback])\n\n        # Reflect on previous attempts and refine the answer\n        thinking, answer = cot_agent(cot_inputs, cot_reflect_instruction, i + 1)\n    return answer\n",
+        "api_calls": 7,
+        "structure_label": "Iterative Self-Improvement",
+        "generation": "initial",
+        "fitness": "95% Bootstrap Confidence Interval: (13.3%, 26.6%), Median: 19.5%"
+    },
     "Chain-of-Thought,0": {
         "thought": "By encouraging the LLM to think step by step rather than directly outputting an answer, chain-of-thought reasoning enables complex problem-solving through intermediate steps. This practice improves the model's ability to handle tasks that require deeper reasoning and provides insight into its decision-making process.",
         "name": "Chain-of-Thought",
@@ -16,7 +34,7 @@
         "api_calls": 1,
         "structure_label": "Chain-of-Thought",
         "generation": "initial",
-        "fitness": "95% Bootstrap Confidence Interval: (7.8%, 19.5%), Median: 13.3%"
+        "fitness": "95% Bootstrap Confidence Interval: (7.0%, 18.8%), Median: 12.5%"
     },
     "Chain-of-Thought,1": {
         "thought": "While an LLM can arrive at the correct answer, its reasoning may vary. By repeatedly asking the same question with high temperature settings, we can generate different reasoning paths. We then combine multiple answers from these Chain-of-Thought (CoT) agents to produce a more accurate final answer through ensembling.",
@@ -25,8 +43,18 @@
         "api_calls": 5,
         "structure_label": "Chain-of-Thought",
         "generation": "initial",
-        "fitness": "95% Bootstrap Confidence Interval: (9.4%, 21.1%), Median: 14.8%"
+        "fitness": "95% Bootstrap Confidence Interval: (4.7%, 14.8%), Median: 9.4%"
     },
+    "Integrated Evaluation and Synthesis,0": {
+        "thought": "**Insights:**\nTo maximize the performance and adhere to the API call limits, I propose an architecture where the agent generates multiple answers in one call and employs an internal logic mechanism to evaluate and select the best answer. This minimizes the API calls while leveraging diverse reasoning outputs to enhance accuracy.\n\n**Overall Idea:**\nThe architecture will prompt the agent to generate a set of multiple answers, analyze their consistency, and select the most accurate one based on internal criteria. By doing so, we can maintain efficiency while maximizing the effectiveness of the reasoning process.\n\n**Implementation:**\n1. Generate multiple answers in a single API call.\n2. Analyze these answers internally and decide which one is the best.\n3. Return the best answer based on the evaluation conducted within the same call.",
+        "name": "Diverse Response Evaluation",
+        "code": "def forward(self, taskInfo):\n    # Instruction for generating diverse answers and performing internal evaluation\n    diverse_instruction = \"Please think step by step and provide three different perspectives or answers to the task. After generating the answers, evaluate them and provide the best one.\"\n    \n    # Instantiate a single agent to generate diverse answers and evaluate them in one go\n    diverse_agent = LLMAgentBase(['thinking', 'answer'], 'Diverse Response Evaluator')\n    \n    # Get diverse outputs from the agent\n    outputs = diverse_agent([taskInfo], diverse_instruction)\n    \n    # Return the best answer based on the evaluation done in the output\n    return outputs[1]  # Here the agent should perform the evaluation internally and return the best answer.",
+        "fitness": "95% Bootstrap Confidence Interval: (28.9%, 46.1%), Median: 37.5%",
+        "generation": 4,
+        "api_calls": 1,
+        "structure_label": "Integrated Evaluation and Synthesis"
+    },
+    "Integrated Evaluation and Synthesis,1": null,
     "Expert Role Routing,0": {
         "thought": "Similar to Auto-GPT and expert prompting, we can use dynamic control flow in the design to let the agent decide what expert we should use.",
         "name": "Dynamic Assignment of Roles",
@@ -34,57 +62,17 @@
         "api_calls": 4,
         "structure_label": "Expert Role Routing",
         "generation": "initial",
-        "fitness": "95% Bootstrap Confidence Interval: (6.2%, 17.2%), Median: 11.7%"
+        "fitness": "95% Bootstrap Confidence Interval: (6.2%, 16.4%), Median: 10.9%"
     },
     "Expert Role Routing,1": null,
     "Abstraction,0": {
-        "thought": "**Insights:**\nTo improve the clarity and effectiveness of the reasoning process, I propose a refined architecture that separates the extraction of principles and the reasoning into more structured steps while still minimizing API calls. The architecture will first extract the relevant principles and then instruct the model to use those principles systematically to solve the task. \n\n**Overall Idea:**\nThis architecture will maintain the goal of reducing API calls while ensuring that the reasoning process is clear and structured. By explicitly breaking down the task, the LLM can generate more accurate and focused responses based on well-defined principles.\n\n**Implementation:**\n1. Define a clear instruction for extracting mathematical principles that are relevant to the task.\n2. Use a single agent to handle the extraction and then reason based on those principles.\n3. The reasoning should be structured to guide the LLM through the problem-solving process step by step.",
-        "name": "Principle-Driven Structured Reasoning",
-        "code": "def forward(self, taskInfo):\n    # Instruction for extracting principles and reasoning about the task in one step\n    combined_instruction = \"Identify the mathematical principles involved in solving this task and explain how they apply in a step-by-step solution.\"\n    agent = LLMAgentBase([\"thinking\", \"final_answer\"], \"Integrated Reasoning Agent\")\n\n    # Execute the combined instruction to extract principles and reason in one call\n    thinking, final_answer = agent([taskInfo], combined_instruction)\n    return final_answer",
-        "fitness": "95% Bootstrap Confidence Interval: (39.1%, 56.2%), Median: 47.7%",
-        "generation": 4,
-        "api_calls": 1,
-        "structure_label": "Abstraction"
-    },
-    "Abstraction,1": null,
-    "Iterative Self-Improvement,0": null,
-    "Iterative Self-Improvement,1": {
-        "thought": "To enhance its performance, an LLM can iteratively improve its answer based on feedback. By reflecting on its previous attempts and incorporating feedback, the model can refine its reasoning and provide a more accurate solution.",
-        "name": "Self-Refine (Reflexion)",
-        "code": "def forward(self, taskInfo):\n    # Instruction for initial reasoning\n    cot_initial_instruction = \"Please think step by step and then solve the task.\"\n\n    # Instruction for reflecting on previous attempts and feedback to improve\n    cot_reflect_instruction = \"Given previous attempts and feedback, carefully consider where you could go wrong in your latest attempt. Using insights from previous attempts, try to solve the task better.\"\n    cot_agent = LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent')\n\n    # Instruction for providing feedback and correcting the answer\n    critic_instruction = \"Please review the answer above and criticize on where might be wrong. If you are absolutely sure it is correct, output 'True' in 'correct'.\"\n    critic_agent = LLMAgentBase(['feedback', 'correct'], 'Critic Agent')\n    \n    N_max = 5 # Maximum number of attempts\n\n    # Initial attempt\n    cot_inputs = [taskInfo]\n    thinking, answer = cot_agent(cot_inputs, cot_initial_instruction, 0)\n\n    for i in range(N_max):\n        # Get feedback and correct status from the critic\n        feedback, correct = critic_agent([taskInfo, thinking, answer], critic_instruction, i)\n        if correct.content == 'True':\n            break\n            \n        # Add feedback to the inputs for the next iteration\n        cot_inputs.extend([thinking, answer, feedback])\n\n        # Reflect on previous attempts and refine the answer\n        thinking, answer = cot_agent(cot_inputs, cot_reflect_instruction, i + 1)\n    return answer\n",
-        "api_calls": 7,
-        "structure_label": "Iterative Self-Improvement",
+        "thought": "Let LLM first think about the principles involved in solving this task which could be helpful. By understanding the underlying principles, the model can better reason through the problem and provide a more accurate solution.",
+        "name": "Step-back Abstraction",
+        "code": "def forward(self, taskInfo):\n        # Instruction for understanding the principles involved in the task\n        principle_instruction = \"What are the physics, chemistry or biology principles and concepts involved in solving this task? First think step by step. Then list all involved principles and explain them.\"\n        \n        # Instruction for solving the task based on the principles\n        cot_instruction = \"Given the question and the involved principle behind the question, think step by step and then solve the task.\"\n        \n        # Instantiate LLM agents\n        principle_agent = LLMAgentBase(['thinking', 'principle'], 'Principle Agent')\n        cot_agent = LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent')\n        \n        # Get the principles involved in the task\n        thinking, principle = principle_agent([taskInfo], principle_instruction)\n\n        # Use the principles to solve the task\n        thinking, answer = cot_agent([taskInfo, thinking, principle], cot_instruction)\n        return answer\n",
+        "api_calls": 2,
+        "structure_label": "Abstraction",
         "generation": "initial",
-        "fitness": "95% Bootstrap Confidence Interval: (10.2%, 23.4%), Median: 16.4%"
+        "fitness": "95% Bootstrap Confidence Interval: (11.7%, 25.0%), Median: 18.0%"
     },
-    "Multi-Agent Ensemble,0": null,
-    "Multi-Agent Ensemble,1": {
-        "thought": "By letting different LLMs debate with each other, we can leverage their diverse perspectives to find better solutions for tasks.",
-        "name": "LLM Debate",
-        "code": "def forward(self, taskInfo):\n    # Instruction for initial reasoning\n    debate_initial_instruction = \"Please think step by step and then solve the task.\"\n\n    # Instruction for debating and updating the solution based on other agents' solutions\n    debate_instruction = \"Given solutions to the problem from other agents, consider their opinions as additional advice. Please think carefully and provide an updated answer.\"\n    \n    # Initialize debate agents with different roles and a moderate temperature for varied reasoning\n    debate_agents = [LLMAgentBase(['thinking', 'answer'], 'Debate Agent', temperature=0.8, role=role) for role in ['Math Professor', 'Grade School Teacher', 'Math Enthusiast']]\n\n    # Instruction for final decision-making based on all debates and solutions\n    final_decision_instruction = \"Given all the above thinking and answers, reason over them carefully and provide a final answer.\"\n    final_decision_agent = LLMAgentBase(['thinking', 'answer'], 'Final Decision Agent', temperature=0.1)\n\n    max_round = 2 # Maximum number of debate rounds\n    all_thinking = [[] for _ in range(max_round)]\n    all_answer = [[] for _ in range(max_round)]\n\n    # Perform debate rounds\n    for r in range(max_round):\n        for i in range(len(debate_agents)):\n            if r == 0:\n                thinking, answer = debate_agents[i]([taskInfo], debate_initial_instruction)\n            else:\n                input_infos = [taskInfo] + [all_thinking[r-1][i]] + all_thinking[r-1][:i] + all_thinking[r-1][i+1:]\n                thinking, answer = debate_agents[i](input_infos, debate_instruction)\n            all_thinking[r].append(thinking)\n            all_answer[r].append(answer)\n    \n    # Make the final decision based on all debate results and solutions\n    thinking, answer = final_decision_agent([taskInfo] + all_thinking[max_round-1] + all_answer[max_round-1], final_decision_instruction)\n    return answer\n",
-        "api_calls": 9,
-        "structure_label": "Multi-Agent Ensemble",
-        "generation": "initial",
-        "fitness": "95% Bootstrap Confidence Interval: (35.2%, 52.3%), Median: 43.8%"
-    },
-    "Diversity-Driven Exploration,0": {
-        "thought": "**Insights:**\nThe existing architecture can benefit from an enhanced instruction that explicitly encourages diverse methodologies for approaching the solution and incorporates a mechanism for evaluating the proposed solutions. This will lead to a more comprehensive reasoning process that fosters creativity in problem-solving.\n\n**Overall Idea:**\nThe proposed architecture will still utilize a single agent for extraction and reasoning, but it will emphasize generating and comparing multiple diverse methods based on the principles identified. This will optimize the responses and promote a deeper understanding of the problem-solving process.\n\n**Implementation:**\n1. Define a refined instruction that prompts the model to identify principles and generate diverse solution methods, asking it to evaluate and compare them based on effectiveness.\n2. Use one instance of LLMAgentBase to execute this refined instruction.\n3. The output fields will include both the reasoning and a qualitative assessment of the proposed solutions.",
-        "name": "Principle-Driven Diverse Methodology",
-        "code": "def forward(self, taskInfo):\n    # Refined instruction for extracting principles and generating diverse methodologies\n    combined_instruction = \"Identify the mathematical principles involved in solving this task. Propose multiple diverse methods to approach the solution, and choose the best method based on effectiveness. Explain your reasoning.\"\n    agent = LLMAgentBase([\"thinking\", \"final_answer\"], \"Diverse Methodology Agent\")\n\n    # Execute the combined instruction to extract principles and reason in one call\n    thinking, final_answer = agent([taskInfo], combined_instruction)\n    return final_answer",
-        "fitness": "95% Bootstrap Confidence Interval: (29.7%, 46.9%), Median: 38.3%",
-        "generation": 5,
-        "api_calls": 1,
-        "structure_label": "Diversity-Driven Exploration"
-    },
-    "Diversity-Driven Exploration,1": {
-        "thought": "Similar to Quality-Diversity methods, let LLM generate multiple diverse interesting solutions could help. By encouraging the model to explore different reasoning paths, we can increase the chances of finding the best solution.",
-        "name": "Quality-Diversity",
-        "code": "def forward(self, taskInfo):\n    # Instruction for initial reasoning\n    cot_initial_instruction = \"Please think step by step and then solve the task.\"\n\n    # Instruction for giving diverse answers\n    qd_instruction = \"Given previous attempts, try to come up with another interesting way to solve the task.\"\n    cot_agent = LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent')\n\n    # Instruction for final decision-making based on collected reasoning and answers\n    final_decision_instruction = \"Given all the above solutions, reason over them carefully and provide a final answer.\"\n    final_decision_agent = LLMAgentBase(['thinking', 'answer'], 'Final Decision Agent', temperature=0.1)\n    \n    N_max = 3 # Maximum number of attempts\n\n    # Initial attempt\n    cot_inputs = [taskInfo]\n    possible_answers = []\n    thinking, answer = cot_agent(cot_inputs, cot_initial_instruction, 0)\n\n    # Add the answer to the list of possible answers\n    possible_answers.extend([thinking, answer])\n\n    for i in range(N_max):\n        # Reflect on previous attempts and generate another interesting answer\n        cot_inputs.extend([thinking, answer])\n\n        # Generate another interesting answer\n        thinking, answer = cot_agent(cot_inputs, qd_instruction, i + 1)\n        possible_answers.extend([thinking, answer])\n\n    # Make the final decision based on all generated answers\n    thinking, answer = final_decision_agent([taskInfo] + possible_answers, final_decision_instruction)\n    return answer\n",
-        "api_calls": 7,
-        "structure_label": "Diversity-Driven Exploration",
-        "generation": "initial",
-        "fitness": "95% Bootstrap Confidence Interval: (45.3%, 62.5%), Median: 53.9%"
-    },
-    "Other Approaches,0": null,
-    "Other Approaches,1": null
+    "Abstraction,1": null
 }

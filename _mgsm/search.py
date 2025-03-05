@@ -178,24 +178,21 @@ def create_map_elites_structure_api(
     Creates a map elites grid from the candidate archive based on two dimensions:
       - Structure label: taken from each solution's "structure_label" field.
       - API calls: the number of API calls (agent['api_calls']).
-    
+
     Parameters:
         archive (list): List of candidate dictionaries.
         candidate_labels (list, optional): List of allowed structure labels. If None, they are derived from the archive.
         bins_api (int): Number of bins for the API calls dimension (now set to 2).
         min_api (int, optional): Minimum API calls value. If None, computed from the archive.
         max_api (int, optional): Maximum API calls value. If None, computed from the archive.
-    
+
     Returns:
         dict: A dictionary mapping cell keys (as strings, e.g. "Chain-of-Thought,0")
               to the best candidate (elite) in that cell (the one with the highest fitness).
     """
     # Derive candidate labels from the archive if not provided.
     if candidate_labels is None:
-        candidate_labels = list({sol.get("structure_label", "Other Approaches") for sol in archive})
-    # Ensure "Other Approaches" is in the list.
-    if "Other Approaches" not in candidate_labels:
-        candidate_labels.append("Other Approaches")
+        candidate_labels = list({sol.get("structure_label") for sol in archive if "structure_label" in sol})
     
     # Collect all API call counts.
     api_calls_values = [sol['api_calls'] for sol in archive if 'api_calls' in sol]
@@ -214,8 +211,9 @@ def create_map_elites_structure_api(
             continue
         
         label = sol["structure_label"]
+        # If the label is not in the candidate labels, skip this solution.
         if label not in candidate_labels:
-            label = "Other Approaches"
+            continue
         
         api_val = sol["api_calls"]
         norm_api = (api_val - min_api) / (max_api - min_api) if max_api != min_api else 0
@@ -284,7 +282,6 @@ def recheck_label_with_gemini(agent_name, agent_thought, candidate_labels):
         "5. Abstraction: Agents that first step back to identify underlying principles or abstract components before attempting to solve the task.\n"
         "6. Integrated Evaluation and Synthesis: Agents that generate several candidate answers within a single unified process, simultaneously evaluating and fusing them into one coherent final response.\n"
         "7. Diversity-Driven Exploration: Agents that intentionally maximize creative output and explore a wide variety of reasoning paths, even if not immediately synthesizing a final answer.\n"
-        "8. Other Approaches: Any method that does not neatly fit into the above categories.\n\n"
         "Do all the reasoning internally and output only the final label prediction (which must exactly match one of the provided candidate labels) with no additional explanation or text."
     )
     
@@ -330,8 +327,7 @@ def get_structure_label(solution):
         "Expert Role Routing",
         "Abstraction",
         "Integrated Evaluation and Synthesis",
-        "Diversity-Driven Exploration",
-        "Other Approaches"
+        "Diversity-Driven Exploration"
     ]
     
     # Initialize the zero-shot classification pipeline.
@@ -343,7 +339,7 @@ def get_structure_label(solution):
     
     thought_text = solution.get("thought", "")
     if not thought_text:
-        return "Other Approaches"
+        return None
     
     # Get the classification result.
     output = classifier(thought_text, candidate_labels, multi_label=False)

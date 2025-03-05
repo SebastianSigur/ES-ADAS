@@ -1,59 +1,21 @@
 {
-    "Integrated Evaluation and Synthesis,0": {
-        "thought": "**Insights:**\nTo refine the existing architecture, I propose an integrated approach that combines the extraction of principles with a structured reasoning process in a single step. This will allow the model to not only identify relevant principles but also apply them directly to solve the task in a coherent manner.\n\n**Overall Idea:**\nThis architecture will guide the agent to extract relevant mathematical principles and generate a clear, step-by-step solution based on those principles. It aims to balance clarity and creativity without significantly increasing API call usage.\n\n**Implementation:**\n1. Define a clear instruction that prompts the model to identify mathematical principles relevant to the task and generate a systematic solution based on those principles.\n2. Use a single LLMAgentBase instance to execute this instruction, ensuring that principle extraction and reasoning occur in one API call.\n3. Output will include both reasoning and final answer, structured clearly to enhance understanding.",
-        "name": "Integrated Principle-Based Reasoning",
-        "code": "def forward(self, taskInfo):\n    # Instruction for extracting principles and generating reasoning and answer\n    combined_instruction = \"Identify the mathematical principles involved in solving this task. Explain your reasoning step-by-step and provide the final answer clearly.\"\n    agent = LLMAgentBase([\"thinking\", \"answer\"], \"Integrated Reasoning Agent\")\n\n    # Execute the combined instruction to extract principles and reason in one call\n    thinking, answer = agent([taskInfo], combined_instruction)\n    return answer",
-        "fitness": "95% Bootstrap Confidence Interval: (9.4%, 21.9%), Median: 15.6%",
-        "generation": 8,
-        "api_calls": 1,
-        "structure_label": "Integrated Evaluation and Synthesis"
-    },
-    "Integrated Evaluation and Synthesis,1": null,
-    "Chain-of-Thought,0": {
-        "thought": "By encouraging the LLM to think step by step rather than directly outputting an answer, chain-of-thought reasoning enables complex problem-solving through intermediate steps. This practice improves the model's ability to handle tasks that require deeper reasoning and provides insight into its decision-making process.",
-        "name": "Chain-of-Thought",
-        "code": "def forward(self, taskInfo):\n    # Instruction for the Chain-of-Thought (CoT) approach\n    # It is an important practice that allows the LLM to think step by step before solving the task.\n    cot_instruction = \"Please think step by step and then solve the task.\"\n\n    # Instantiate a new LLM agent specifically for CoT\n    # To allow LLM thinking before answering, we need to set an additional output field 'thinking'.\n    cot_agent = LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent')\n\n    # Prepare the inputs for the CoT agent\n    # The input should be a list of Info, and the first one is often the taskInfo\n    cot_agent_inputs = [taskInfo]\n\n    # Get the response from the CoT agent\n    thinking, answer = cot_agent(cot_agent_inputs, cot_instruction)\n\n    # Return only the final answer\n    return answer\n",
-        "api_calls": 1,
-        "structure_label": "Chain-of-Thought",
+    "Diversity-Driven Exploration,0": null,
+    "Diversity-Driven Exploration,1": {
+        "thought": "Similar to Quality-Diversity methods, let LLM generate multiple diverse interesting solutions could help. By encouraging the model to explore different reasoning paths, we can increase the chances of finding the best solution.",
+        "name": "Quality-Diversity",
+        "code": "def forward(self, taskInfo):\n    # Instruction for initial reasoning\n    cot_initial_instruction = \"Please think step by step and then solve the task.\"\n\n    # Instruction for giving diverse answers\n    qd_instruction = \"Given previous attempts, try to come up with another interesting way to solve the task.\"\n    cot_agent = LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent')\n\n    # Instruction for final decision-making based on collected reasoning and answers\n    final_decision_instruction = \"Given all the above solutions, reason over them carefully and provide a final answer.\"\n    final_decision_agent = LLMAgentBase(['thinking', 'answer'], 'Final Decision Agent', temperature=0.1)\n    \n    N_max = 3 # Maximum number of attempts\n\n    # Initial attempt\n    cot_inputs = [taskInfo]\n    possible_answers = []\n    thinking, answer = cot_agent(cot_inputs, cot_initial_instruction, 0)\n\n    # Add the answer to the list of possible answers\n    possible_answers.extend([thinking, answer])\n\n    for i in range(N_max):\n        # Reflect on previous attempts and generate another interesting answer\n        cot_inputs.extend([thinking, answer])\n\n        # Generate another interesting answer\n        thinking, answer = cot_agent(cot_inputs, qd_instruction, i + 1)\n        possible_answers.extend([thinking, answer])\n\n    # Make the final decision based on all generated answers\n    thinking, answer = final_decision_agent([taskInfo] + possible_answers, final_decision_instruction)\n    return answer\n",
+        "api_calls": 7,
+        "structure_label": "Diversity-Driven Exploration",
         "generation": "initial",
-        "fitness": "95% Bootstrap Confidence Interval: (7.8%, 19.5%), Median: 13.3%"
+        "fitness": "95% Bootstrap Confidence Interval: (50.0%, 67.2%), Median: 58.6%"
     },
-    "Chain-of-Thought,1": {
-        "thought": "While an LLM can arrive at the correct answer, its reasoning may vary. By repeatedly asking the same question with high temperature settings, we can generate different reasoning paths. We then combine multiple answers from these Chain-of-Thought (CoT) agents to produce a more accurate final answer through ensembling.",
-        "name": "Self-Consistency with Chain-of-Thought",
-        "code": "def forward(self, taskInfo):\n    # Instruction for step-by-step reasoning\n    cot_instruction = \"Please think step by step and then solve the task.\"\n    N = 5 # Number of CoT agents\n\n    # Initialize multiple CoT agents with a higher temperature for varied reasoning\n    cot_agents = [LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent', temperature=0.8) for _ in range(N)]\n\n    # Majority voting function to select the most common answer\n    from collections import Counter\n    def majority_voting(answers):\n        return Counter(answers).most_common(1)[0][0]\n    \n    possible_answers = []\n    for i in range(N):\n        thinking, answer = cot_agents[i]([taskInfo], cot_instruction)\n        possible_answers.append(answer.content)\n\n    # Ensembling the answers from multiple CoT agents\n    answer = majority_voting(possible_answers)\n    return answer  \n",
-        "api_calls": 5,
-        "structure_label": "Chain-of-Thought",
-        "generation": "initial",
-        "fitness": "95% Bootstrap Confidence Interval: (9.4%, 21.1%), Median: 14.8%"
-    },
-    "Expert Role Routing,0": {
-        "thought": "Similar to Auto-GPT and expert prompting, we can use dynamic control flow in the design to let the agent decide what expert we should use.",
-        "name": "Dynamic Assignment of Roles",
-        "code": "def forward(self, taskInfo):\n        # Instruction for step-by-step reasoning\n        cot_instruction = \"Please think step by step and then solve the task.\"\n        expert_agents = [LLMAgentBase(['thinking', 'answer'], 'Expert Agent', role=role) for role in ['Math Professor', 'Grade School Teacher', 'Math Enthusiast', 'Helpful Assistant']]\n\n        # Instruction for routing the task to the appropriate expert\n        routing_instruction = \"Given the task, please choose an Expert to answer the question. Choose from: Math Professor, Grade School Teacher, Math Enthusiast.\"\n        routing_agent = LLMAgentBase(['choice'], 'Routing agent')\n\n        # Get the choice of expert to route the task\n        choice = routing_agent([taskInfo], routing_instruction)[0]\n\n        if 'professor' in choice.content.lower():\n            expert_id = 0\n        elif 'teacher' in choice.content.lower():\n            expert_id = 1\n        elif 'enthusiast' in choice.content.lower():\n            expert_id = 2\n        else:\n            expert_id = 3 # Default to helpful assistant\n\n        thinking, answer = expert_agents[expert_id]([taskInfo], cot_instruction)\n        return answer\n",
-        "api_calls": 4,
-        "structure_label": "Expert Role Routing",
-        "generation": "initial",
-        "fitness": "95% Bootstrap Confidence Interval: (6.2%, 17.2%), Median: 11.7%"
-    },
-    "Expert Role Routing,1": null,
-    "Abstraction,0": {
-        "thought": "**Insights:**\nTo improve the clarity and effectiveness of the reasoning process, I propose a refined architecture that separates the extraction of principles and the reasoning into more structured steps while still minimizing API calls. The architecture will first extract the relevant principles and then instruct the model to use those principles systematically to solve the task. \n\n**Overall Idea:**\nThis architecture will maintain the goal of reducing API calls while ensuring that the reasoning process is clear and structured. By explicitly breaking down the task, the LLM can generate more accurate and focused responses based on well-defined principles.\n\n**Implementation:**\n1. Define a clear instruction for extracting mathematical principles that are relevant to the task.\n2. Use a single agent to handle the extraction and then reason based on those principles.\n3. The reasoning should be structured to guide the LLM through the problem-solving process step by step.",
-        "name": "Principle-Driven Structured Reasoning",
-        "code": "def forward(self, taskInfo):\n    # Instruction for extracting principles and reasoning about the task in one step\n    combined_instruction = \"Identify the mathematical principles involved in solving this task and explain how they apply in a step-by-step solution.\"\n    agent = LLMAgentBase([\"thinking\", \"final_answer\"], \"Integrated Reasoning Agent\")\n\n    # Execute the combined instruction to extract principles and reason in one call\n    thinking, final_answer = agent([taskInfo], combined_instruction)\n    return final_answer",
-        "fitness": "95% Bootstrap Confidence Interval: (39.1%, 56.2%), Median: 47.7%",
-        "generation": 4,
-        "api_calls": 1,
-        "structure_label": "Abstraction"
-    },
-    "Abstraction,1": null,
     "Iterative Self-Improvement,0": {
-        "thought": "**Insights:**\nTo address the shortfall in the previous architecture regarding API call limits and to enhance the overall process, I propose a more integrated self-improvement architecture. This architecture will utilize a single LLMAgentBase instance that will handle both the generation of diverse initial answers and the refinement of those answers in one step. This will help in reducing API calls while still allowing for iterative self-improvement.\n\n**Overall Idea:**\nThe new proposal aims to generate a set of diverse answers while simultaneously reflecting on their effectiveness. It will efficiently utilize a single call to refine the answers based on feedback. By optimizing the process, we can maintain a robust iterative refinement mechanism that is both effective and compliant with API call restrictions.",
-        "name": "Integrated Self-Improvement Architecture",
-        "code": "def forward(self, taskInfo):\n    # Instruction for generating diverse initial answers and receiving feedback\n    combined_instruction = \"Please think step by step, generate three diverse methods to solve the task, and provide feedback on their effectiveness.\"\n    agent = LLMAgentBase([\"thinking\", \"answers\", \"feedback\"], \"Integrated Improvement Agent\")\n\n    # Execute the combined instruction\n    response = agent([taskInfo], combined_instruction)\n\n    # Extract answers and feedback from the response\n    answers = response[1]  # Assuming answers are the second element in the response\n    feedback = response[2]  # Assuming feedback is the third element in the response\n\n    # Initialize the maximum number of attempts for refinement\n    N_max = 3\n    refined_answers = [answer for answer in answers]  # Collecting content for refinement\n\n    for i in range(N_max):\n        # Prepare inputs for refinement based on feedback\n        refinement_inputs = [taskInfo]\n        for j in range(len(refined_answers)):\n            answer = refined_answers[j]  # Directly use string answer\n            fb = feedback[j]  # Directly use string feedback\n            refinement_inputs.extend([answer, fb])\n        # Consolidate the reflection instruction\n        reflection_instruction = \"Given the feedback on the provided answers, refine them step by step.\"\n        # Call the agent once to refine all answers based on the consolidated inputs\n        response = agent(refinement_inputs + [reflection_instruction])\n\n        # Update refined answers based on the response\n        refined_answers = response[1]  # Update to the new set of refined answers\n\n    # Return the best refined answer, assuming it's the first after refinement\n    return refined_answers[0]",
-        "fitness": "95% Bootstrap Confidence Interval: (0.0%, 0.0%), Median: 0.0%",
-        "generation": 9,
-        "api_calls": 4,
+        "thought": "**Insights:**\nThe current architecture emphasizes iterative self-refinement but misses the opportunity for generating multiple diverse answers in a single call. By allowing the expert agent to provide varied reasoning outputs within one API call, we can enhance the performance and maintain compliance with the API call limit.\n**Overall Idea:**\nThe new architecture will focus on a single expert that generates multiple diverse answers from the same call, evaluating them collectively to select the best response. This reduces the potential for errors in the feedback process and enhances the robustness of the reasoning.\n**Implementation:**\n1. Implement a single call to the expert agent that generates varying perspectives or answers.\n2. Use the output of the expert agent to evaluate and select the best response, ensuring a more efficient and effective reasoning process.",
+        "name": "Diverse Output Expert",
+        "code": "def forward(self, taskInfo):\n    # Instruction for generating diverse answers based on the task\n    diverse_instruction = \"Please think step by step and provide three different perspectives or answers to the task. After generating the answers, decide which is the best one.\"\n    \n    # Instantiate a single expert agent to generate diverse answers\n    expert_agent = LLMAgentBase(['thinking', 'answer'], 'Diverse Output Expert')\n    \n    # Get diverse outputs from the expert agent\n    outputs = expert_agent([taskInfo], diverse_instruction)\n    \n    # Select the best answer from the diverse outputs\n    return outputs[1]  # Assuming the best answer is in the second position of the returned outputs.",
+        "fitness": "95% Bootstrap Confidence Interval: (22.7%, 38.3%), Median: 30.5%",
+        "generation": 2,
+        "api_calls": 1,
         "structure_label": "Iterative Self-Improvement"
     },
     "Iterative Self-Improvement,1": {
@@ -63,36 +25,54 @@
         "api_calls": 7,
         "structure_label": "Iterative Self-Improvement",
         "generation": "initial",
-        "fitness": "95% Bootstrap Confidence Interval: (10.2%, 23.4%), Median: 16.4%"
+        "fitness": "95% Bootstrap Confidence Interval: (13.3%, 26.6%), Median: 19.5%"
     },
-    "Multi-Agent Ensemble,0": null,
-    "Multi-Agent Ensemble,1": {
-        "thought": "By letting different LLMs debate with each other, we can leverage their diverse perspectives to find better solutions for tasks.",
-        "name": "LLM Debate",
-        "code": "def forward(self, taskInfo):\n    # Instruction for initial reasoning\n    debate_initial_instruction = \"Please think step by step and then solve the task.\"\n\n    # Instruction for debating and updating the solution based on other agents' solutions\n    debate_instruction = \"Given solutions to the problem from other agents, consider their opinions as additional advice. Please think carefully and provide an updated answer.\"\n    \n    # Initialize debate agents with different roles and a moderate temperature for varied reasoning\n    debate_agents = [LLMAgentBase(['thinking', 'answer'], 'Debate Agent', temperature=0.8, role=role) for role in ['Math Professor', 'Grade School Teacher', 'Math Enthusiast']]\n\n    # Instruction for final decision-making based on all debates and solutions\n    final_decision_instruction = \"Given all the above thinking and answers, reason over them carefully and provide a final answer.\"\n    final_decision_agent = LLMAgentBase(['thinking', 'answer'], 'Final Decision Agent', temperature=0.1)\n\n    max_round = 2 # Maximum number of debate rounds\n    all_thinking = [[] for _ in range(max_round)]\n    all_answer = [[] for _ in range(max_round)]\n\n    # Perform debate rounds\n    for r in range(max_round):\n        for i in range(len(debate_agents)):\n            if r == 0:\n                thinking, answer = debate_agents[i]([taskInfo], debate_initial_instruction)\n            else:\n                input_infos = [taskInfo] + [all_thinking[r-1][i]] + all_thinking[r-1][:i] + all_thinking[r-1][i+1:]\n                thinking, answer = debate_agents[i](input_infos, debate_instruction)\n            all_thinking[r].append(thinking)\n            all_answer[r].append(answer)\n    \n    # Make the final decision based on all debate results and solutions\n    thinking, answer = final_decision_agent([taskInfo] + all_thinking[max_round-1] + all_answer[max_round-1], final_decision_instruction)\n    return answer\n",
-        "api_calls": 9,
-        "structure_label": "Multi-Agent Ensemble",
-        "generation": "initial",
-        "fitness": "95% Bootstrap Confidence Interval: (35.2%, 52.3%), Median: 43.8%"
-    },
-    "Diversity-Driven Exploration,0": {
-        "thought": "**Insights:**\nThe existing architecture can benefit from an enhanced instruction that explicitly encourages diverse methodologies for approaching the solution and incorporates a mechanism for evaluating the proposed solutions. This will lead to a more comprehensive reasoning process that fosters creativity in problem-solving.\n\n**Overall Idea:**\nThe proposed architecture will still utilize a single agent for extraction and reasoning, but it will emphasize generating and comparing multiple diverse methods based on the principles identified. This will optimize the responses and promote a deeper understanding of the problem-solving process.\n\n**Implementation:**\n1. Define a refined instruction that prompts the model to identify principles and generate diverse solution methods, asking it to evaluate and compare them based on effectiveness.\n2. Use one instance of LLMAgentBase to execute this refined instruction.\n3. The output fields will include both the reasoning and a qualitative assessment of the proposed solutions.",
-        "name": "Principle-Driven Diverse Methodology",
-        "code": "def forward(self, taskInfo):\n    # Refined instruction for extracting principles and generating diverse methodologies\n    combined_instruction = \"Identify the mathematical principles involved in solving this task. Propose multiple diverse methods to approach the solution, and choose the best method based on effectiveness. Explain your reasoning.\"\n    agent = LLMAgentBase([\"thinking\", \"final_answer\"], \"Diverse Methodology Agent\")\n\n    # Execute the combined instruction to extract principles and reason in one call\n    thinking, final_answer = agent([taskInfo], combined_instruction)\n    return final_answer",
-        "fitness": "95% Bootstrap Confidence Interval: (29.7%, 46.9%), Median: 38.3%",
-        "generation": 5,
+    "Chain-of-Thought,0": {
+        "thought": "By encouraging the LLM to think step by step rather than directly outputting an answer, chain-of-thought reasoning enables complex problem-solving through intermediate steps. This practice improves the model's ability to handle tasks that require deeper reasoning and provides insight into its decision-making process.",
+        "name": "Chain-of-Thought",
+        "code": "def forward(self, taskInfo):\n    # Instruction for the Chain-of-Thought (CoT) approach\n    # It is an important practice that allows the LLM to think step by step before solving the task.\n    cot_instruction = \"Please think step by step and then solve the task.\"\n\n    # Instantiate a new LLM agent specifically for CoT\n    # To allow LLM thinking before answering, we need to set an additional output field 'thinking'.\n    cot_agent = LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent')\n\n    # Prepare the inputs for the CoT agent\n    # The input should be a list of Info, and the first one is often the taskInfo\n    cot_agent_inputs = [taskInfo]\n\n    # Get the response from the CoT agent\n    thinking, answer = cot_agent(cot_agent_inputs, cot_instruction)\n\n    # Return only the final answer\n    return answer\n",
         "api_calls": 1,
-        "structure_label": "Diversity-Driven Exploration"
-    },
-    "Diversity-Driven Exploration,1": {
-        "thought": "Similar to Quality-Diversity methods, let LLM generate multiple diverse interesting solutions could help. By encouraging the model to explore different reasoning paths, we can increase the chances of finding the best solution.",
-        "name": "Quality-Diversity",
-        "code": "def forward(self, taskInfo):\n    # Instruction for initial reasoning\n    cot_initial_instruction = \"Please think step by step and then solve the task.\"\n\n    # Instruction for giving diverse answers\n    qd_instruction = \"Given previous attempts, try to come up with another interesting way to solve the task.\"\n    cot_agent = LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent')\n\n    # Instruction for final decision-making based on collected reasoning and answers\n    final_decision_instruction = \"Given all the above solutions, reason over them carefully and provide a final answer.\"\n    final_decision_agent = LLMAgentBase(['thinking', 'answer'], 'Final Decision Agent', temperature=0.1)\n    \n    N_max = 3 # Maximum number of attempts\n\n    # Initial attempt\n    cot_inputs = [taskInfo]\n    possible_answers = []\n    thinking, answer = cot_agent(cot_inputs, cot_initial_instruction, 0)\n\n    # Add the answer to the list of possible answers\n    possible_answers.extend([thinking, answer])\n\n    for i in range(N_max):\n        # Reflect on previous attempts and generate another interesting answer\n        cot_inputs.extend([thinking, answer])\n\n        # Generate another interesting answer\n        thinking, answer = cot_agent(cot_inputs, qd_instruction, i + 1)\n        possible_answers.extend([thinking, answer])\n\n    # Make the final decision based on all generated answers\n    thinking, answer = final_decision_agent([taskInfo] + possible_answers, final_decision_instruction)\n    return answer\n",
-        "api_calls": 7,
-        "structure_label": "Diversity-Driven Exploration",
+        "structure_label": "Chain-of-Thought",
         "generation": "initial",
-        "fitness": "95% Bootstrap Confidence Interval: (45.3%, 62.5%), Median: 53.9%"
+        "fitness": "95% Bootstrap Confidence Interval: (7.0%, 18.8%), Median: 12.5%"
     },
-    "Other Approaches,0": null,
-    "Other Approaches,1": null
+    "Chain-of-Thought,1": {
+        "thought": "While an LLM can arrive at the correct answer, its reasoning may vary. By repeatedly asking the same question with high temperature settings, we can generate different reasoning paths. We then combine multiple answers from these Chain-of-Thought (CoT) agents to produce a more accurate final answer through ensembling.",
+        "name": "Self-Consistency with Chain-of-Thought",
+        "code": "def forward(self, taskInfo):\n    # Instruction for step-by-step reasoning\n    cot_instruction = \"Please think step by step and then solve the task.\"\n    N = 5 # Number of CoT agents\n\n    # Initialize multiple CoT agents with a higher temperature for varied reasoning\n    cot_agents = [LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent', temperature=0.8) for _ in range(N)]\n\n    # Majority voting function to select the most common answer\n    from collections import Counter\n    def majority_voting(answers):\n        return Counter(answers).most_common(1)[0][0]\n    \n    possible_answers = []\n    for i in range(N):\n        thinking, answer = cot_agents[i]([taskInfo], cot_instruction)\n        possible_answers.append(answer.content)\n\n    # Ensembling the answers from multiple CoT agents\n    answer = majority_voting(possible_answers)\n    return answer  \n",
+        "api_calls": 5,
+        "structure_label": "Chain-of-Thought",
+        "generation": "initial",
+        "fitness": "95% Bootstrap Confidence Interval: (4.7%, 14.8%), Median: 9.4%"
+    },
+    "Integrated Evaluation and Synthesis,0": {
+        "thought": "**Insights:**\nThe new approach should ideally combine the generation of potential answers and their evaluation into a singular, cohesive reasoning process without multiple calls. This can be achieved by prompting the agent to generate an answer while simultaneously considering the evaluation criteria. This could allow for a more nuanced understanding of the task at hand while still adhering strictly to the API call limit.\n**Overall Idea:**\nThe architecture will focus on generating multiple answers and evaluating them in one step. It will incorporate a mechanism that allows the agent to reflect on the generated answers to select the most accurate one based on logical consistency.",
+        "name": "Integrated Evaluation Chain-of-Thought",
+        "code": "def forward(self, taskInfo):\n    # Instruction for generating answers while evaluating them\n    instruction = \"Please think step by step and provide three different answers to the task. After generating the answers, evaluate them based on logical consistency and select the best one.\"\n    \n    # Instantiate the agent to generate and evaluate outputs in one go\n    integrated_agent = LLMAgentBase(['thinking', 'answer'], 'Integrated Evaluation Chain-of-Thought Agent')\n    \n    # Get multiple outputs from the agent\n    outputs = integrated_agent([taskInfo], instruction)\n    \n    # Process outputs to find the best answer\n    best_answer = None\n    for output in outputs:\n        # Evaluate each answer based on the task's criteria\n        try:\n            answer_value = int(output.content)\n            # Initialize or update the best answer based on value\n            if best_answer is None or answer_value > int(best_answer.content):\n                best_answer = output\n        except (ValueError, TypeError):\n            continue  # Skip non-integer answers\n    \n    # Return the best answer or a fallback if none are valid\n    return best_answer if best_answer is not None else Info('answer', 'Integrated Evaluation Chain-of-Thought Agent', 'No valid answers generated.', 0)",
+        "fitness": "95% Bootstrap Confidence Interval: (45.3%, 62.5%), Median: 53.9%",
+        "generation": 9,
+        "api_calls": 1,
+        "structure_label": "Integrated Evaluation and Synthesis"
+    },
+    "Integrated Evaluation and Synthesis,1": null,
+    "Expert Role Routing,0": {
+        "thought": "Similar to Auto-GPT and expert prompting, we can use dynamic control flow in the design to let the agent decide what expert we should use.",
+        "name": "Dynamic Assignment of Roles",
+        "code": "def forward(self, taskInfo):\n        # Instruction for step-by-step reasoning\n        cot_instruction = \"Please think step by step and then solve the task.\"\n        expert_agents = [LLMAgentBase(['thinking', 'answer'], 'Expert Agent', role=role) for role in ['Math Professor', 'Grade School Teacher', 'Math Enthusiast', 'Helpful Assistant']]\n\n        # Instruction for routing the task to the appropriate expert\n        routing_instruction = \"Given the task, please choose an Expert to answer the question. Choose from: Math Professor, Grade School Teacher, Math Enthusiast.\"\n        routing_agent = LLMAgentBase(['choice'], 'Routing agent')\n\n        # Get the choice of expert to route the task\n        choice = routing_agent([taskInfo], routing_instruction)[0]\n\n        if 'professor' in choice.content.lower():\n            expert_id = 0\n        elif 'teacher' in choice.content.lower():\n            expert_id = 1\n        elif 'enthusiast' in choice.content.lower():\n            expert_id = 2\n        else:\n            expert_id = 3 # Default to helpful assistant\n\n        thinking, answer = expert_agents[expert_id]([taskInfo], cot_instruction)\n        return answer\n",
+        "api_calls": 4,
+        "structure_label": "Expert Role Routing",
+        "generation": "initial",
+        "fitness": "95% Bootstrap Confidence Interval: (6.2%, 16.4%), Median: 10.9%"
+    },
+    "Expert Role Routing,1": null,
+    "Abstraction,0": {
+        "thought": "Let LLM first think about the principles involved in solving this task which could be helpful. By understanding the underlying principles, the model can better reason through the problem and provide a more accurate solution.",
+        "name": "Step-back Abstraction",
+        "code": "def forward(self, taskInfo):\n        # Instruction for understanding the principles involved in the task\n        principle_instruction = \"What are the physics, chemistry or biology principles and concepts involved in solving this task? First think step by step. Then list all involved principles and explain them.\"\n        \n        # Instruction for solving the task based on the principles\n        cot_instruction = \"Given the question and the involved principle behind the question, think step by step and then solve the task.\"\n        \n        # Instantiate LLM agents\n        principle_agent = LLMAgentBase(['thinking', 'principle'], 'Principle Agent')\n        cot_agent = LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent')\n        \n        # Get the principles involved in the task\n        thinking, principle = principle_agent([taskInfo], principle_instruction)\n\n        # Use the principles to solve the task\n        thinking, answer = cot_agent([taskInfo, thinking, principle], cot_instruction)\n        return answer\n",
+        "api_calls": 2,
+        "structure_label": "Abstraction",
+        "generation": "initial",
+        "fitness": "95% Bootstrap Confidence Interval: (11.7%, 25.0%), Median: 18.0%"
+    },
+    "Abstraction,1": null
 }
