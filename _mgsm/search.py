@@ -280,8 +280,7 @@ def recheck_label_with_gemini(agent_name, agent_thought, candidate_labels):
         "3. Iterative Self-Improvement: Agents that produce an initial answer and then refine it through multiple iterations using internal feedback.\n"
         "4. Expert Role Routing: Agents that dynamically assign specialized roles or select experts to handle different aspects of the task.\n"
         "5. Abstraction: Agents that first step back to identify underlying principles or abstract components before attempting to solve the task.\n"
-        "6. Integrated Evaluation and Synthesis: Agents that generate several candidate answers within a single unified process, simultaneously evaluating and fusing them into one coherent final response.\n"
-        "7. Diversity-Driven Exploration: Agents that intentionally maximize creative output and explore a wide variety of reasoning paths, even if not immediately synthesizing a final answer.\n"
+        "6. Diversity-Driven Exploration: Agents that intentionally maximize creative output and explore a wide variety of reasoning paths, even if not immediately synthesizing a final answer.\n"
         "Do all the reasoning internally and output only the final label prediction (which must exactly match one of the provided candidate labels) with no additional explanation or text."
     )
     
@@ -326,7 +325,6 @@ def get_structure_label(solution):
         "Iterative Self-Improvement",
         "Expert Role Routing",
         "Abstraction",
-        "Integrated Evaluation and Synthesis",
         "Diversity-Driven Exploration"
     ]
     
