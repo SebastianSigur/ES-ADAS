@@ -170,7 +170,7 @@ class AgentSystem():
 def create_map_elites_structure_api(
     archive,
     candidate_labels=None,
-    bins_api=3,
+    bins_api=2,
     min_api=None,
     max_api=None
 ):
@@ -182,7 +182,7 @@ def create_map_elites_structure_api(
     Parameters:
         archive (list): List of candidate dictionaries.
         candidate_labels (list, optional): List of allowed structure labels. If None, they are derived from the archive.
-        bins_api (int): Number of bins for the API calls dimension (default is 3).
+        bins_api (int): Number of bins for the API calls dimension (now set to 2).
         min_api (int, optional): Minimum API calls value. If None, computed from the archive.
         max_api (int, optional): Maximum API calls value. If None, computed from the archive.
     
@@ -210,33 +210,24 @@ def create_map_elites_structure_api(
     grid = {f"{label},{i}": None for label in candidate_labels for i in range(bins_api)}
     
     for sol in archive:
-        # Only process solutions that have the necessary fields.
         if 'structure_label' not in sol or 'api_calls' not in sol or 'fitness' not in sol:
             continue
         
-        # Get the structure label; if not in candidate_labels, map to "Other Approaches".
         label = sol["structure_label"]
         if label not in candidate_labels:
             label = "Other Approaches"
         
-        # Normalize the API calls value to [0, 1] and compute the bin index.
         api_val = sol["api_calls"]
         norm_api = (api_val - min_api) / (max_api - min_api) if max_api != min_api else 0
         api_bin = min(int(norm_api * bins_api), bins_api - 1)
-        
-        # Create the cell key.
         cell_key = f"{label},{api_bin}"
-        
-        # Get the fitness value using the existing get_upper_bound function.
         new_fitness = get_upper_bound(sol['fitness'])
         
-        # If the cell is empty, assign this solution.
         if grid[cell_key] is None:
             grid[cell_key] = sol
         else:
             current_sol = grid[cell_key]
             current_fitness = get_upper_bound(current_sol['fitness'])
-            # Update the cell if the new candidate has higher fitness (accuracy).
             if new_fitness > current_fitness:
                 grid[cell_key] = sol
 
@@ -361,7 +352,9 @@ def get_structure_label(solution):
     
     # If the confidence is low (≤ 0.5), recheck using Gemini.
     if score <= 0.5:
-        new_label = recheck_label_with_gemini(solution["name"], thought_text, candidate_labels)
+        # Use .get() to safely retrieve "name", providing a default if missing.
+        agent_name = solution.get("name", "Unknown Agent")
+        new_label = recheck_label_with_gemini(agent_name, thought_text, candidate_labels)
         return new_label if new_label is not None else predicted_label
     else:
         return predicted_label
@@ -389,6 +382,9 @@ def search(args):
     ## Gemini's response should include only the number of API calls made. Add that information to each solution.
     for solution in archive:
         solution["api_calls"] = count_api_calls(solution["code"])
+    
+        ## Add a structure label to each solution
+        solution["structure_label"] = get_structure_label(solution)
 
     # ## Ensure each candidate has an 'api_calls' field (for map elites dimension). Default to 0 if missing.
     # for solution in archive:
@@ -417,16 +413,8 @@ def search(args):
         # save results
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         with open(file_path, 'w') as json_file:
-            json.dump(archive, json_file, indent=4)
+            json.dump(archive, json_file, indent=4)        
 
-
-    # ------------------------------------------------------------
-    ## Add a structure label to each solution
-    for solution in archive:
-        solution["structure_label"] = get_structure_label(solution)
-    # ------------------------------------------------------------
-
-    
     # ------------------------------------------------------------
     # Compute current map elites using predefined function create_map(). Get fitness scores from above
     map_elites = create_map_elites_structure_api(archive,
@@ -441,15 +429,22 @@ def search(args):
         # Randomly choses a cell in the map. Then passes stores the respective agent of that cell and the category in two new variables agent & category
         # ------------------------------------------------------------
         if map_elites:
+            # Randomly choose a cell from the map elites.
             cell = random.choice(list(map_elites.keys()))
-            selected_agent = map_elites[cell]
-            # The cell key format is "structure_label,api_bin"
             parts = cell.split(',')
             structure_label = parts[0]
             api_bin = int(parts[1])
-            # Define the mapping for API calls bins.
-            api_calls_mapping = {0: "few API calls", 1: "medium number of API calls", 2: "medium-high number of API calls"}
+            # Define the mapping for API calls bins using only 2 bins.
+            api_calls_mapping = {0: "few API calls", 1: "many API calls"}
             category_text = f"{structure_label}, {api_calls_mapping.get(api_bin, 'unknown API calls')}"
+            
+            selected_agent = map_elites[cell]
+            # If the selected cell is empty, search for another cell with the same structure_label.
+            if selected_agent is None:
+                for key, candidate in map_elites.items():
+                    if key.startswith(structure_label + ",") and candidate is not None:
+                        selected_agent = candidate
+                        break
         else:
             selected_agent = None
             category_text = None
@@ -514,10 +509,16 @@ def search(args):
 
         # ------------------------------------------------------------
         ## Call Gemini again similar to before to assess the number of API calls made and add it to next_solution
-        next_solution["api_calls"] = count_api_calls(next_solution["code"])
+        if "code" in next_solution:
+            next_solution["api_calls"] = count_api_calls(next_solution["code"])
+        else:
+            print("Warning: next_solution is missing the 'code' field, skipping API call count.")
         # ------------------------------------------------------------
         ## Give Structure label to newly generated solution
-        next_solution["structure_label"] = get_structure_label(next_solution)
+        if "thought" in next_solution:
+            next_solution["structure_label"] = get_structure_label(next_solution)
+        else:
+            print("Warning: next_solution is missing the 'thought' field, skipping structure label assignment.")
         # ------------------------------------------------------------
 
 
@@ -699,14 +700,14 @@ if __name__ == "__main__":
     parser.add_argument('--debug', action='store_true', default=True)
     parser.add_argument('--save_dir', type=str, default='results/')
     parser.add_argument('--expr_name', type=str, default="mgsm_gpt3.5_results")
-    parser.add_argument('--n_generation', type=int, default=5)
+    parser.add_argument('--n_generation', type=int, default=20)
     parser.add_argument('--debug_max', type=int, default=5)
     parser.add_argument('--max_agents', type=int, default=2)
 
     # ------------------------------------------------------------
     # Map elites parameters:
     parser.add_argument('--bins_dim1', type=int, default=3, help="Number of bins for performance dimension (default 3)")
-    parser.add_argument('--bins_dim2', type=int, default=3, help="Number of bins for API calls dimension (default 3)")
+    parser.add_argument('--bins_dim2', type=int, default=2, help="Number of bins for API calls dimension (default 2)")
     parser.add_argument('--min_dim1', type=float, default=None, help="Minimum performance value (if not provided, computed from archive)")
     parser.add_argument('--max_dim1', type=float, default=None, help="Maximum performance value (if not provided, computed from archive)")
     parser.add_argument('--min_dim2', type=int, default=None, help="Minimum api_calls value (if not provided, computed from archive)")
