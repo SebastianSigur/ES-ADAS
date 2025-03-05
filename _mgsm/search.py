@@ -167,84 +167,78 @@ class AgentSystem():
 
 
 #-------------------------------------------------------------------------------------------------------#
-def create_map_elites(
+def create_map_elites_structure_api(
     archive,
-    bins_dim1=3,
-    bins_dim2=3,
-    min_dim1=None,
-    max_dim1=None,
-    min_dim2=None,
-    max_dim2=None
+    candidate_labels=None,
+    bins_api=3,
+    min_api=None,
+    max_api=None
 ):
     """
     Creates a map elites grid from the candidate archive based on two dimensions:
-      - Dimension 1: Performance (obtained by get_upper_bound(agent['fitness']))
-      - Dimension 2: API calls (agent['api_calls'])
+      - Structure label: taken from each solution's "structure_label" field.
+      - API calls: the number of API calls (agent['api_calls']).
     
     Parameters:
         archive (list): List of candidate dictionaries.
-        bins_dim1 (int): Number of bins (cells) for the performance dimension. (Default is 3.)
-        bins_dim2 (int): Number of bins (cells) for the API calls dimension. (Default is 3.)
-        min_dim1 (float, optional): Minimum performance value. If None, computed from the archive.
-        max_dim1 (float, optional): Maximum performance value. If None, computed from the archive.
-        min_dim2 (int, optional): Minimum API calls value. If None, computed from the archive.
-        max_dim2 (int, optional): Maximum API calls value. If None, computed from the archive.
+        candidate_labels (list, optional): List of allowed structure labels. If None, they are derived from the archive.
+        bins_api (int): Number of bins for the API calls dimension (default is 3).
+        min_api (int, optional): Minimum API calls value. If None, computed from the archive.
+        max_api (int, optional): Maximum API calls value. If None, computed from the archive.
     
     Returns:
-        dict: A dictionary mapping cell keys (as strings, e.g. "0,1") to the best candidate (elite) in that cell.
+        dict: A dictionary mapping cell keys (as strings, e.g. "Chain-of-Thought,0")
+              to the best candidate (elite) in that cell (the one with the highest fitness).
     """
-    # Collect performance and API calls values from candidates with these fields.
-    fitness_values = [get_upper_bound(agent['fitness']) for agent in archive if 'fitness' in agent]
-    api_calls_values = [agent['api_calls'] for agent in archive if 'api_calls' in agent]
-
-    # If no valid values, return an empty map.
-    if not fitness_values or not api_calls_values:
+    # Derive candidate labels from the archive if not provided.
+    if candidate_labels is None:
+        candidate_labels = list({sol.get("structure_label", "Other Approaches") for sol in archive})
+    # Ensure "Other Approaches" is in the list.
+    if "Other Approaches" not in candidate_labels:
+        candidate_labels.append("Other Approaches")
+    
+    # Collect all API call counts.
+    api_calls_values = [sol['api_calls'] for sol in archive if 'api_calls' in sol]
+    if not api_calls_values:
         return {}
-
-    # Determine bounds if not provided.
-    if min_dim1 is None:
-        min_dim1 = min(fitness_values)
-    if max_dim1 is None:
-        max_dim1 = max(fitness_values)
-    if min_dim2 is None:
-        min_dim2 = min(api_calls_values)
-    if max_dim2 is None:
-        max_dim2 = max(api_calls_values)
-
-    # Initialize grid dictionary with string keys.
-    grid = {f"{i},{j}": None for i in range(bins_dim1) for j in range(bins_dim2)}
-
-    for agent in archive:
-        if 'fitness' not in agent or 'api_calls' not in agent:
+    if min_api is None:
+        min_api = min(api_calls_values)
+    if max_api is None:
+        max_api = max(api_calls_values)
+    
+    # Initialize grid with keys as "structure_label,api_bin"
+    grid = {f"{label},{i}": None for label in candidate_labels for i in range(bins_api)}
+    
+    for sol in archive:
+        # Only process solutions that have the necessary fields.
+        if 'structure_label' not in sol or 'api_calls' not in sol or 'fitness' not in sol:
             continue
-
-        new_fitness = get_upper_bound(agent['fitness'])
-        new_api_calls = agent['api_calls']
-
-        # Normalize values to [0, 1] based on provided or computed bounds.
-        norm_fitness = (new_fitness - min_dim1) / (max_dim1 - min_dim1) if max_dim1 != min_dim1 else 0
-        norm_api_calls = (new_api_calls - min_dim2) / (max_dim2 - min_dim2) if max_dim2 != min_dim2 else 0
-
-        # Determine cell indices.
-        cell_i = min(int(norm_fitness * bins_dim1), bins_dim1 - 1)
-        cell_j = min(int(norm_api_calls * bins_dim2), bins_dim2 - 1)
-        cell_key = f"{cell_i},{cell_j}"
-
-        # If the cell is empty, assign the candidate.
+        
+        # Get the structure label; if not in candidate_labels, map to "Other Approaches".
+        label = sol["structure_label"]
+        if label not in candidate_labels:
+            label = "Other Approaches"
+        
+        # Normalize the API calls value to [0, 1] and compute the bin index.
+        api_val = sol["api_calls"]
+        norm_api = (api_val - min_api) / (max_api - min_api) if max_api != min_api else 0
+        api_bin = min(int(norm_api * bins_api), bins_api - 1)
+        
+        # Create the cell key.
+        cell_key = f"{label},{api_bin}"
+        
+        # Get the fitness value using the existing get_upper_bound function.
+        new_fitness = get_upper_bound(sol['fitness'])
+        
+        # If the cell is empty, assign this solution.
         if grid[cell_key] is None:
-            grid[cell_key] = agent
+            grid[cell_key] = sol
         else:
-            # Retrieve current elite's metrics.
-            current_agent = grid[cell_key]
-            current_fitness = get_upper_bound(current_agent['fitness'])
-            current_api_calls = current_agent['api_calls']
-
-            # Pareto dominance condition:
-            # New candidate must be at least as good in both dimensions,
-            # and strictly better in at least one.
-            if ((new_fitness >= current_fitness and new_api_calls <= current_api_calls) and 
-                (new_fitness > current_fitness or new_api_calls < current_api_calls)):
-                grid[cell_key] = agent
+            current_sol = grid[cell_key]
+            current_fitness = get_upper_bound(current_sol['fitness'])
+            # Update the cell if the new candidate has higher fitness (accuracy).
+            if new_fitness > current_fitness:
+                grid[cell_key] = sol
 
     return grid
 #-------------------------------------------------------------------------------------------------------#
@@ -281,6 +275,101 @@ def count_api_calls(forward_code):
         print("Error assessing API calls:", e)
         return 0
 #-------------------------------------------------------------------------------------------------------#
+
+
+
+#-------------------------------------------------------------------------------------------------------#
+# Defines a function that takes the solution thought and name as details as input, and outputs a label for the structure.
+# The label is created via using a BERT model and gemini
+def recheck_label_with_gemini(agent_name, agent_thought, candidate_labels):
+    system_prompt = (
+        "You are an expert in classification and label verification. You are given an agent’s name, its detailed \"thought\" description, "
+        "and a set of candidate labels. The initial classification from a BERT model is highly uncertain (confidence ≤ 0.5). Your task is to "
+        "reassess the agent’s approach and decide which candidate label best fits the agent’s design. Below are the candidate labels with their descriptions:\n\n"
+        "1. Chain-of-Thought: Agents that use an explicit internal reasoning chain, stepping through the problem sequentially to reach an answer.\n"
+        "2. Multi-Agent Ensemble: Agents that run multiple independent reasoning paths in parallel and aggregate their outputs (e.g., via voting) to determine the final answer.\n"
+        "3. Iterative Self-Improvement: Agents that produce an initial answer and then refine it through multiple iterations using internal feedback.\n"
+        "4. Expert Role Routing: Agents that dynamically assign specialized roles or select experts to handle different aspects of the task.\n"
+        "5. Abstraction: Agents that first step back to identify underlying principles or abstract components before attempting to solve the task.\n"
+        "6. Integrated Evaluation and Synthesis: Agents that generate several candidate answers within a single unified process, simultaneously evaluating and fusing them into one coherent final response.\n"
+        "7. Diversity-Driven Exploration: Agents that intentionally maximize creative output and explore a wide variety of reasoning paths, even if not immediately synthesizing a final answer.\n"
+        "8. Other Approaches: Any method that does not neatly fit into the above categories.\n\n"
+        "Do all the reasoning internally and output only the final label prediction (which must exactly match one of the provided candidate labels) with no additional explanation or text."
+    )
+    
+    user_prompt = (
+        f"Agent Name: {agent_name}\n"
+        f"Agent Thought: {agent_thought}\n"
+        f"Candidate Labels: {', '.join(candidate_labels)}\n\n"
+        "The initial classification is highly uncertain. Please re-evaluate and output only the final label prediction."
+    )
+    
+    try:
+        response = gemini_client.models.generate_content(
+            model='gemini-1.5-flash-8b',
+            contents=system_prompt + "\n\n" + user_prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.0,
+                max_output_tokens=256,
+                stop_sequences=None,
+                response_mime_type='text/plain'
+            )
+        )
+        final_label = response.text.strip()
+        return final_label
+    except Exception as e:
+        print("Error during Gemini reclassification:", e)
+        return None
+
+
+def get_structure_label(solution):
+    """
+    Determines the structure label for a candidate solution based on its 'thought' field.
+    Uses a zero-shot classification pipeline with a set of candidate labels.
+    If the classifier confidence is low (≤ 0.5), it rechecks using Gemini via recheck_label_with_gemini().
+    
+    Returns:
+        A string representing the structure label.
+    """
+    # Define the candidate labels for structure classification.
+    candidate_labels = [
+        "Chain-of-Thought",
+        "Multi-Agent Ensemble",
+        "Iterative Self-Improvement",
+        "Expert Role Routing",
+        "Abstraction",
+        "Integrated Evaluation and Synthesis",
+        "Diversity-Driven Exploration",
+        "Other Approaches"
+    ]
+    
+    # Initialize the zero-shot classification pipeline.
+    # This uses the MoritzLaurer/mDeBERTa-v3-base-mnli-xnli model.
+    from transformers import pipeline
+    classifier = pipeline(
+        "zero-shot-classification", 
+        model="MoritzLaurer/mDeBERTa-v3-base-mnli-xnli", 
+        device=0
+    )
+    
+    thought_text = solution.get("thought", "")
+    if not thought_text:
+        return "Other Approaches"
+    
+    # Get the classification result.
+    output = classifier(thought_text, candidate_labels, multi_label=False)
+    predicted_label = output['labels'][0]
+    score = output['scores'][0]
+    
+    # If the confidence is low (≤ 0.5), recheck using Gemini.
+    if score <= 0.5:
+        new_label = recheck_label_with_gemini(solution["name"], thought_text, candidate_labels)
+        return new_label if new_label is not None else predicted_label
+    else:
+        return predicted_label
+#-------------------------------------------------------------------------------------------------------#
+
+
 
 def search(args):
 
@@ -331,13 +420,21 @@ def search(args):
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         with open(file_path, 'w') as json_file:
             json.dump(archive, json_file, indent=4)
+
+
+    # ------------------------------------------------------------
+    ## Add a structure label to each solution
+    for solution in archive:
+        solution["structure_label"] = get_structure_label(solution)
+    # ------------------------------------------------------------
+
     
     # ------------------------------------------------------------
     # Compute current map elites using predefined function create_map(). Get fitness scores from above
-    map_elites = create_map_elites(archive,
-                                   bins_dim1=args.bins_dim1,bins_dim2=args.bins_dim2,
-                                   min_dim1=args.min_dim1,max_dim1=args.max_dim1,
-                                   min_dim2=args.min_dim2,max_dim2=args.max_dim2)
+    map_elites = create_map_elites_structure_api(archive,
+                                                 candidate_labels=None,  # Derived from archive if None
+                                                 bins_api=args.bins_dim2,
+                                                 min_api=args.min_dim2, max_api=args.max_dim2)
     # ------------------------------------------------------------
     
     ## Generates n new solutions (n_generation parameter)
@@ -348,14 +445,13 @@ def search(args):
         if map_elites:
             cell = random.choice(list(map_elites.keys()))
             selected_agent = map_elites[cell]
-            # Map cell coordinates to descriptive text.
-            performance_mapping = {0: "medium accuracy", 1: "high accuracy", 2: "very high accuracy"}
+            # The cell key format is "structure_label,api_bin"
+            parts = cell.split(',')
+            structure_label = parts[0]
+            api_bin = int(parts[1])
+            # Define the mapping for API calls bins.
             api_calls_mapping = {0: "few API calls", 1: "medium number of API calls", 2: "medium-high number of API calls"}
-            cell_parts = cell.split(',')
-            cell_i, cell_j = map(int, cell_parts)
-
-            # Default to 'unknown' if the index is out of the expected range.
-            category_text = f"{performance_mapping.get(cell_i, 'unknown accuracy')}, {api_calls_mapping.get(cell_j, 'unknown API calls')}"
+            category_text = f"{structure_label}, {api_calls_mapping.get(api_bin, 'unknown API calls')}"
         else:
             selected_agent = None
             category_text = None
@@ -422,6 +518,9 @@ def search(args):
         ## Call Gemini again similar to before to assess the number of API calls made and add it to next_solution
         next_solution["api_calls"] = count_api_calls(next_solution["code"])
         # ------------------------------------------------------------
+        ## Give Structure label to newly generated solution
+        next_solution["structure_label"] = get_structure_label(next_solution)
+        # ------------------------------------------------------------
 
 
         if 'debug_thought' in next_solution:
@@ -437,10 +536,10 @@ def search(args):
         
         # ------------------------------------------------------------
         # Updates map of elites in case of better performance achieved for that specific cell.
-        map_elites = create_map_elites(archive,
-                                   bins_dim1=args.bins_dim1,bins_dim2=args.bins_dim2,
-                                   min_dim1=args.min_dim1,max_dim1=args.max_dim1,
-                                   min_dim2=args.min_dim2,max_dim2=args.max_dim2)
+        map_elites = create_map_elites_structure_api(archive,
+                                                     bins_api=args.bins_dim2,
+                                                     candidate_labels=None,
+                                                     min_api=args.min_dim2, max_api=args.max_dim2)
                
         # Store the map of elites after every generation as a new file.
         map_file_path = os.path.join(args.save_dir, f"{args.expr_name}_map_elites_gen{n+1}.json")
@@ -602,7 +701,7 @@ if __name__ == "__main__":
     parser.add_argument('--debug', action='store_true', default=True)
     parser.add_argument('--save_dir', type=str, default='results/')
     parser.add_argument('--expr_name', type=str, default="mgsm_gpt3.5_results")
-    parser.add_argument('--n_generation', type=int, default=40)
+    parser.add_argument('--n_generation', type=int, default=5)
     parser.add_argument('--debug_max', type=int, default=5)
     parser.add_argument('--max_agents', type=int, default=2)
 

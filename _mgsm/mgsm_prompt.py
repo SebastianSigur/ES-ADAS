@@ -481,7 +481,7 @@ return answer
 # Your task
 You are deeply familiar with LLM prompting techniques and LLM agent works from the literature.
 Your goal is to maximize "fitness" by designing an improved agent that is specifically tailored to the category: [CATEGORY]. You are provided with a selected agent as inspiration: [SELECTED_AGENT].
-Your task is to mutate and refine this agent to create a better-performing variant that meets the category constraints.
+Your task is to mutate and refine this agent to create a better-performing variant that meets [CATEGORY]. Stay within the category for the structure of the agent. Your goal is to improve its performance.
 Observe the discovered architectures carefully and consider the insights, lessons, or stepping stones they provide.
 Draw inspiration from related LLM agent papers or academic literature from other research areas. Focus on modifications that can enhance performance while optimizing resource usage in line with the specified category.
 THINK OUTSIDE THE BOX.
