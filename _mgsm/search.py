@@ -348,9 +348,7 @@ def get_structure_label(solution):
     from transformers import pipeline
     classifier = pipeline(
         "zero-shot-classification", 
-        model="MoritzLaurer/mDeBERTa-v3-base-mnli-xnli", 
-        device=0
-    )
+        model="MoritzLaurer/mDeBERTa-v3-base-mnli-xnli")
     
     thought_text = solution.get("thought", "")
     if not thought_text:
