@@ -66,7 +66,7 @@ def get_json_response_from_gpt(
                 
             )
         )
-    except 4 as e:
+    except Exception as e:
         print(e)
         raise e
     
@@ -402,9 +402,7 @@ def evaluate_forward_fn(args, forward_str):
             elif 'D)' in res.content:
                 predicted_idx = 3
             else:
-                print(f"error in q {q_idx}: {res}, {task_queue}, {results}")
-                import sys
-                sys.exit(1)
+                print(f"error in q {q_idx}: {res}")
                 acc_list.append(0)
                 continue
         except Exception as e:
@@ -423,7 +421,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_filename', type=str, default="dataset/mmlu.csv")
     parser.add_argument('--valid_size', type=int, default=128)
-    parser.add_argument('--test_size', type=int, default=800)
+    parser.add_argument('--test_size', type=int, default=400)
     parser.add_argument('--shuffle_seed', type=int, default=0)
     parser.add_argument('--n_repreat', type=int, default=1)
     parser.add_argument('--multiprocessing', action='store_true', default=True)
@@ -432,7 +430,7 @@ if __name__ == "__main__":
     parser.add_argument('--save_dir', type=str, default='results/')
     parser.add_argument('--expr_name', type=str, default="mmlu_gpt3.5_results")
     parser.add_argument('--n_generation', type=int, default=20)
-    parser.add_argument('--debug_max', type=int, default=3)
+    parser.add_argument('--debug_max', type=int, default=1)
     parser.add_argument('--max_agents', type=int, default=5)
 
     args = parser.parse_args()
