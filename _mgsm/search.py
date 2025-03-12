@@ -692,14 +692,14 @@ if __name__ == "__main__":
     parser.add_argument('--multiprocessing', action='store_true', default=True)
     parser.add_argument('--max_workers', type=int, default=48)
     parser.add_argument('--debug', action='store_true', default=True)
-    parser.add_argument('--save_dir', type=str, default='results/')
+    parser.add_argument('--save_dir', type=str, default='results_mgsm_config1/')
     parser.add_argument('--expr_name', type=str, default="mgsm_gpt3.5_results")
     parser.add_argument('--n_generation', type=int, default=20)
-    parser.add_argument('--debug_max', type=int, default=5)
-    parser.add_argument('--max_agents', type=int, default=2)
+    parser.add_argument('--debug_max', type=int, default=3)
+    parser.add_argument('--max_agents', type=int, default=5)
 
     # ------------------------------------------------------------
-    # Map elites parameters:
+    # Map elites arguments:
     parser.add_argument('--bins_dim1', type=int, default=3, help="Number of bins for performance dimension (default 3)")
     parser.add_argument('--bins_dim2', type=int, default=2, help="Number of bins for API calls dimension (default 2)")
     parser.add_argument('--min_dim1', type=float, default=None, help="Minimum performance value (if not provided, computed from archive)")
@@ -708,14 +708,29 @@ if __name__ == "__main__":
     parser.add_argument('--max_dim2', type=int, default=None, help="Maximum api_calls value (if not provided, computed from archive)")
     # ------------------------------------------------------------
 
+    # Arguments for multiple runs to test variance
+    parser.add_argument('--num_runs', type=int, default=3, help="Number of runs to execute")
+    parser.add_argument('--base_seed', type=int, default=42, help="Base seed value for the first run")
 
 
 
     args = parser.parse_args()
-    # search
-    SEARCHING_MODE = True
-    search(args)
 
-    # evaluate
-    SEARCHING_MODE = False
-    evaluate(args)
+    # Store the original expr_name for later prefixing.
+    original_expr_name = args.expr_name
+
+    for run in range(args.num_runs):
+        # Update the seed for each run (for example, add the run number to the base_seed)
+        args.shuffle_seed = args.base_seed + run
+        
+        # Modify expr_name to include the run prefix (run1_, run2_, etc.)
+        args.expr_name = f"run{run+1}_{original_expr_name}"
+        print(f"Starting run {run+1} with seed {args.shuffle_seed} and expr_name {args.expr_name}")
+        
+        # Run the search phase with SEARCHING_MODE turned on.
+        SEARCHING_MODE = True
+        search(args)
+        
+        # Then perform the evaluation phase.
+        SEARCHING_MODE = False
+        evaluate(args)
