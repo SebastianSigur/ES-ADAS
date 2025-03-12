@@ -723,6 +723,10 @@ if __name__ == "__main__":
         # Update the seed for each run (for example, add the run number to the base_seed)
         args.shuffle_seed = args.base_seed + run
         
+        # Set the seed for Python's random module and NumPy at the beginning of each run.
+        random.seed(args.shuffle_seed)
+        np.random.seed(args.shuffle_seed)
+
         # Modify expr_name to include the run prefix (run1_, run2_, etc.)
         args.expr_name = f"run{run+1}_{original_expr_name}"
         print(f"Starting run {run+1} with seed {args.shuffle_seed} and expr_name {args.expr_name}")
