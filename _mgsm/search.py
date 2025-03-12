@@ -69,7 +69,7 @@ def get_json_response_from_gpt(
         print(e)
         raise e
     content = response.text
-    json_dict = json.loads(content)
+    json_dict = json.loads(content) # double-quote vs single quote caused issues in some agents
     assert not json_dict is None
     return json_dict
 
@@ -394,9 +394,9 @@ if __name__ == "__main__":
     parser.add_argument('--max_workers', type=int, default=48)
     parser.add_argument('--debug', action='store_true', default=True)
     parser.add_argument('--save_dir', type=str, default='results/')
-    parser.add_argument('--expr_name', type=str, default="mgsm_gpt3.5_results")
-    parser.add_argument('--n_generation', type=int, default=20)
-    parser.add_argument('--debug_max', type=int, default=3)
+    parser.add_argument('--expr_name', type=str, default="test5_mgsm_gpt3.5_results")
+    parser.add_argument('--n_generation', type=int, default=30)
+    parser.add_argument('--debug_max', type=int, default=5)
     parser.add_argument('--max_agents', type=int, default=5)
 
 
