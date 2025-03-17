@@ -285,7 +285,7 @@ def evaluate(args):
         with open(eval_file_path, 'r') as json_file:
             eval_archive = json.load(json_file)
             
-    evaluation_candidates = [] # only choosing top agents to evaluate
+    
     
     current_idx = 0
     while (current_idx < len(archive)):
@@ -295,7 +295,7 @@ def evaluate(args):
         
         count = 0
         max_agents = args.max_agents
-
+        evaluation_candidates = []
         for archived_agent in archive:
             if archived_agent['generation'] == "initial":
                 evaluation_candidates.append(archived_agent)
@@ -310,6 +310,9 @@ def evaluate(args):
         if current_idx < len(eval_archive):
             current_idx += 1
             continue
+        
+        if current_idx >= len(evaluation_candidates):
+            break
         sol = evaluation_candidates[current_idx]
         print(f"current_gen: {sol['generation']}, current_idx: {current_idx}")
         current_idx += 1
