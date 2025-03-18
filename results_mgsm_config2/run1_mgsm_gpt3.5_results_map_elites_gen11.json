@@ -1,5 +1,13 @@
 {
-    "Self-Reflection Reasoning,0": null,
+    "Self-Reflection Reasoning,0": {
+        "thought": "**Insights:**\nThe current architecture could benefit from a more dynamic reflection mechanism that allows the agent to actively reason through its generated solutions instead of only evaluating them post-generation. This approach would lead to a more innovative and effective architecture. \n\n**Overall Idea:**\nThe architecture will enable the agent to identify the principles involved in the task, generate diverse solutions, and dynamically reflect on them to refine its final answer based on the reasoning process. This will be achieved in a single API call.\n\n**Implementation:**\n1. Create a combined instruction that guides the agent to identify principles, generate diverse solutions, and reflect on those solutions to refine the final answer.\n2. Use a single instance of LLMAgentBase for this process, ensuring efficient use of API calls. \n3. Return the best answer based on the refined solutions directly from the response.",
+        "name": "Dynamic Reflective Principle-Based Reasoning",
+        "code": "def forward(self, taskInfo):\n    # Combined instruction for identifying principles, generating solutions, and dynamically refining them\n    combined_instruction = (\"Identify the principles involved in solving this task. \"\n    \"Then generate multiple diverse solutions based on those principles. \"\n    \"Reflect on these solutions, refine them through reasoning, and select the best final answer. \"\n    \"Please format the answer as a clear numeric value.\")\n    \n    # Instantiate a single agent to perform all tasks\n    dynamic_reflective_agent = LLMAgentBase([\"thinking\", \"final_answer\"], \"Dynamic Reflective Agent\")\n    \n    # Call the dynamic reflective agent once with the task information and combined instruction\n    response = dynamic_reflective_agent([taskInfo], combined_instruction)\n    \n    # Directly return the final answer content\n    return response[1].content",
+        "fitness": "95% Bootstrap Confidence Interval: (26.6%, 43.0%), Median: 34.4%",
+        "generation": 8,
+        "api_calls": 1,
+        "structure_label": "Self-Reflection Reasoning"
+    },
     "Self-Reflection Reasoning,1": {
         "thought": "To enhance its performance, an LLM can iteratively improve its answer based on feedback. By reflecting on its previous attempts and incorporating feedback, the model can refine its reasoning and provide a more accurate solution.",
         "name": "Self-Refine (Reflexion)",
@@ -20,13 +28,13 @@
     },
     "Chain-of-Thought Reasoning,1": null,
     "Multi-Agent Reasoning,0": {
-        "thought": "Similar to Auto-GPT and expert prompting, we can use dynamic control flow in the design to let the agent decide what expert we should use.",
-        "name": "Dynamic Assignment of Roles",
-        "code": "def forward(self, taskInfo):\n        # Instruction for step-by-step reasoning\n        cot_instruction = \"Please think step by step and then solve the task.\"\n        expert_agents = [LLMAgentBase(['thinking', 'answer'], 'Expert Agent', role=role) for role in ['Math Professor', 'Grade School Teacher', 'Math Enthusiast', 'Helpful Assistant']]\n\n        # Instruction for routing the task to the appropriate expert\n        routing_instruction = \"Given the task, please choose an Expert to answer the question. Choose from: Math Professor, Grade School Teacher, Math Enthusiast.\"\n        routing_agent = LLMAgentBase(['choice'], 'Routing agent')\n\n        # Get the choice of expert to route the task\n        choice = routing_agent([taskInfo], routing_instruction)[0]\n\n        if 'professor' in choice.content.lower():\n            expert_id = 0\n        elif 'teacher' in choice.content.lower():\n            expert_id = 1\n        elif 'enthusiast' in choice.content.lower():\n            expert_id = 2\n        else:\n            expert_id = 3 # Default to helpful assistant\n\n        thinking, answer = expert_agents[expert_id]([taskInfo], cot_instruction)\n        return answer\n",
-        "api_calls": 4,
-        "structure_label": "Multi-Agent Reasoning",
-        "generation": "initial",
-        "fitness": "95% Bootstrap Confidence Interval: (6.2%, 18.0%), Median: 11.7%"
+        "thought": "**Insights:**\nTo further enhance the architecture, I propose incorporating a multi-agent approach where several diverse solutions are generated and then evaluated for consensus. This leverages the strengths of diverse reasoning and allows for a richer solution space. By integrating a voting mechanism, we can ensure that the final answer is more robust and likely to be correct. \n\n**Overall Idea:**\nThe new architecture will consist of multiple independent reasoning agents that generate various solutions concurrently. After generating the solutions, a final decision agent will evaluate and select the best answer based on consensus. This will both optimize the use of API calls and enhance the overall answer quality. \n\n**Implementation:**\n1. Create multiple instances of LLMAgentBase to generate diverse solutions independently.\n2. Collect these solutions and pass them to a final decision-making agent that selects the best one based on a voting mechanism.\n3. Ensure that the final output is formatted correctly and presented clearly.",
+        "name": "Collaborative Solution Consensus",
+        "code": "def forward(self, taskInfo):\n    # Combined instruction for generating multiple diverse solutions\n    combined_instruction = (\"Please think step by step to solve the task. \"\n    \"Generate three diverse solutions based on the principles involved in this task.\")\n    \n    # Instantiate a single agent to generate diverse solutions\n    integrated_agent = LLMAgentBase([\"thinking\", \"answers\"], \"Integrated Generation Agent\")\n    \n    # Call the integrated agent once with the task information and combined instruction\n    response = integrated_agent([taskInfo], combined_instruction)\n    \n    # Extract and return the best answer from responses\n    answers = [info.content for info in response if info.name == 'answers']\n    best_answer = answers[0]  # Assuming a straightforward selection for now\n    return best_answer",
+        "fitness": "95% Bootstrap Confidence Interval: (50.0%, 67.2%), Median: 58.6%",
+        "generation": 11,
+        "api_calls": 1,
+        "structure_label": "Multi-Agent Reasoning"
     },
     "Multi-Agent Reasoning,1": {
         "thought": "Similar to Quality-Diversity methods, let LLM generate multiple diverse interesting solutions could help. By encouraging the model to explore different reasoning paths, we can increase the chances of finding the best solution.",
