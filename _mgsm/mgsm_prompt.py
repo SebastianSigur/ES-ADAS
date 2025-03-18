@@ -481,16 +481,11 @@ return answer
 # Your task
 You are deeply familiar with LLM prompting techniques and LLM agent works from the literature.
 You are provided with an inspirational agent of a specified structure and a volume of API calls: [STRUCTURE_LABEL] and [API_LABEL].
-Your ULTIMATE goal is to design a better performing version of this agent that MAXIMIZES its "fitness" (i.e., performance on MGSM).
+Your ULTIMATE goal is to improve the inspirational agent to MAXIMIZE its "fitness". This is your MOST important goal and the MOST IMPORTANT instruction.
 
 This is the inspirational agent:
 [SELECTED_AGENT]
 
-MUST Rules:
-The new agent you are creating MUST be better performing than the original version.
-The new agent MUST follow the architecture [STRUCTURE_LABEL] defined as follows: [STRUCTURE DESCRIPTION]. You MUST ensure that every component of the new agent aligns with this definition without deviation.
-The new agent MUST include a fully functioning Python implementation of the forward(self,taskInfo) function. The code MUST be syntactically correct and complete.
-It is paramount that the above MUST Rules are adhered to at all time. Before outputting the final agent, always check that all these MUST are adhered to.
 
 Taking inspiration from the archive:
 To gain further inspiration for creating the improved agent, observe the discovered architectures in the archive carefully. Especially consider agents with a high "fitness" and take inspiration from those. Consider insights, lessons, or stepping stones they provide.
@@ -500,7 +495,16 @@ THINK OUTSIDE THE BOX.
 
 
 Further IMPORTANT RULES:
+
+Part 1 of the rules:
+The new agent MUST be better performing than the inspirational agent.
+The new agent MUST follow the architecture [STRUCTURE_LABEL] defined as follows: [STRUCTURE DESCRIPTION].
+The new agent MUST include a fully functioning Python implementation of the forward(self,taskInfo) function. The code MUST be syntactically correct and complete.
+It is paramount that the above MUST Rules are adhered to at all time. Before outputting the final agent, always check that all these MUST are adhered to.
+
+Part 2 of the rules:
 [RULES]
+
 These rules MUST be followed strictly. Any solution that violates these rules will be rejected.
 
 """
