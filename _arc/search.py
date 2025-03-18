@@ -66,6 +66,7 @@ def get_json_response_from_gpt(
             
         )
     )
+
     content = response.text
     json_dict = json.loads(content)
     assert not json_dict is None
@@ -314,7 +315,7 @@ def search(args):
             continue
 
         acc_list = []
-        for _ in range(args.debug_max):
+        for d in range(args.debug_max):
             try:
                 acc_list = evaluate_forward_fn(args, next_solution["code"])
                 if np.mean(acc_list) < 0.01 and SEARCHING_MODE:
@@ -325,6 +326,8 @@ def search(args):
                 print(e)
                 msg_list.append({"role": "assistant", "content": str(next_solution)})
                 msg_list.append({"role": "user", "content": f"Error during evaluation:\n{e}\nCarefully consider where you went wrong in your latest implementation. Using insights from previous attempts, try to debug the current code to implement the same thought. Repeat your previous thought in 'thought', and put your thinking for debugging in 'debug_thought'"})
+                if d >= args.debug_max - 1:
+                    continue
                 try:
                     next_solution = get_json_response_from_gpt_reflect(msg_list)
                 except Exception as e:
@@ -435,7 +438,6 @@ def evaluate_forward_fn(args, forward_str):
         arc_dir = args.val_data_path
     else:
         arc_dir = args.test_data_path
-    print(arc_dir)
     with open(arc_dir, 'rb') as pickle_file:
         arc_data_queue = pickle.load(pickle_file)
 
@@ -482,7 +484,7 @@ if __name__ == "__main__":
     parser.add_argument('--expr_name', type=str, default='arc_gpt3.5_results')
     parser.add_argument('--n_generation', type=int, default=20)
     parser.add_argument('--reflect_max', type=int, default=3)
-    parser.add_argument('--debug_max', type=int, default=3)
+    parser.add_argument('--debug_max', type=int, default=1)
     parser.add_argument('--max_agents', type=int, default=5)
 
     args = parser.parse_args()

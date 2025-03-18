@@ -258,6 +258,13 @@ def search(args):
             json.dump(archive, json_file, indent=4)
 
 
+def get_upper_bound(upper_bound_string):
+    match = re.search(r'\(([\d.]+)%,\s*([\d.]+)%\)', upper_bound_string)
+    if match:
+        return float(match.group(2))
+    else:
+        return 0.0
+    
 def evaluate(args):
     file_path = os.path.join(args.save_dir, f"{args.expr_name}_run_archive.json")
     eval_file_path = str(os.path.join(args.save_dir, f"{args.expr_name}_run_archive.json")).strip(".json") + "_evaluate.json"
@@ -268,16 +275,38 @@ def evaluate(args):
         with open(eval_file_path, 'r') as json_file:
             eval_archive = json.load(json_file)
 
+    evaluation_candidates = [] # only choosing top agents to evaluate
+    print(f"len(archive): {len(archive)}")
     current_idx = 0
     while (current_idx < len(archive)):
         with open(file_path, 'r') as json_file:
             archive = json.load(json_file)
+            
+        sorted_archive = sorted(archive, key=lambda x: get_upper_bound(x['fitness']), reverse=True)
+        count = 0
+        max_agents = args.max_agents
+        initial_count = 0
+        for archived_agent in archive:
+            if archived_agent['generation'] == "initial":
+                evaluation_candidates.append(archived_agent)
+                initial_count += 1
+        for archived_agent in sorted_archive:
+            if archived_agent['generation'] == "initial":
+                continue
+            if count >= max_agents:
+                break
+            evaluation_candidates.append(archived_agent)
+            count += 1
+            
+        if len(eval_archive) - initial_count >= args.max_agents:
+            break
         if current_idx < len(eval_archive):
             current_idx += 1
             continue
-        sol = archive[current_idx]
+        sol = evaluation_candidates[current_idx]
         print(f"current_gen: {sol['generation']}, current_idx: {current_idx}")
         current_idx += 1
+        
         try:
             acc_list = evaluate_forward_fn(args, sol["code"])
         except Exception as e:
@@ -329,7 +358,6 @@ def evaluate_forward_fn(args, forward_str):
     acc_list = []
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         results = list(tqdm(executor.map(agentSystem.forward, task_queue), total=len(task_queue)))
-
     for q_idx, res in enumerate(results):
         try:
             if isinstance(res, str) and res in LETTER_TO_INDEX:
