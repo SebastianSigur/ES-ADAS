@@ -480,18 +480,26 @@ return answer
 
 # Your task
 You are deeply familiar with LLM prompting techniques and LLM agent works from the literature.
-You are provided with a selected agent from a specified structure and a volume of API calls: [STRUCTURE_LABEL] and [API_LABEL].
-Your ultimate goal is to mutate the selected agent to maximize its "fitness". To do so, you design a better performing version of the selected agent.
-The new agent you are creating NEEDS to adhere to the structure [STRUCTURE_LABEL] which is defined as follows: [STRUCTURE DESCRIPTION]. Ensure that the new agent adheres to this structure at all time.
-Also, the new agent should have [API_LABEL].
+You are provided with an inspirational agent of a specified structure and a volume of API calls: [STRUCTURE_LABEL] and [API_LABEL].
+Your ULTIMATE goal is to design a better performing version of this agent that MAXIMIZES its "fitness" (i.e., performance on MGSM).
 
+This is the inspirational agent:
+[SELECTED_AGENT]
+
+MUST Rules:
+The new agent you are creating MUST be better performing than the original version.
+The new agent MUST follow the architecture [STRUCTURE_LABEL] defined as follows: [STRUCTURE DESCRIPTION]. You MUST ensure that every component of the new agent aligns with this definition without deviation.
+The new agent MUST include a fully functioning Python implementation of the forward(self,taskInfo) function. The code MUST be syntactically correct and complete.
+It is paramount that the above MUST Rules are adhered to at all time. Before outputting the final agent, always check that all these MUST are adhered to.
+
+Taking inspiration from the archive:
 To gain further inspiration for creating the improved agent, observe the discovered architectures in the archive carefully. Especially consider agents with a high "fitness" and take inspiration from those. Consider insights, lessons, or stepping stones they provide.
 Disregard agents with low performance and avoid mistakes they made.
 Draw inspiration from related LLM agent papers or academic literature from other research areas. Focus on modifications that can enhance performance while optimizing resource usage in line with the specified structure and volume of API calls.
 THINK OUTSIDE THE BOX.
 
 
-IMPORTANT RULES:
+Further IMPORTANT RULES:
 [RULES]
 These rules MUST be followed strictly. Any solution that violates these rules will be rejected.
 
