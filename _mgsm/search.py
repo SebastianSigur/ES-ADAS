@@ -431,7 +431,7 @@ def search(args):
             api_bin = int(parts[1])
             # Define the mapping for API calls bins using only 2 bins.
             api_calls_mapping = {0: "few API calls", 1: "many API calls"}
-            category_text = f"{structure_label}, {api_calls_mapping.get(api_bin, 'unknown API calls')}"
+            api_label = api_calls_mapping.get(api_bin, "few API calls")
             
             selected_agent = map_elites[cell]
             # If the selected cell is empty, search for another cell with the same structure_label.
@@ -442,14 +442,15 @@ def search(args):
                         break
         else:
             selected_agent = None
-            category_text = None
+            structure_label = None
+            api_label = None
         # ------------------------------------------------------------
 
 
         ## Uses pre-defined system prompt to generate new solution
         ## Performs two relfexions to improve quality of new solution
         print(f"============Generation {n + 1}=================")
-        system_prompt, prompt = get_prompt(archive, selected_agent, category_text)
+        system_prompt, prompt = get_prompt(archive, selected_agent, structure_label, api_label)
         msg_list = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompt},
@@ -458,7 +459,7 @@ def search(args):
 
             next_solution = get_json_response_from_gpt_reflect(msg_list)
 
-            Reflexion_prompt_1, Reflexion_prompt_2 = get_reflexion_prompt(archive[-1] if n > 0 else None, category=category_text)
+            Reflexion_prompt_1, Reflexion_prompt_2 = get_reflexion_prompt(archive[-1] if n > 0 else None, structure_label, api_label)
             # Reflexion 1
             msg_list.append({"role": "assistant", "content": str(next_solution)})
             msg_list.append({"role": "user", "content": Reflexion_prompt_1})
@@ -693,7 +694,7 @@ if __name__ == "__main__":
     parser.add_argument('--multiprocessing', action='store_true', default=True)
     parser.add_argument('--max_workers', type=int, default=48)
     parser.add_argument('--debug', action='store_true', default=True)
-    parser.add_argument('--save_dir', type=str, default='results_mgsm_config2/')
+    parser.add_argument('--save_dir', type=str, default='results_mgsm_config3/')
     parser.add_argument('--expr_name', type=str, default="mgsm_gpt3.5_results")
     parser.add_argument('--n_generation', type=int, default=20)
     parser.add_argument('--debug_max', type=int, default=3)

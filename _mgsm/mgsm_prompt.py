@@ -480,9 +480,10 @@ return answer
 
 # Your task
 You are deeply familiar with LLM prompting techniques and LLM agent works from the literature.
-You are provided with a selected agent from a category - a specified structure and a volume of API calls: [CATEGORY].
-Your goal is to mutate the selected agent to maximize its "fitness". To do so, you mutate and design an improved version of the selected agent's architecture.
-The new agent you are creating needs to be specifically tailored to the structure and volume of API calls outlined in [CATEGORY].
+You are provided with a selected agent from a specified structure and a volume of API calls: [STRUCTURE_LABEL] and [API_LABEL].
+Your ultimate goal is to mutate the selected agent to maximize its "fitness". To do so, you design a better performing version of the selected agent.
+The new agent you are creating NEEDS to adhere to the structure [STRUCTURE_LABEL] which is defined as follows: [STRUCTURE DESCRIPTION]. Ensure that the new agent adheres to this structure at all time.
+Also, the new agent should have [API_LABEL].
 
 To gain further inspiration for creating the improved agent, observe the discovered architectures in the archive carefully. Especially consider agents with a high "fitness" and take inspiration from those. Consider insights, lessons, or stepping stones they provide.
 Disregard agents with low performance and avoid mistakes they made.
@@ -555,23 +556,39 @@ def get_init_archive():
     return [COT, COT_SC, Reflexion, LLM_debate, Take_a_step_back, QD, Role_Assignment]
 
 
-def get_prompt(current_archive, selected_agent=None, category=None, adaptive=False):
+def get_prompt(current_archive, selected_agent=None, structure_label=None, api_label=None, adaptive=False):
     # Convert the archive to a JSON string
     archive_str = ",\n".join([json.dumps(sol) for sol in current_archive])
     archive_str = f"[{archive_str}]"
+
     # Replace [ARCHIVE] and [EXAMPLE] as before
     prompt = base.replace("[ARCHIVE]", archive_str)
     prompt = prompt.replace("[EXAMPLE]", json.dumps(EXAMPLE))
-    api_calls_text = category.split(',')[1].strip() 
-    rules = RULES(api_calls_text)
+
+    # Use the api_label (if provided) to generate rules.
+    rules = RULES(api_label if api_label is not None else "few API calls")
     prompt = prompt.replace("[RULES]", rules)
     
-    # Replace the new placeholders:
-    # For the category, if provided, otherwise use an empty string.
-    if category is not None:
-        prompt = prompt.replace("[CATEGORY]", category)
+    # Replace the new placeholders for structure and API labels.
+    if structure_label is not None:
+        prompt = prompt.replace("[STRUCTURE_LABEL]", structure_label)
     else:
-        prompt = prompt.replace("[CATEGORY]", "")
+        prompt = prompt.replace("[STRUCTURE_LABEL]", "")
+    
+    if api_label is not None:
+        prompt = prompt.replace("[API_LABEL]", api_label)
+    else:
+        prompt = prompt.replace("[API_LABEL]", "")
+    
+    # Replace [LABEL DESCRIPTION] with the corresponding description based on structure_label.
+    label_descriptions = {
+        "Chain-of-Thought Reasoning": "Generates a single, linear, step-by-step reasoning process with every intermediate step explicitly shown.",
+        "Multi-Agent Reasoning": "Runs several independent reasoning modules in parallel and aggregates their outputs to form the final answer.",
+        "Self-Reflection Reasoning": "Produces an initial answer, then internally critiques and refines it through iterative self-review.",
+        "Abstraction to Principles Reasoning": "First abstracts the problem’s details into high-level principles, then uses these abstractions to guide the solution."
+    }
+    label_description = label_descriptions.get(structure_label, "")
+    prompt = prompt.replace("[LABEL DESCRIPTION]", label_description)
     
     # For the selected agent, if provided, we convert it to a JSON string
     if selected_agent is not None:
@@ -583,17 +600,19 @@ def get_prompt(current_archive, selected_agent=None, category=None, adaptive=Fal
 
 
 
-def get_reflexion_prompt(prev_example, category=None):
+def get_reflexion_prompt(prev_example, structure_label=None, api_label=None):
     prev_example_str = "Here is the previous agent you tried:\n" + json.dumps(prev_example) + "\n\n"
-    r1 = Reflexion_prompt_1.replace("[EXAMPLE]", prev_example_str) if prev_example else Reflexion_prompt_1.replace("[EXAMPLE]", "")
-    api_calls_text = category.split(',')[1].strip() 
-    rules = RULES(api_calls_text)
+    r1 = (Reflexion_prompt_1.replace("[EXAMPLE]", prev_example_str)
+          if prev_example else Reflexion_prompt_1.replace("[EXAMPLE]", ""))
+    # Generate rules using the provided api_label directly (or an empty string if not provided)
+    rules = RULES(api_label if api_label is not None else "")
     r1 = r1.replace("[RULES]", rules)
-    Reflexion_prompt_2 = """Using the tips in "## WRONG Implementation examples" section, revise the code further.
+    
+    reflexion_prompt_2 = """Using the tips in "## WRONG Implementation examples" section, revise the code further.
     Make sure to follow the rules strictly: [RULES]
     Your response should be organized as follows:
     Put your new reflection thinking in "reflection". Repeat the previous "thought" and "name", and update the corrected version of the code in "code".
     """
-    Reflexion_prompt_2 = Reflexion_prompt_2.replace("[RULES]", rules)
-
-    return r1, Reflexion_prompt_2
+    reflexion_prompt_2 = reflexion_prompt_2.replace("[RULES]", rules)
+    
+    return r1, reflexion_prompt_2
