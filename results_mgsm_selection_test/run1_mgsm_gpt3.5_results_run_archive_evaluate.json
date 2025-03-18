@@ -6,7 +6,8 @@
         "api_calls": 1,
         "structure_label": "Chain-of-Thought Reasoning",
         "generation": "initial",
-        "fitness": "95% Bootstrap Confidence Interval: (7.8%, 19.5%), Median: 13.3%"
+        "fitness": "95% Bootstrap Confidence Interval: (7.8%, 19.5%), Median: 13.3%",
+        "test_fitness": "95% Bootstrap Confidence Interval: (12.1%, 17.0%), Median: 14.5%"
     },
     {
         "thought": "While an LLM can arrive at the correct answer, its reasoning may vary. By repeatedly asking the same question with high temperature settings, we can generate different reasoning paths. We then combine multiple answers from these Chain-of-Thought (CoT) agents to produce a more accurate final answer through ensembling.",
@@ -15,7 +16,8 @@
         "api_calls": 5,
         "structure_label": "Multi-Agent Reasoning",
         "generation": "initial",
-        "fitness": "95% Bootstrap Confidence Interval: (7.0%, 18.8%), Median: 12.5%"
+        "fitness": "95% Bootstrap Confidence Interval: (7.0%, 18.8%), Median: 12.5%",
+        "test_fitness": "95% Bootstrap Confidence Interval: (11.9%, 16.8%), Median: 14.2%"
     },
     {
         "thought": "To enhance its performance, an LLM can iteratively improve its answer based on feedback. By reflecting on its previous attempts and incorporating feedback, the model can refine its reasoning and provide a more accurate solution.",
@@ -24,7 +26,8 @@
         "api_calls": 7,
         "structure_label": "Self-Reflection Reasoning",
         "generation": "initial",
-        "fitness": "95% Bootstrap Confidence Interval: (14.1%, 28.1%), Median: 21.1%"
+        "fitness": "95% Bootstrap Confidence Interval: (14.1%, 28.1%), Median: 21.1%",
+        "test_fitness": "95% Bootstrap Confidence Interval: (14.0%, 19.1%), Median: 16.5%"
     },
     {
         "thought": "By letting different LLMs debate with each other, we can leverage their diverse perspectives to find better solutions for tasks.",
@@ -33,7 +36,8 @@
         "api_calls": 9,
         "structure_label": "Multi-Agent Reasoning",
         "generation": "initial",
-        "fitness": "95% Bootstrap Confidence Interval: (43.8%, 60.9%), Median: 52.3%"
+        "fitness": "95% Bootstrap Confidence Interval: (43.8%, 60.9%), Median: 52.3%",
+        "test_fitness": "95% Bootstrap Confidence Interval: (41.8%, 48.8%), Median: 45.2%"
     },
     {
         "thought": "Let LLM first think about the principles involved in solving this task which could be helpful. By understanding the underlying principles, the model can better reason through the problem and provide a more accurate solution.",
@@ -42,7 +46,8 @@
         "api_calls": 2,
         "structure_label": "Abstraction to Principles Reasoning",
         "generation": "initial",
-        "fitness": "95% Bootstrap Confidence Interval: (18.8%, 33.6%), Median: 25.8%"
+        "fitness": "95% Bootstrap Confidence Interval: (18.8%, 33.6%), Median: 25.8%",
+        "test_fitness": "95% Bootstrap Confidence Interval: (21.0%, 26.9%), Median: 23.9%"
     },
     {
         "thought": "Similar to Quality-Diversity methods, let LLM generate multiple diverse interesting solutions could help. By encouraging the model to explore different reasoning paths, we can increase the chances of finding the best solution.",
@@ -51,7 +56,8 @@
         "api_calls": 7,
         "structure_label": "Multi-Agent Reasoning",
         "generation": "initial",
-        "fitness": "95% Bootstrap Confidence Interval: (52.3%, 69.5%), Median: 60.9%"
+        "fitness": "95% Bootstrap Confidence Interval: (52.3%, 69.5%), Median: 60.9%",
+        "test_fitness": "95% Bootstrap Confidence Interval: (50.6%, 57.4%), Median: 54.0%"
     },
     {
         "thought": "Similar to Auto-GPT and expert prompting, we can use dynamic control flow in the design to let the agent decide what expert we should use.",
@@ -60,25 +66,8 @@
         "api_calls": 4,
         "structure_label": "Multi-Agent Reasoning",
         "generation": "initial",
-        "fitness": "95% Bootstrap Confidence Interval: (3.9%, 14.1%), Median: 8.6%"
-    },
-    {
-        "thought": "**Insights:**\nTo maximize the potential of the agent, we should implement a design that not only selects experts dynamically but also allows for parallel reasoning from multiple experts. This would enable us to gather diverse insights that can be aggregated for a more robust final answer. \n\n**Overall Idea:**\nThe architecture will involve selecting multiple experts based on the task requirements and aggregating their answers. This will leverage the strengths of various agents while ensuring a comprehensive approach to answering questions.\n\n**Implementation:**\n1. **Expert Selection:** Dynamically select multiple experts based on task complexity.\n2. **Parallel Reasoning:** Use a single agent instance to call for each selected expert's reasoning.\n3. **Aggregation:** Implement a majority voting mechanism for aggregating the answers from the multiple agents, ensuring accuracy and robustness.",
-        "name": "Multi-Expert Ensemble Reasoning",
-        "code": "def forward(self, taskInfo):\n    # Instruction for selecting the appropriate experts\n    routing_instruction = \"Given the task, please choose multiple Experts to answer the question. Choose from: Math Professor, Grade School Teacher, Math Enthusiast.\"\n    routing_agent = LLMAgentBase(['choice'], 'Routing agent')\n\n    # Get the choice of experts to route the task\n    choice = routing_agent([taskInfo], routing_instruction)[0]\n\n    # Map the chosen expert roles to indices\n    expert_roles = ['Math Professor', 'Grade School Teacher', 'Math Enthusiast']\n    selected_roles = [role for role in expert_roles if role.lower() in choice.content.lower()]\n\n    # Check if any experts were selected\n    if not selected_roles:\n        return Info('answer', 'Multi-Expert Ensemble Reasoning', 'No experts selected for the task.', 0)\n\n    # Prepare to use a single agent for processing the answers\n    expert_agent = LLMAgentBase(['thinking', 'answer'], 'Expert Agent')\n\n    possible_answers = []\n    for role in selected_roles:\n        thinking, answer = expert_agent([taskInfo], f\"Please think step by step and solve the task as a {role}.\")\n        possible_answers.append(answer)\n\n    # Majority voting function to select the most common answer\n    from collections import Counter\n    def majority_voting(answers):\n        return Counter(answers).most_common(1)[0][0]\n\n    # Aggregate answers and return the final answer\n    final_answer = majority_voting([ans.content for ans in possible_answers])\n    return final_answer",
-        "fitness": "95% Bootstrap Confidence Interval: (8.6%, 20.3%), Median: 14.1%",
-        "generation": 1,
-        "api_calls": 2,
-        "structure_label": "Multi-Agent Reasoning"
-    },
-    {
-        "thought": "**Insights:**\nTo maximize efficiency while maintaining diverse reasoning perspectives, I propose a more streamlined architecture that combines expert selection and reflection into fewer steps. This design will allow the agents to reason and refine their answers in a more integrated manner.\n\n**Overall Idea:**\nThe new architecture will involve selecting experts dynamically based on task complexity, allowing them to reason together and provide insights through a single feedback loop. This will minimize the number of API calls while ensuring a robust final answer through collaborative reflection.\n\n**Implementation:**\n1. **Expert Selection:** Dynamically select a small number of experts based on the task requirements.\n2. **Collaborative Reasoning:** All selected experts will reason simultaneously, and their answers will be used for a collective feedback session, reducing the number of API calls.\n3. **Feedback and Aggregation:** Use a single feedback loop to refine their answers based on peer insights before aggregating the final result.",
-        "name": "Collaborative Reflection Reasoning",
-        "code": "def forward(self, taskInfo):\n    # Instruction for selecting experts based on task complexity\n    routing_instruction = \"Given the task, please choose 2 Experts to answer the question. Choose from: Math Professor, Grade School Teacher.\"\n    routing_agent = LLMAgentBase(['choice'], 'Routing agent')\n\n    # Get the chosen experts to route the task\n    choice = routing_agent([taskInfo], routing_instruction)[0]\n\n    # Map the chosen expert roles to indices\n    expert_roles = ['Math Professor', 'Grade School Teacher']\n    selected_roles = [role for role in expert_roles if role.lower() in choice.content.lower()]\n\n    # Check if any experts were selected\n    if not selected_roles:\n        return Info('answer', 'Collaborative Reflection Reasoning', 'No experts selected for the task.', 0)\n\n    # Prepare to use a single agent for processing the answers\n    expert_agent = LLMAgentBase(['thinking', 'answer'], 'Expert Agent')\n\n    # Each expert provides an initial answer\n    expert_answers = []\n    for role in selected_roles:\n        thinking, answer = expert_agent([taskInfo], f\"Please think step by step as a {role} and solve the task.\")\n        expert_answers.append(answer)\n\n    # Collect answers for feedback\n    combined_answers = [ans.content for ans in expert_answers]\n    feedback_instruction = \"Given the initial answers from other experts, please think step by step and refine your answer.\"\n\n    # Use the same agent to refine the answers\n    refined_answers = []\n    for role in selected_roles:\n        thinking, refined_answer = expert_agent([taskInfo] + combined_answers, feedback_instruction)\n        refined_answers.append(refined_answer)\n\n    # Aggregate answers using majority voting\n    from collections import Counter\n    final_answer = Counter([ans.content for ans in refined_answers]).most_common(1)[0][0]\n    return Info('answer', 'Collaborative Reflection Reasoning', final_answer, 0)",
-        "fitness": "95% Bootstrap Confidence Interval: (7.0%, 18.8%), Median: 12.5%",
-        "generation": 2,
-        "api_calls": 7,
-        "structure_label": "Multi-Agent Reasoning"
+        "fitness": "95% Bootstrap Confidence Interval: (3.9%, 14.1%), Median: 8.6%",
+        "test_fitness": "95% Bootstrap Confidence Interval: (12.1%, 17.0%), Median: 14.5%"
     },
     {
         "thought": "**Insights:**\nTo enhance the architecture, I propose a more efficient approach that combines principle extraction and collaborative reasoning into a single call, thereby minimizing API usage. This method will allow multiple perspectives to be gathered simultaneously while maintaining the focus on understanding important principles relevant to the task.\n\n**Overall Idea:**\nThe design will first identify the principles related to the mathematical problem, then utilize a single Chain-of-Thought agent to reason through the task with input from multiple perspectives at once. This will not only reduce API calls but also leverage insights from diverse reasoning paths.\n\n**Implementation:**\n1. Extract principles using a single agent.\n2. Use a single Chain-of-Thought agent for reasoning with combined inputs from multiple roles instead of separate calls.\n3. Aggregate the results intelligently to produce the final answer.",
@@ -87,51 +76,27 @@
         "fitness": "95% Bootstrap Confidence Interval: (15.6%, 30.5%), Median: 22.7%",
         "generation": 5,
         "api_calls": 2,
-        "structure_label": "Abstraction to Principles Reasoning"
+        "structure_label": "Abstraction to Principles Reasoning",
+        "test_fitness": "95% Bootstrap Confidence Interval: (17.0%, 22.5%), Median: 19.8%"
     },
     {
-        "thought": "**Insights:**\nTo build on the previous architecture, I propose a more integrated approach that combines principle extraction and reasoning into a single coherent structure without relying on multiple calls to different agents. This will help in reducing redundancy while maintaining a focus on the principles relevant to the task.\n\n**Overall Idea:**\nThe revised design will involve a unified instruction that facilitates both principle extraction and task resolution in one process, allowing the agent to maintain context more effectively.\n\n**Implementation:**\n1. Create a single instruction that encapsulates both principle extraction and task solving.\n2. Use one LLMAgentBase instance to handle the entire process, thus reducing the number of API calls to one.\n3. Return the answer in a straightforward manner.",
-        "name": "Integrated Principle-Driven Reasoning",
-        "code": "def forward(self, taskInfo):\n    # Clear instruction focused on mathematics\n    unified_instruction = \"Please identify the mathematical principles relevant to solving this problem and then provide a detailed step-by-step solution to the problem.\"\n    \n    # Instantiate a single Chain-of-Thought agent to handle the unified task\n    integrated_agent = LLMAgentBase(['thinking', 'answer'], 'Integrated Principle-Driven Agent')\n    \n    # Use the agent to get the final answer in one call\n    response = integrated_agent([taskInfo], unified_instruction)\n    \n    return response",
-        "fitness": "95% Bootstrap Confidence Interval: (0.0%, 0.0%), Median: 0.0%",
-        "generation": 6,
-        "api_calls": 1,
-        "structure_label": "Abstraction to Principles Reasoning"
+        "thought": "**Insights:**\nTo maximize the potential of the agent, we should implement a design that not only selects experts dynamically but also allows for parallel reasoning from multiple experts. This would enable us to gather diverse insights that can be aggregated for a more robust final answer. \n\n**Overall Idea:**\nThe architecture will involve selecting multiple experts based on the task requirements and aggregating their answers. This will leverage the strengths of various agents while ensuring a comprehensive approach to answering questions.\n\n**Implementation:**\n1. **Expert Selection:** Dynamically select multiple experts based on task complexity.\n2. **Parallel Reasoning:** Use a single agent instance to call for each selected expert's reasoning.\n3. **Aggregation:** Implement a majority voting mechanism for aggregating the answers from the multiple agents, ensuring accuracy and robustness.",
+        "name": "Multi-Expert Ensemble Reasoning",
+        "code": "def forward(self, taskInfo):\n    # Instruction for selecting the appropriate experts\n    routing_instruction = \"Given the task, please choose multiple Experts to answer the question. Choose from: Math Professor, Grade School Teacher, Math Enthusiast.\"\n    routing_agent = LLMAgentBase(['choice'], 'Routing agent')\n\n    # Get the choice of experts to route the task\n    choice = routing_agent([taskInfo], routing_instruction)[0]\n\n    # Map the chosen expert roles to indices\n    expert_roles = ['Math Professor', 'Grade School Teacher', 'Math Enthusiast']\n    selected_roles = [role for role in expert_roles if role.lower() in choice.content.lower()]\n\n    # Check if any experts were selected\n    if not selected_roles:\n        return Info('answer', 'Multi-Expert Ensemble Reasoning', 'No experts selected for the task.', 0)\n\n    # Prepare to use a single agent for processing the answers\n    expert_agent = LLMAgentBase(['thinking', 'answer'], 'Expert Agent')\n\n    possible_answers = []\n    for role in selected_roles:\n        thinking, answer = expert_agent([taskInfo], f\"Please think step by step and solve the task as a {role}.\")\n        possible_answers.append(answer)\n\n    # Majority voting function to select the most common answer\n    from collections import Counter\n    def majority_voting(answers):\n        return Counter(answers).most_common(1)[0][0]\n\n    # Aggregate answers and return the final answer\n    final_answer = majority_voting([ans.content for ans in possible_answers])\n    return final_answer",
+        "fitness": "95% Bootstrap Confidence Interval: (8.6%, 20.3%), Median: 14.1%",
+        "generation": 1,
+        "api_calls": 2,
+        "structure_label": "Multi-Agent Reasoning",
+        "test_fitness": "95% Bootstrap Confidence Interval: (12.2%, 17.1%), Median: 14.6%"
     },
     {
-        "thought": "**Insights:**\nTo further streamline the reasoning process while adhering to the API call limitations, I propose an architecture that integrates initial reasoning and reflection into a single step. By crafting a unified instruction that encompasses both reasoning and self-assessment within the same call, we can maintain efficiency while improving the depth of the solution.\n**Overall Idea:**\nThe new agent will utilize a well-crafted single instruction to encapsulate both the reasoning and the critical reflection on that reasoning. This allows for enhanced context retention and a robust answer generation in a single API call, thus maximizing efficiency.\n**Implementation:**\n1. Create a unified instruction that facilitates both reasoning and self-reflection.\n2. Use one LLMAgentBase instance to handle the entire process, reducing API calls to one.\n3. Return the answer in a straightforward manner, ensuring thorough reasoning is included.",
-        "name": "Unified Reasoning and Reflection",
-        "code": "def forward(self, taskInfo):\n    # Enhanced unified instruction that combines reasoning and reflection with detailed structure\n    unified_instruction = \"Please analyze the following mathematical problem carefully. Define the variables involved and their relationships. Think step by step to solve the problem, detailing each step of your reasoning process. After arriving at a solution, reflect on your reasoning to identify any potential mistakes or areas for improvement. Provide a final answer along with explanations of each step.\"\n    \n    # Instantiate a single Chain-of-Thought agent to handle the unified task\n    integrated_agent = LLMAgentBase(['thinking', 'answer'], 'Unified Reasoning Agent')\n    \n    # Use the agent to get the final answer in one call\n    response = integrated_agent([taskInfo], unified_instruction)\n    \n    return response",
-        "fitness": "95% Bootstrap Confidence Interval: (0.0%, 0.0%), Median: 0.0%",
-        "generation": 7,
-        "api_calls": 1,
-        "structure_label": "Self-Reflection Reasoning"
-    },
-    {
-        "thought": "**Insights:**\nTo enhance the Chain-of-Thought reasoning agent, we can incorporate a mechanism where multiple perspectives are synthesized without exceeding the API call limits. By leveraging a single CoT agent to reason collectively based on varied input prompts, we can effectively aggregate insights without the overhead of multiple agent instances. This will allow us to maintain efficiency and maximize performance. \n\n**Overall Idea:**\nThe revised architecture will utilize a single Chain-of-Thought agent that will reason through diverse perspectives by structuring the input as a collective query. After that, the agent will reflect on the collective reasoning to ensure robustness and accuracy in its final response.\n\n**Implementation:**\n1. Use one LLMAgentBase instance for the entire reasoning process.\n2. Structure the input to encourage diverse reasoning paths within a single call.\n3. Implement a self-reflective mechanism for error checking within the same reasoning step, thus ensuring the solution is robust.",
-        "name": "Collaborative CoT Synthesis",
-        "code": "def forward(self, taskInfo):\n    # Create a unified instruction for the CoT agent that encourages diverse reasoning and reflection\n    unified_instruction = \"Please analyze the following mathematical problem carefully. Define the variables involved and their relationships. Think step by step to solve the problem, detailing each step of your reasoning process. After arriving at a solution, reflect on your reasoning to identify any potential mistakes or areas for improvement. Provide a final answer, including a clear explanation of each step taken.\"\n    \n    # Instantiate a single Chain-of-Thought agent to handle the unified task\n    integrated_agent = LLMAgentBase(['thinking', 'answer'], 'Collaborative CoT Agent')\n    \n    # Use the agent to get the final answer in one call\n    response = integrated_agent([taskInfo], unified_instruction)\n    \n    # Ensure the response is properly handled and return the answer\n    return response['answer'] if 'answer' in response else 'Error: No answer generated.'",
-        "fitness": "95% Bootstrap Confidence Interval: (0.0%, 0.0%), Median: 0.0%",
-        "generation": 8,
-        "api_calls": 1,
-        "structure_label": "Chain-of-Thought Reasoning"
-    },
-    {
-        "thought": "**Insights:**\nTo further enhance the approach, I propose integrating collaborative reasoning that emphasizes multiple perspectives while still keeping the process streamlined. By prompting the agent to consider various angles and approaches to the problem in one cohesive instruction, we can yield richer insights and a more robust final answer. \n\n**Overall Idea:**\nThe architecture will involve a single call to an LLMAgentBase instance that encourages the agent to think from different perspectives, thereby enhancing its ability to synthesize diverse answers. This will allow the agent to reflect on the reasoning process while maintaining a simplified workflow. \n\n**Implementation:**\n1. Create a unified instruction that prompts the agent to consider multiple perspectives while solving the problem step by step.\n2. Utilize a single LLMAgentBase call to handle both reasoning and self-reflection effectively.\n3. Ensure the final return structure captures both the answer and the reasoning process clearly.",
-        "name": "Multi-Perspective Reasoning",
-        "code": "def forward(self, taskInfo):\n    # Unified instruction for multi-perspective reasoning and reflection\n    unified_instruction = \"Analyze the following mathematical problem carefully. Identify all variables involved, their relationships, and any relevant mathematical principles. For example, if there are equations or ratios, explain them. Think step by step to solve the problem, detailing your reasoning process clearly. After arriving at a solution, reflect on your reasoning to identify any potential mistakes or areas for improvement. Provide a final answer with a clear explanation of each step taken.\"\n    \n    # Instantiate a single Chain-of-Thought agent to handle the unified task\n    integrated_agent = LLMAgentBase(['thinking', 'answer'], 'Multi-Perspective Reasoning Agent')\n    \n    # Use the agent to get the final answer in one call\n    response = integrated_agent([taskInfo], unified_instruction)\n    \n    # Directly return the answer content from the first Info object\n    return response[0].content",
-        "fitness": "95% Bootstrap Confidence Interval: (0.0%, 0.0%), Median: 0.0%",
-        "generation": 9,
-        "api_calls": 1,
-        "structure_label": "Multi-Agent Reasoning"
-    },
-    {
-        "thought": "**Insights:**\nTo build on the previous architecture, I propose an architecture that incorporates principle extraction followed by multi-perspective reasoning, along with a mechanism for integrating these insights into a final answer. This approach will utilize diverse perspectives while ensuring the efficiency of API calls. The integration of principles and perspectives will allow the model to reason more robustly, potentially leading to a higher likelihood of accuracy. \n\n**Overall Idea:**\nThe architecture will first extract relevant principles using a single agent, then engage multiple roles to reason through the task, and finally synthesize their insights into a unified answer. This will promote efficiency and accuracy in the response.\n\n**Implementation:**\n1. Use a single LLMAgentBase instance to extract principles relevant to the task.\n2. Simultaneously engage multiple roles to approach the problem from different perspectives, using a single agent to handle the reasoning for efficiency.\n3. Aggregate the results into a cohesive final answer while ensuring that the total API calls remain within limits.",
-        "name": "Principle-Integrated Multi-Perspective Reasoning",
-        "code": "def forward(self, taskInfo):\n    # Instruction for understanding the principles involved in the task and reasoning\n    instruction = \"Identify the mathematical principles relevant to solving the problem. Explain these principles clearly. Then, using these principles, think step by step as a Math Professor, a Grade School Teacher, and a Math Enthusiast to reason through the problem.\"\n    \n    # Use a single agent to process the instruction\n    agent = LLMAgentBase(['thinking', 'answer'], 'Integrated Reasoning Agent')\n    response = agent([taskInfo], instruction)\n\n    # Return the final answer from the response\n    return response",
-        "fitness": "95% Bootstrap Confidence Interval: (0.0%, 0.0%), Median: 0.0%",
-        "generation": 10,
-        "api_calls": 1,
-        "structure_label": "Multi-Agent Reasoning"
+        "thought": "**Insights:**\nTo maximize efficiency while maintaining diverse reasoning perspectives, I propose a more streamlined architecture that combines expert selection and reflection into fewer steps. This design will allow the agents to reason and refine their answers in a more integrated manner.\n\n**Overall Idea:**\nThe new architecture will involve selecting experts dynamically based on task complexity, allowing them to reason together and provide insights through a single feedback loop. This will minimize the number of API calls while ensuring a robust final answer through collaborative reflection.\n\n**Implementation:**\n1. **Expert Selection:** Dynamically select a small number of experts based on the task requirements.\n2. **Collaborative Reasoning:** All selected experts will reason simultaneously, and their answers will be used for a collective feedback session, reducing the number of API calls.\n3. **Feedback and Aggregation:** Use a single feedback loop to refine their answers based on peer insights before aggregating the final result.",
+        "name": "Collaborative Reflection Reasoning",
+        "code": "def forward(self, taskInfo):\n    # Instruction for selecting experts based on task complexity\n    routing_instruction = \"Given the task, please choose 2 Experts to answer the question. Choose from: Math Professor, Grade School Teacher.\"\n    routing_agent = LLMAgentBase(['choice'], 'Routing agent')\n\n    # Get the chosen experts to route the task\n    choice = routing_agent([taskInfo], routing_instruction)[0]\n\n    # Map the chosen expert roles to indices\n    expert_roles = ['Math Professor', 'Grade School Teacher']\n    selected_roles = [role for role in expert_roles if role.lower() in choice.content.lower()]\n\n    # Check if any experts were selected\n    if not selected_roles:\n        return Info('answer', 'Collaborative Reflection Reasoning', 'No experts selected for the task.', 0)\n\n    # Prepare to use a single agent for processing the answers\n    expert_agent = LLMAgentBase(['thinking', 'answer'], 'Expert Agent')\n\n    # Each expert provides an initial answer\n    expert_answers = []\n    for role in selected_roles:\n        thinking, answer = expert_agent([taskInfo], f\"Please think step by step as a {role} and solve the task.\")\n        expert_answers.append(answer)\n\n    # Collect answers for feedback\n    combined_answers = [ans.content for ans in expert_answers]\n    feedback_instruction = \"Given the initial answers from other experts, please think step by step and refine your answer.\"\n\n    # Use the same agent to refine the answers\n    refined_answers = []\n    for role in selected_roles:\n        thinking, refined_answer = expert_agent([taskInfo] + combined_answers, feedback_instruction)\n        refined_answers.append(refined_answer)\n\n    # Aggregate answers using majority voting\n    from collections import Counter\n    final_answer = Counter([ans.content for ans in refined_answers]).most_common(1)[0][0]\n    return Info('answer', 'Collaborative Reflection Reasoning', final_answer, 0)",
+        "fitness": "95% Bootstrap Confidence Interval: (7.0%, 18.8%), Median: 12.5%",
+        "generation": 2,
+        "api_calls": 7,
+        "structure_label": "Multi-Agent Reasoning",
+        "test_fitness": "95% Bootstrap Confidence Interval: (16.8%, 22.1%), Median: 19.4%"
     }
 ]

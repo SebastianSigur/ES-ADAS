@@ -436,11 +436,12 @@ def search(args):
         selected_agent = map_elites[cell]
         # If the selected cell is empty, search for another cell with the same structure_label.
         if selected_agent is None:
-            selected_agent = "Take inspiration from an agent with similar architecture in the archive"
-            # for key, candidate in map_elites.items():
-            #     if key.startswith(structure_label + ",") and candidate is not None:
-            #         selected_agent = candidate
-                        # break
+            same_structure_agents = [agent for key, agent in map_elites.items() 
+                                    if key.startswith(f"{structure_label},") and agent is not None
+                                    ]
+        
+            selected_agent = max(same_structure_agents, 
+                            key=lambda x: get_upper_bound(x['fitness']))
         # ------------------------------------------------
 
         ## Uses pre-defined system prompt to generate new solution
@@ -452,7 +453,7 @@ def search(args):
         if selected_agent is None or selected_agent == "Take inspiration from an agent with similar architecture in the archive":
             print(f"Selected Agent: {selected_agent}")
         else:
-            print(f"Selected Agent: {selected_agent['name']}")
+            print(f"Selected Agent: {selected_agent.get('name', 'Unnamed Agent') if selected_agent else 'No agent found'}")
 
         system_prompt, prompt = get_prompt(archive, selected_agent, structure_label, api_label)
         msg_list = [
@@ -623,6 +624,8 @@ def evaluate_forward_fn(args, forward_str):
     # dynamically define forward()
     # modified from https://github.com/luchris429/DiscoPOP/blob/main/scripts/launch_evo.py
 
+
+
     ## Creates callable function: Converts text description into executable function
     ## and assigns it as an attribute to the agent
     namespace = {}
@@ -641,10 +644,10 @@ def evaluate_forward_fn(args, forward_str):
     ## Note 3: valide_size + test_size is used during evaluate() for more thorough evaluation
     ## Note 4: This is then repeated n_repeat times
 
-    # set seed 0 for valid set
+    # Shuffle with local random seed
+    local_random = random.Random(args.shuffle_seed)
     examples = get_all_examples()
-    random.seed(args.shuffle_seed)
-    random.shuffle(examples)
+    local_random.shuffle(examples)
 
     if SEARCHING_MODE:
         examples = examples[:args.valid_size] * args.n_repreat
@@ -727,15 +730,16 @@ if __name__ == "__main__":
 
     for run in range(args.num_runs):
         # Update the seed for each run (for example, add the run number to the base_seed)
-        args.shuffle_seed = args.base_seed + run
+        run_seed = args.base_seed + run
         
-        # Set the seed for Python's random module and NumPy at the beginning of each run.
-        random.seed(args.shuffle_seed)
-        np.random.seed(args.shuffle_seed)
+        # Set the global seeds per run
+        random.seed(run_seed)
+        np.random.seed(run_seed)
+
 
         # Modify expr_name to include the run prefix (run1_, run2_, etc.)
         args.expr_name = f"run{run+1}_{original_expr_name}"
-        print(f"Starting run {run+1} with seed {args.shuffle_seed} and expr_name {args.expr_name}")
+        print(f"Starting run {run+1} with seed {run_seed} and expr_name {args.expr_name}")
         
         # Run the search phase with SEARCHING_MODE turned on.
         SEARCHING_MODE = True

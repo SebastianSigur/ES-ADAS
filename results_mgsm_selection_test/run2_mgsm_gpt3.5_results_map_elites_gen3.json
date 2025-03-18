@@ -1,5 +1,12 @@
 {
-    "Self-Reflection Reasoning,0": null,
+    "Self-Reflection Reasoning,0": {
+        "thought": "**Insights:** To maximize the effectiveness and efficiency of the self-reflection process, I propose an architecture where a single agent consolidates multiple feedback perspectives into one cohesive output. This change will minimize redundancy and API usage while enriching the feedback process. \n**Overall Idea:** The new agent will utilize a single feedback synthesis agent capable of evaluating the initial answer and providing comprehensive feedback in a single API call. This will include multiple perspectives on the solution, such as potential errors, suggestions for improvement, and a confidence score. \n**Implementation:** The implementation will involve: \n1. A single reasoning agent to generate the initial answer. \n2. A feedback synthesis agent that evaluates the answer and offers consolidated insights in one call. \n3. A final decision-making process that integrates the feedback into a refined answer while reducing the total number of API calls.",
+        "code": "def forward(self, taskInfo):\n    # Instruction for reasoning and feedback synthesis\n    instruction = \"Please think step by step to solve the task and evaluate your answer, providing constructive feedback.\"\n\n    # Instantiate a single agent for reasoning, feedback synthesis, and final decision-making\n    agent = LLMAgentBase([\"thinking\", \"answer\", \"feedback\"], \"Comprehensive Agent\")\n\n    # Generate the initial answer along with feedback in one call\n    output = agent([taskInfo], instruction)\n\n    # Debugging: Check the output format\n    print(\"Output Structure:\", output)\n\n    # Access the answer and feedback from the output without assumptions\n    if isinstance(output, list) and len(output) > 1:\n        initial_answer = output[0].content  # Adjust based on actual output structure\n        feedback = output[1].content  # Adjust based on actual output structure\n    else:\n        # Error handling if the expected structure is not met\n        return \"Error: Unexpected output structure from the agent.\"\n\n    # Prepare final instruction to refine the answer\n    final_instruction = \"Using the feedback provided, please refine your answer.\"\n    refined_output = agent([taskInfo, initial_answer, feedback], final_instruction)\n\n    # Access the refined answer\n    if isinstance(refined_output, list) and len(refined_output) > 0:\n        refined_answer = refined_output[0].content  # Adjust based on actual refined output structure\n    else:\n        return \"Error: Unexpected output structure for refined answer.\"\n\n    return refined_answer",
+        "fitness": "95% Bootstrap Confidence Interval: (0.0%, 0.0%), Median: 0.0%",
+        "generation": 1,
+        "api_calls": 2,
+        "structure_label": "Self-Reflection Reasoning"
+    },
     "Self-Reflection Reasoning,1": {
         "thought": "To enhance its performance, an LLM can iteratively improve its answer based on feedback. By reflecting on its previous attempts and incorporating feedback, the model can refine its reasoning and provide a more accurate solution.",
         "name": "Self-Refine (Reflexion)",
@@ -7,7 +14,7 @@
         "api_calls": 7,
         "structure_label": "Self-Reflection Reasoning",
         "generation": "initial",
-        "fitness": "95% Bootstrap Confidence Interval: (13.3%, 26.6%), Median: 19.5%"
+        "fitness": "95% Bootstrap Confidence Interval: (14.1%, 28.1%), Median: 21.1%"
     },
     "Multi-Agent Reasoning,0": {
         "thought": "Similar to Auto-GPT and expert prompting, we can use dynamic control flow in the design to let the agent decide what expert we should use.",
@@ -16,7 +23,7 @@
         "api_calls": 4,
         "structure_label": "Multi-Agent Reasoning",
         "generation": "initial",
-        "fitness": "95% Bootstrap Confidence Interval: (4.7%, 14.8%), Median: 9.4%"
+        "fitness": "95% Bootstrap Confidence Interval: (3.9%, 14.1%), Median: 8.6%"
     },
     "Multi-Agent Reasoning,1": {
         "thought": "Similar to Quality-Diversity methods, let LLM generate multiple diverse interesting solutions could help. By encouraging the model to explore different reasoning paths, we can increase the chances of finding the best solution.",
@@ -25,18 +32,8 @@
         "api_calls": 7,
         "structure_label": "Multi-Agent Reasoning",
         "generation": "initial",
-        "fitness": "95% Bootstrap Confidence Interval: (50.0%, 67.2%), Median: 58.6%"
+        "fitness": "95% Bootstrap Confidence Interval: (52.3%, 69.5%), Median: 60.9%"
     },
-    "Chain-of-Thought Reasoning,0": {
-        "thought": "By encouraging the LLM to think step by step rather than directly outputting an answer, chain-of-thought reasoning enables complex problem-solving through intermediate steps. This practice improves the model's ability to handle tasks that require deeper reasoning and provides insight into its decision-making process.",
-        "name": "Chain-of-Thought",
-        "code": "def forward(self, taskInfo):\n    # Instruction for the Chain-of-Thought (CoT) approach\n    # It is an important practice that allows the LLM to think step by step before solving the task.\n    cot_instruction = \"Please think step by step and then solve the task.\"\n\n    # Instantiate a new LLM agent specifically for CoT\n    # To allow LLM thinking before answering, we need to set an additional output field 'thinking'.\n    cot_agent = LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent')\n\n    # Prepare the inputs for the CoT agent\n    # The input should be a list of Info, and the first one is often the taskInfo\n    cot_agent_inputs = [taskInfo]\n\n    # Get the response from the CoT agent\n    thinking, answer = cot_agent(cot_agent_inputs, cot_instruction)\n\n    # Return only the final answer\n    return answer\n",
-        "api_calls": 1,
-        "structure_label": "Chain-of-Thought Reasoning",
-        "generation": "initial",
-        "fitness": "95% Bootstrap Confidence Interval: (12.5%, 25.8%), Median: 18.8%"
-    },
-    "Chain-of-Thought Reasoning,1": null,
     "Abstraction to Principles Reasoning,0": {
         "thought": "Let LLM first think about the principles involved in solving this task which could be helpful. By understanding the underlying principles, the model can better reason through the problem and provide a more accurate solution.",
         "name": "Step-back Abstraction",
@@ -44,7 +41,17 @@
         "api_calls": 2,
         "structure_label": "Abstraction to Principles Reasoning",
         "generation": "initial",
-        "fitness": "95% Bootstrap Confidence Interval: (24.2%, 39.8%), Median: 32.0%"
+        "fitness": "95% Bootstrap Confidence Interval: (18.8%, 33.6%), Median: 25.8%"
     },
-    "Abstraction to Principles Reasoning,1": null
+    "Abstraction to Principles Reasoning,1": null,
+    "Chain-of-Thought Reasoning,0": {
+        "thought": "By encouraging the LLM to think step by step rather than directly outputting an answer, chain-of-thought reasoning enables complex problem-solving through intermediate steps. This practice improves the model's ability to handle tasks that require deeper reasoning and provides insight into its decision-making process.",
+        "name": "Chain-of-Thought",
+        "code": "def forward(self, taskInfo):\n    # Instruction for the Chain-of-Thought (CoT) approach\n    # It is an important practice that allows the LLM to think step by step before solving the task.\n    cot_instruction = \"Please think step by step and then solve the task.\"\n\n    # Instantiate a new LLM agent specifically for CoT\n    # To allow LLM thinking before answering, we need to set an additional output field 'thinking'.\n    cot_agent = LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent')\n\n    # Prepare the inputs for the CoT agent\n    # The input should be a list of Info, and the first one is often the taskInfo\n    cot_agent_inputs = [taskInfo]\n\n    # Get the response from the CoT agent\n    thinking, answer = cot_agent(cot_agent_inputs, cot_instruction)\n\n    # Return only the final answer\n    return answer\n",
+        "api_calls": 1,
+        "structure_label": "Chain-of-Thought Reasoning",
+        "generation": "initial",
+        "fitness": "95% Bootstrap Confidence Interval: (7.8%, 19.5%), Median: 13.3%"
+    },
+    "Chain-of-Thought Reasoning,1": null
 }
