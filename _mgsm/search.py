@@ -424,32 +424,43 @@ def search(args):
         # Randomly choses a cell in the map. Then passes stores the respective agent of that cell and the category in two new variables agent & category
         # ------------------------------------------------------------
         if map_elites:
-            # Randomly choose a cell from the map elites.
-            cell = random.choice(list(map_elites.keys()))
-            parts = cell.split(',')
-            structure_label = parts[0]
-            api_bin = int(parts[1])
-            # Define the mapping for API calls bins using only 2 bins.
-            api_calls_mapping = {0: "few API calls", 1: "many API calls"}
-            api_label = api_calls_mapping.get(api_bin, "few API calls")
-            
-            selected_agent = map_elites[cell]
-            # If the selected cell is empty, search for another cell with the same structure_label.
-            if selected_agent is None:
-                for key, candidate in map_elites.items():
-                    if key.startswith(structure_label + ",") and candidate is not None:
-                        selected_agent = candidate
-                        break
+            keys = list(map_elites.keys())
+            if keys:
+                random_index = random.randint(0, len(keys) - 1)
+                cell = keys[random_index]
+                parts = cell.split(',')
+                structure_label = parts[0]
+                api_bin = int(parts[1])
+                # Define the mapping for API calls bins using only 2 bins.
+                api_calls_mapping = {0: "few API calls", 1: "many API calls"}
+                api_label = api_calls_mapping.get(api_bin, "few API calls")
+                
+                selected_agent = map_elites[cell]
+                # If the selected cell is empty, search for another cell with the same structure_label.
+                if selected_agent is None:
+                    for key, candidate in map_elites.items():
+                        if key.startswith(structure_label + ",") and candidate is not None:
+                            selected_agent = candidate
+                            break
+            else:
+                selected_agent = None
+                structure_label = None
+                api_label = None
         else:
             selected_agent = None
             structure_label = None
             api_label = None
-        # ------------------------------------------------------------
-
+        # ------------------------------------------------
 
         ## Uses pre-defined system prompt to generate new solution
         ## Performs two relfexions to improve quality of new solution
         print(f"============Generation {n + 1}=================")
+        if selected_agent:
+            print(f"Selected Cell: {cell} (Structure Label: {structure_label}, API Label: {api_label})")
+            print(f"Selected Agent: {selected_agent['name']}")
+        else:
+            print("Error!! No selected agent selected for this generation!!")
+
         system_prompt, prompt = get_prompt(archive, selected_agent, structure_label, api_label)
         msg_list = [
             {"role": "system", "content": system_prompt},
@@ -694,9 +705,9 @@ if __name__ == "__main__":
     parser.add_argument('--multiprocessing', action='store_true', default=True)
     parser.add_argument('--max_workers', type=int, default=48)
     parser.add_argument('--debug', action='store_true', default=True)
-    parser.add_argument('--save_dir', type=str, default='results_mgsm_config4/')
+    parser.add_argument('--save_dir', type=str, default='results_mgsm_config5/')
     parser.add_argument('--expr_name', type=str, default="mgsm_gpt3.5_results")
-    parser.add_argument('--n_generation', type=int, default=20)
+    parser.add_argument('--n_generation', type=int, default=10)
     parser.add_argument('--debug_max', type=int, default=3)
     parser.add_argument('--max_agents', type=int, default=5)
 
