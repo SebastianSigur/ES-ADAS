@@ -270,25 +270,24 @@ def count_api_calls(forward_code):
 #-------------------------------------------------------------------------------------------------------#
 # Defines a function that takes the solution thought and name as details as input, and outputs a label for the structure.
 # The label is created via using a BERT model and gemini
-def recheck_label_with_gemini(agent_name, agent_thought, candidate_labels):
+def recheck_label_with_gemini(agent_name, agent_thought, agent_code, candidate_labels):
     system_prompt = (
         "You are an expert in classification and label verification. You are given an agent’s name, its detailed \"thought\" description, "
-        "and a set of candidate labels. The initial classification from a BERT model is highly uncertain (confidence ≤ 0.5). Your task is to "
+        "and a set of candidate labels. The initial classification from a BERT model is highly uncertain (confidence ≤ 0.75). Your task is to "
         "reassess the agent’s approach and decide which candidate label best fits the agent’s design. Below are the candidate labels with their descriptions:\n\n"
-        "1. Chain-of-Thought: Agents that use an explicit internal reasoning chain, stepping through the problem sequentially to reach an answer.\n"
-        "2. Multi-Agent Ensemble: Agents that run multiple independent reasoning paths in parallel and aggregate their outputs (e.g., via voting) to determine the final answer.\n"
-        "3. Iterative Self-Improvement: Agents that produce an initial answer and then refine it through multiple iterations using internal feedback.\n"
-        "4. Expert Role Routing: Agents that dynamically assign specialized roles or select experts to handle different aspects of the task.\n"
-        "5. Abstraction: Agents that first step back to identify underlying principles or abstract components before attempting to solve the task.\n"
-        "6. Diversity-Driven Exploration: Agents that intentionally maximize creative output and explore a wide variety of reasoning paths, even if not immediately synthesizing a final answer.\n"
+        "1. Chain-of-Thought Reasoning: Generates a single, linear, step-by-step reasoning process with every intermediate step explicitly shown.\n"
+        "2. Multi-Agent Reasoning: Runs several independent reasoning modules in parallel and aggregates their outputs to form the final answer.\n"
+        "3. Self-Reflection Reasoning: Produces an initial answer, then internally critiques and refines it through iterative self-review.\n"
+        "4. Abstraction to Principles Reasoning: First abstracts the problem’s details into high-level principles, then uses these abstractions to guide the solution.\n"
         "Do all the reasoning internally and output only the final label prediction (which must exactly match one of the provided candidate labels) with no additional explanation or text."
     )
     
     user_prompt = (
         f"Agent Name: {agent_name}\n"
         f"Agent Thought: {agent_thought}\n"
+        f"Agent Code: {agent_code}\n"
         f"Candidate Labels: {', '.join(candidate_labels)}\n\n"
-        "The initial classification is highly uncertain. Please re-evaluate and output only the final label prediction."
+        "Please evaluate which single candidate label fits the agent best based on the agent thought and agent code. If the agent structure would fit to multiple labels, choose the one label it fits to the most. Output only the final label prediction and nothing else."
     )
     
     try:
@@ -313,19 +312,17 @@ def get_structure_label(solution):
     """
     Determines the structure label for a candidate solution based on its 'thought' field.
     Uses a zero-shot classification pipeline with a set of candidate labels.
-    If the classifier confidence is low (≤ 0.5), it rechecks using Gemini via recheck_label_with_gemini().
+    If the classifier confidence is low (≤ 0.75), it rechecks using Gemini via recheck_label_with_gemini().
     
     Returns:
         A string representing the structure label.
     """
     # Define the candidate labels for structure classification.
     candidate_labels = [
-        "Chain-of-Thought",
-        "Multi-Agent Ensemble",
-        "Iterative Self-Improvement",
-        "Expert Role Routing",
-        "Abstraction",
-        "Diversity-Driven Exploration"
+        "Chain-of-Thought Reasoning",
+        "Multi-Agent Reasoning",
+        "Self-Reflection Reasoning",
+        "Abstraction to Principles Reasoning"
     ]
     
     # Initialize the zero-shot classification pipeline.
@@ -339,16 +336,20 @@ def get_structure_label(solution):
     if not thought_text:
         return None
     
+    code_text = solution.get("code", "")
+    if not code_text:
+        return None
+    
     # Get the classification result.
     output = classifier(thought_text, candidate_labels, multi_label=False)
     predicted_label = output['labels'][0]
     score = output['scores'][0]
     
-    # If the confidence is low (≤ 0.5), recheck using Gemini.
-    if score <= 0.5:
+    # If the confidence is low (≤ 0.75), recheck using Gemini.
+    if score <= 0.75:
         # Use .get() to safely retrieve "name", providing a default if missing.
         agent_name = solution.get("name", "Unknown Agent")
-        new_label = recheck_label_with_gemini(agent_name, thought_text, candidate_labels)
+        new_label = recheck_label_with_gemini(agent_name, thought_text, code_text, candidate_labels)
         return new_label if new_label is not None else predicted_label
     else:
         return predicted_label
@@ -692,9 +693,9 @@ if __name__ == "__main__":
     parser.add_argument('--multiprocessing', action='store_true', default=True)
     parser.add_argument('--max_workers', type=int, default=48)
     parser.add_argument('--debug', action='store_true', default=True)
-    parser.add_argument('--save_dir', type=str, default='results_mgsm_config1/')
+    parser.add_argument('--save_dir', type=str, default='results_mgsm_config2/')
     parser.add_argument('--expr_name', type=str, default="mgsm_gpt3.5_results")
-    parser.add_argument('--n_generation', type=int, default=20)
+    parser.add_argument('--n_generation', type=int, default=5)
     parser.add_argument('--debug_max', type=int, default=3)
     parser.add_argument('--max_agents', type=int, default=5)
 
@@ -709,7 +710,7 @@ if __name__ == "__main__":
     # ------------------------------------------------------------
 
     # Arguments for multiple runs to test variance
-    parser.add_argument('--num_runs', type=int, default=3, help="Number of runs to execute")
+    parser.add_argument('--num_runs', type=int, default=1, help="Number of runs to execute")
     parser.add_argument('--base_seed', type=int, default=42, help="Base seed value for the first run")
 
 
