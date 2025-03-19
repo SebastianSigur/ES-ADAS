@@ -750,7 +750,7 @@ if __name__ == "__main__":
     parser.add_argument('--multiprocessing', action='store_true', default=True)
     parser.add_argument('--max_workers', type=int, default=48)
     parser.add_argument('--debug', action='store_true', default=True)
-    parser.add_argument('--save_dir', type=str, default='results_mgsm_prompt3/')
+    parser.add_argument('--save_dir', type=str, default='results_mgsm_prompt4/')
     parser.add_argument('--expr_name', type=str, default="mgsm_gpt3.5_results")
     parser.add_argument('--n_generation', type=int, default=20)
     parser.add_argument('--debug_max', type=int, default=3)
@@ -767,7 +767,7 @@ if __name__ == "__main__":
     # ------------------------------------------------------------
 
     # Arguments for multiple runs to test variance
-    parser.add_argument('--num_runs', type=int, default=5, help="Number of runs to execute")
+    parser.add_argument('--num_runs', type=int, default=2, help="Number of runs to execute")
     parser.add_argument('--base_seed', type=int, default=42, help="Base seed value for the first run")
 
 
