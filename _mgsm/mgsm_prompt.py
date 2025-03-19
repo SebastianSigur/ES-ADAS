@@ -578,11 +578,12 @@ def get_prompt(current_archive, selected_agent=None, structure_label=None, api_l
     
     # Replace [LABEL DESCRIPTION] with the corresponding description based on structure_label.
     label_descriptions = {
-        "Chain-of-Thought Reasoning": "Generates a single, linear, step-by-step reasoning process with every intermediate step explicitly shown.",
-        "Multi-Agent Reasoning": "Runs several independent reasoning modules in parallel and aggregates their outputs to form the final answer.",
-        "Self-Reflection Reasoning": "Produces an initial answer, then internally critiques and refines it through iterative self-review.",
-        "Abstraction to Principles Reasoning": "First abstracts the problem’s details into high-level principles, then uses these abstractions to guide the solution."
+        "Single-Pass Reasoning": "Agents generate their answer in one go. They may include intermediate steps (a chain-of-thought) but do not engage in any subsequent revision or self-critique.",
+        "Iterative Refinement": "Agents start by producing an initial answer and then deliberately re-evaluate and improve it through iterative self-critique.",
+        "Parallel Ensemble Reasoning": "Agents execute multiple independent instances in parallel and aggregate their outputs to form a final answer, leveraging redundancy for improved reliability.",
+        "Abstraction-Based Reasoning": "Agents first abstract the problem into high-level principles or concepts, then use these abstractions to guide the detailed solution process."
     }
+
     label_description = label_descriptions.get(structure_label, "")
     prompt = prompt.replace("[LABEL DESCRIPTION]", label_description)
     

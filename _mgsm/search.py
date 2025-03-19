@@ -275,10 +275,10 @@ def recheck_label_with_gemini(agent_name, agent_thought, agent_code, candidate_l
         "You are an expert in classification and label verification. You are given an agent’s name, its detailed \"thought\" description, "
         "and a set of candidate labels. The initial classification from a BERT model is highly uncertain (confidence ≤ 0.75). Your task is to "
         "reassess the agent’s approach and decide which candidate label best fits the agent’s design. Below are the candidate labels with their descriptions:\n\n"
-        "1. Chain-of-Thought Reasoning: Generates a single, linear, step-by-step reasoning process with every intermediate step explicitly shown.\n"
-        "2. Multi-Agent Reasoning: Runs several independent reasoning modules in parallel and aggregates their outputs to form the final answer.\n"
-        "3. Self-Reflection Reasoning: Produces an initial answer, then internally critiques and refines it through iterative self-review.\n"
-        "4. Abstraction to Principles Reasoning: First abstracts the problem’s details into high-level principles, then uses these abstractions to guide the solution.\n"
+        "1. Single-Pass Reasoning: Agents generate their answer in one go. They may include intermediate steps (a chain-of-thought) but do not engage in any subsequent revision or self-critique.\n"
+        "2. Iterative Refinement: Agents start by producing an initial answer and then deliberately re-evaluate and improve it through iterative self-critique.\n"
+        "3. Parallel Ensemble Reasoning: Agents execute multiple independent instances in parallel and aggregate their outputs to form a final answer, leveraging redundancy for improved reliability.\n"
+        "4. Abstraction-Based Reasoning: Agents first abstract the problem into high-level principles or concepts, then use these abstractions to guide the detailed solution process.\n"
         "Do all the reasoning internally and output only the final label prediction (which must exactly match one of the provided candidate labels) with no additional explanation or text."
     )
     
@@ -312,17 +312,17 @@ def get_structure_label(solution):
     """
     Determines the structure label for a candidate solution based on its 'thought' field.
     Uses a zero-shot classification pipeline with a set of candidate labels.
-    If the classifier confidence is low (≤ 0.75), it rechecks using Gemini via recheck_label_with_gemini().
+    If the classifier confidence is low (≤ 0.9), it rechecks using Gemini via recheck_label_with_gemini().
     
     Returns:
         A string representing the structure label.
     """
     # Define the candidate labels for structure classification.
     candidate_labels = [
-        "Chain-of-Thought Reasoning",
-        "Multi-Agent Reasoning",
-        "Self-Reflection Reasoning",
-        "Abstraction to Principles Reasoning"
+        "Single-Pass Reasoning",
+        "Iterative Refinement",
+        "Parallel Ensemble Reasoning",
+        "Abstraction-Based Reasoning"
     ]
     
     # Initialize the zero-shot classification pipeline.
@@ -345,8 +345,8 @@ def get_structure_label(solution):
     predicted_label = output['labels'][0]
     score = output['scores'][0]
     
-    # If the confidence is low (≤ 0.75), recheck using Gemini.
-    if score <= 0.75:
+    # If the confidence is low (≤ 0.9), recheck using Gemini.
+    if score <= 0.9:
         # Use .get() to safely retrieve "name", providing a default if missing.
         agent_name = solution.get("name", "Unknown Agent")
         new_label = recheck_label_with_gemini(agent_name, thought_text, code_text, candidate_labels)
@@ -369,10 +369,10 @@ def validate_agent(agent: dict) -> bool:
     }
     
     valid_structure_labels = [
-        "Chain-of-Thought Reasoning",
-        "Multi-Agent Reasoning", 
-        "Self-Reflection Reasoning",
-        "Abstraction to Principles Reasoning"
+        "Single-Pass Reasoning",
+        "Iterative Refinement",
+        "Parallel Ensemble Reasoning",
+        "Abstraction-Based Reasoning"
     ]
 
     # Check required fields
