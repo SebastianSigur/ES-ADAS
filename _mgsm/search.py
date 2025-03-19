@@ -744,17 +744,17 @@ def evaluate_forward_fn(args, forward_str):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--valid_size', type=int, default=128)
-    parser.add_argument('--test_size', type=int, default=800)
+    parser.add_argument('--test_size', type=int, default=200)
     parser.add_argument('--shuffle_seed', type=int, default=0)
     parser.add_argument('--n_repreat', type=int, default=1)
     parser.add_argument('--multiprocessing', action='store_true', default=True)
     parser.add_argument('--max_workers', type=int, default=48)
     parser.add_argument('--debug', action='store_true', default=True)
-    parser.add_argument('--save_dir', type=str, default='results_mgsm_prompt4/')
+    parser.add_argument('--save_dir', type=str, default='results_mgsm_test_archive/')
     parser.add_argument('--expr_name', type=str, default="mgsm_gpt3.5_results")
-    parser.add_argument('--n_generation', type=int, default=20)
+    parser.add_argument('--n_generation', type=int, default=5)
     parser.add_argument('--debug_max', type=int, default=3)
-    parser.add_argument('--max_agents', type=int, default=3)
+    parser.add_argument('--max_agents', type=int, default=1)
 
     # ------------------------------------------------------------
     # Map elites arguments:
@@ -789,9 +789,6 @@ if __name__ == "__main__":
         # Modify expr_name to include the run prefix (run1_, run2_, etc.)
         args.expr_name = f"run{run+1}_{original_expr_name}"
         print(f"Starting run {run+1} with seed {run_seed} and expr_name {args.expr_name}")
-
-        # Initialize new archive
-        archive = get_init_archive()
         
         # Run the search phase with SEARCHING_MODE turned on.
         SEARCHING_MODE = True
