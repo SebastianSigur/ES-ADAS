@@ -1,0 +1,50 @@
+{
+    "Self-Reflection Reasoning,0": null,
+    "Self-Reflection Reasoning,1": {
+        "thought": "To refine the proposal, I will focus on creating a single critique phase instead of multiple debate agents. This will reduce the API call count while still allowing for effective evaluation of generated answers. The architecture will consist of a single agent that critiques the generated answers and provides a unified feedback output. After reflecting on the generated answers, the model will select the best response based on this critique. This will maintain diversity in solutions while optimizing API usage.\n\nThe new structure will include:\n1. Generate multiple diverse answers using several Chain-of-Thought agents.\n2. Use a single critique agent to evaluate the generated answers and provide feedback.\n3. A final decision-making agent that takes the critiques into account to select the best answer.",
+        "name": "Critique and Decide",
+        "code": "def forward(self, taskInfo):\n    # Instruction for initial reasoning\n    cot_initial_instruction = \"Please think step by step and then solve the task.\"\n\n    # Number of agents for generating diverse answers\n    N = 3\n    # Initialize multiple Chain-of-Thought agents for diversity\n    cot_agents = [LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent', temperature=0.9) for _ in range(N)]\n\n    # Store all possible answers\n    possible_answers = []\n    for agent in cot_agents:\n        thinking, answer = agent([taskInfo], cot_initial_instruction)\n        possible_answers.append(answer)\n\n    # Single critique agent to evaluate the generated answers\n    critique_instruction = \"Given the solutions from other agents, provide feedback on their strengths and weaknesses.\"\n    critique_agent = LLMAgentBase(['thinking', 'feedback'], 'Critique Agent')\n\n    # Aggregate feedback based on all possible answers\n    thinking, feedback = critique_agent([taskInfo] + possible_answers, critique_instruction)\n\n    # Decision-making instruction for final answer\n    final_decision_instruction = \"Based on the critiques, reason over the possible answers and provide a final answer.\"\n    final_decision_agent = LLMAgentBase(['thinking', 'final_answer'], 'Final Decision Agent', temperature=0.1)\n\n    # Make the final decision based on possible answers and critique\n    final_thinking, final_answer = final_decision_agent([taskInfo] + possible_answers + [feedback], final_decision_instruction)\n    return final_answer",
+        "fitness": "95% Bootstrap Confidence Interval: (19.5%, 35.2%), Median: 27.3%",
+        "generation": 1,
+        "api_calls": 7,
+        "structure_label": "Self-Reflection Reasoning"
+    },
+    "Chain-of-Thought Reasoning,0": {
+        "thought": "By encouraging the LLM to think step by step rather than directly outputting an answer, chain-of-thought reasoning enables complex problem-solving through intermediate steps. This practice improves the model's ability to handle tasks that require deeper reasoning and provides insight into its decision-making process.",
+        "name": "Chain-of-Thought",
+        "code": "def forward(self, taskInfo):\n    # Instruction for the Chain-of-Thought (CoT) approach\n    # It is an important practice that allows the LLM to think step by step before solving the task.\n    cot_instruction = \"Please think step by step and then solve the task.\"\n\n    # Instantiate a new LLM agent specifically for CoT\n    # To allow LLM thinking before answering, we need to set an additional output field 'thinking'.\n    cot_agent = LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent')\n\n    # Prepare the inputs for the CoT agent\n    # The input should be a list of Info, and the first one is often the taskInfo\n    cot_agent_inputs = [taskInfo]\n\n    # Get the response from the CoT agent\n    thinking, answer = cot_agent(cot_agent_inputs, cot_instruction)\n\n    # Return only the final answer\n    return answer\n",
+        "api_calls": 1,
+        "structure_label": "Chain-of-Thought Reasoning",
+        "generation": "initial",
+        "fitness": "95% Bootstrap Confidence Interval: (7.0%, 18.8%), Median: 12.5%"
+    },
+    "Chain-of-Thought Reasoning,1": null,
+    "Multi-Agent Reasoning,0": {
+        "thought": "While an LLM can arrive at the correct answer, its reasoning may vary. By repeatedly asking the same question with high temperature settings, we can generate different reasoning paths. We then combine multiple answers from these Chain-of-Thought (CoT) agents to produce a more accurate final answer through ensembling.",
+        "name": "Self-Consistency with Chain-of-Thought",
+        "code": "def forward(self, taskInfo):\n    # Instruction for step-by-step reasoning\n    cot_instruction = \"Please think step by step and then solve the task.\"\n    N = 5 # Number of CoT agents\n\n    # Initialize multiple CoT agents with a higher temperature for varied reasoning\n    cot_agents = [LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent', temperature=0.8) for _ in range(N)]\n\n    # Majority voting function to select the most common answer\n    from collections import Counter\n    def majority_voting(answers):\n        return Counter(answers).most_common(1)[0][0]\n    \n    possible_answers = []\n    for i in range(N):\n        thinking, answer = cot_agents[i]([taskInfo], cot_instruction)\n        possible_answers.append(answer.content)\n\n    # Ensembling the answers from multiple CoT agents\n    answer = majority_voting(possible_answers)\n    return answer  \n",
+        "api_calls": 5,
+        "structure_label": "Multi-Agent Reasoning",
+        "generation": "initial",
+        "fitness": "95% Bootstrap Confidence Interval: (7.0%, 18.8%), Median: 12.5%"
+    },
+    "Multi-Agent Reasoning,1": {
+        "thought": "Similar to Quality-Diversity methods, let LLM generate multiple diverse interesting solutions could help. By encouraging the model to explore different reasoning paths, we can increase the chances of finding the best solution.",
+        "name": "Quality-Diversity",
+        "code": "def forward(self, taskInfo):\n    # Instruction for initial reasoning\n    cot_initial_instruction = \"Please think step by step and then solve the task.\"\n\n    # Instruction for giving diverse answers\n    qd_instruction = \"Given previous attempts, try to come up with another interesting way to solve the task.\"\n    cot_agent = LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent')\n\n    # Instruction for final decision-making based on collected reasoning and answers\n    final_decision_instruction = \"Given all the above solutions, reason over them carefully and provide a final answer.\"\n    final_decision_agent = LLMAgentBase(['thinking', 'answer'], 'Final Decision Agent', temperature=0.1)\n    \n    N_max = 3 # Maximum number of attempts\n\n    # Initial attempt\n    cot_inputs = [taskInfo]\n    possible_answers = []\n    thinking, answer = cot_agent(cot_inputs, cot_initial_instruction, 0)\n\n    # Add the answer to the list of possible answers\n    possible_answers.extend([thinking, answer])\n\n    for i in range(N_max):\n        # Reflect on previous attempts and generate another interesting answer\n        cot_inputs.extend([thinking, answer])\n\n        # Generate another interesting answer\n        thinking, answer = cot_agent(cot_inputs, qd_instruction, i + 1)\n        possible_answers.extend([thinking, answer])\n\n    # Make the final decision based on all generated answers\n    thinking, answer = final_decision_agent([taskInfo] + possible_answers, final_decision_instruction)\n    return answer\n",
+        "api_calls": 7,
+        "structure_label": "Multi-Agent Reasoning",
+        "generation": "initial",
+        "fitness": "95% Bootstrap Confidence Interval: (52.3%, 69.5%), Median: 60.9%"
+    },
+    "Abstraction to Principles Reasoning,0": {
+        "thought": "Let LLM first think about the principles involved in solving this task which could be helpful. By understanding the underlying principles, the model can better reason through the problem and provide a more accurate solution.",
+        "name": "Step-back Abstraction",
+        "code": "def forward(self, taskInfo):\n        # Instruction for understanding the principles involved in the task\n        principle_instruction = \"What are the physics, chemistry or biology principles and concepts involved in solving this task? First think step by step. Then list all involved principles and explain them.\"\n        \n        # Instruction for solving the task based on the principles\n        cot_instruction = \"Given the question and the involved principle behind the question, think step by step and then solve the task.\"\n        \n        # Instantiate LLM agents\n        principle_agent = LLMAgentBase(['thinking', 'principle'], 'Principle Agent')\n        cot_agent = LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent')\n        \n        # Get the principles involved in the task\n        thinking, principle = principle_agent([taskInfo], principle_instruction)\n\n        # Use the principles to solve the task\n        thinking, answer = cot_agent([taskInfo, thinking, principle], cot_instruction)\n        return answer\n",
+        "api_calls": 2,
+        "structure_label": "Abstraction to Principles Reasoning",
+        "generation": "initial",
+        "fitness": "95% Bootstrap Confidence Interval: (14.8%, 28.9%), Median: 21.9%"
+    },
+    "Abstraction to Principles Reasoning,1": null
+}

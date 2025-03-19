@@ -275,10 +275,10 @@ def recheck_label_with_gemini(agent_name, agent_thought, agent_code, candidate_l
         "You are an expert in classification and label verification. You are given an agent’s name, its detailed \"thought\" description, "
         "and a set of candidate labels. The initial classification from a BERT model is highly uncertain (confidence ≤ 0.75). Your task is to "
         "reassess the agent’s approach and decide which candidate label best fits the agent’s design. Below are the candidate labels with their descriptions:\n\n"
-        "1. Single-Pass Reasoning: Agents generate their answer in one go. They may include intermediate steps (a chain-of-thought) but do not engage in any subsequent revision or self-critique.\n"
-        "2. Iterative Refinement: Agents start by producing an initial answer and then deliberately re-evaluate and improve it through iterative self-critique.\n"
-        "3. Parallel Ensemble Reasoning: Agents execute multiple independent instances in parallel and aggregate their outputs to form a final answer, leveraging redundancy for improved reliability.\n"
-        "4. Abstraction-Based Reasoning: Agents first abstract the problem into high-level principles or concepts, then use these abstractions to guide the detailed solution process.\n"
+        "1. Chain-of-Thought Reasoning: Generates a single, linear, step-by-step reasoning process with every intermediate step explicitly shown.\n"
+        "2. Multi-Agent Reasoning: Runs several independent reasoning modules in parallel and aggregates their outputs to form the final answer.\n"
+        "3. Self-Reflection Reasoning: Produces an initial answer, then internally critiques and refines it through iterative self-review.\n"
+        "4. Abstraction to Principles Reasoning: First abstracts the problem’s details into high-level principles, then uses these abstractions to guide the solution.\n"
         "Do all the reasoning internally and output only the final label prediction (which must exactly match one of the provided candidate labels) with no additional explanation or text."
     )
     
@@ -319,10 +319,10 @@ def get_structure_label(solution):
     """
     # Define the candidate labels for structure classification.
     candidate_labels = [
-        "Single-Pass Reasoning",
-        "Iterative Refinement",
-        "Parallel Ensemble Reasoning",
-        "Abstraction-Based Reasoning"
+        "Chain-of-Thought Reasoning",
+        "Multi-Agent Reasoning",
+        "Self-Reflection Reasoning",
+        "Abstraction to Principles Reasoning"
     ]
     
     # Initialize the zero-shot classification pipeline.
@@ -369,10 +369,10 @@ def validate_agent(agent: dict) -> bool:
     }
     
     valid_structure_labels = [
-        "Single-Pass Reasoning",
-        "Iterative Refinement",
-        "Parallel Ensemble Reasoning",
-        "Abstraction-Based Reasoning"
+        "Chain-of-Thought Reasoning",
+        "Multi-Agent Reasoning",
+        "Self-Reflection Reasoning",
+        "Abstraction to Principles Reasoning"
     ]
 
     # Check required fields
@@ -744,17 +744,17 @@ def evaluate_forward_fn(args, forward_str):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--valid_size', type=int, default=128)
-    parser.add_argument('--test_size', type=int, default=200)
+    parser.add_argument('--test_size', type=int, default=800)
     parser.add_argument('--shuffle_seed', type=int, default=0)
     parser.add_argument('--n_repreat', type=int, default=1)
     parser.add_argument('--multiprocessing', action='store_true', default=True)
     parser.add_argument('--max_workers', type=int, default=48)
     parser.add_argument('--debug', action='store_true', default=True)
-    parser.add_argument('--save_dir', type=str, default='results_mgsm_test_archive/')
+    parser.add_argument('--save_dir', type=str, default='results_mgsm_best_run4/')
     parser.add_argument('--expr_name', type=str, default="mgsm_gpt3.5_results")
-    parser.add_argument('--n_generation', type=int, default=5)
+    parser.add_argument('--n_generation', type=int, default=30)
     parser.add_argument('--debug_max', type=int, default=3)
-    parser.add_argument('--max_agents', type=int, default=1)
+    parser.add_argument('--max_agents', type=int, default=3)
 
     # ------------------------------------------------------------
     # Map elites arguments:
@@ -767,8 +767,8 @@ if __name__ == "__main__":
     # ------------------------------------------------------------
 
     # Arguments for multiple runs to test variance
-    parser.add_argument('--num_runs', type=int, default=2, help="Number of runs to execute")
-    parser.add_argument('--base_seed', type=int, default=42, help="Base seed value for the first run")
+    parser.add_argument('--num_runs', type=int, default=1, help="Number of runs to execute")
+    parser.add_argument('--base_seed', type=int, default=45, help="Base seed value for the first run")
 
 
 
