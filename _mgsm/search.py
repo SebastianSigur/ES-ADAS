@@ -789,6 +789,9 @@ if __name__ == "__main__":
         # Modify expr_name to include the run prefix (run1_, run2_, etc.)
         args.expr_name = f"run{run+1}_{original_expr_name}"
         print(f"Starting run {run+1} with seed {run_seed} and expr_name {args.expr_name}")
+
+        # Initialize new archive
+        archive = get_init_archive()
         
         # Run the search phase with SEARCHING_MODE turned on.
         SEARCHING_MODE = True
