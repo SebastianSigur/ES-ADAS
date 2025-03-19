@@ -480,18 +480,12 @@ return answer
 
 # Your task
 You are deeply familiar with LLM prompting techniques and LLM agent works from the literature.
-You are provided with an inspirational agent of a specified structure and a volume of API calls: [STRUCTURE_LABEL] and [API_LABEL].
-Your goal is to maximize "fitness" by mutating the inspirational agent. The new agent must follows the structure [STRUCTURE_LABEL], as defined by: [LABEL DESCRIPTION]. The new agent should have [API_LABEL]. 
+Your goal is to maximize "fitness" by designing an improved agent that is specifically tailored to the category: [STRUCTURE_LABEL] and [API_LABEL]. You are provided with a selected agent as inspiration: [SELECTED_AGENT].
+Your task is to mutate and refine this agent to create a better-performing variant that meets the structure [STRUCTURE_LABEL] and has [API_LABEL]. Stay within the category for the structure ([LABEL DESCRIPTION]) of the agent. Your goal is to improve its performance.
 
-This is the inspirational agent:
-[SELECTED_AGENT]
-
-
-To gain further ideas for creating the improved agent, observe the discovered architectures in the archive carefully. Especially consider agents with a high "fitness" and take inspiration from those. Consider insights, lessons, or stepping stones they provide.
-Disregard agents with low performance and avoid mistakes they made.
-Draw inspiration from related LLM agent papers or academic literature from other research areas. Focus on modifications that can enhance performance while optimizing resource usage in line with the specified structure and volume of API calls.
+Observe the discovered architectures carefully and consider the insights, lessons, or stepping stones they provide.
+Draw inspiration from related LLM agent papers or academic literature from other research areas. Focus on modifications that can enhance performance while optimizing resource usage in line with the specified category.
 THINK OUTSIDE THE BOX.
-
 
 IMPORTANT RULES:
 [RULES]

@@ -356,6 +356,49 @@ def get_structure_label(solution):
 #-------------------------------------------------------------------------------------------------------#
 
 
+def validate_agent(agent: dict) -> bool:
+    """Ensure agent has all required fields and valid structure label"""
+    required_fields = {
+        'thought': str,
+        'name': str,
+        'code': str,
+        'fitness': (int,str),
+        'generation': (int, str),  # Allow "initial" or int
+        'api_calls': (int, str),
+        'structure_label': str
+    }
+    
+    valid_structure_labels = [
+        "Chain-of-Thought Reasoning",
+        "Multi-Agent Reasoning", 
+        "Self-Reflection Reasoning",
+        "Abstraction to Principles Reasoning"
+    ]
+
+    # Check required fields
+    for field, field_type in required_fields.items():
+        if field not in agent:
+            print(f"Agent missing required field: {field}")
+            return False
+            
+        if not isinstance(agent[field], field_type):
+            print(f"Invalid type for {field}: {type(agent[field])}")
+            return False
+
+    # Validate structure label
+    if agent['structure_label'] not in valid_structure_labels:
+        print(f"Invalid structure label: {agent['structure_label']}")
+        return False
+
+    # Validate code content
+    if not agent['code'].strip().startswith('def forward('):
+        print("Invalid code format - missing forward function")
+        return False
+
+    return True
+
+#-------------------------------------------------------------------------------------------------------#
+
 
 def search(args):
 
@@ -374,7 +417,7 @@ def search(args):
     
     #-------------------------------------------------------------------------------------------------------#    
     ## Call Gemini to assess the code of each agent in the archive.
-    ## Gemini's response should include only the number of API calls made. Add that information to each solution.
+    ## Gemini's response should include only the number of API calls made. Add that information to each.
     for solution in archive:
         solution["api_calls"] = count_api_calls(solution["code"])
     
@@ -527,6 +570,12 @@ def search(args):
             del next_solution['debug_thought']
         if 'reflection' in next_solution:
             del next_solution['reflection']
+        
+        # Add validation before adding to archive
+        if not validate_agent(next_solution):
+            print(f"Skipping invalid agent from generation {n+1}")
+            continue  # Skip this agent
+
         archive.append(next_solution)
 
         # save results
@@ -701,7 +750,7 @@ if __name__ == "__main__":
     parser.add_argument('--multiprocessing', action='store_true', default=True)
     parser.add_argument('--max_workers', type=int, default=48)
     parser.add_argument('--debug', action='store_true', default=True)
-    parser.add_argument('--save_dir', type=str, default='results_mgsm_prompt2/')
+    parser.add_argument('--save_dir', type=str, default='results_mgsm_prompt3/')
     parser.add_argument('--expr_name', type=str, default="mgsm_gpt3.5_results")
     parser.add_argument('--n_generation', type=int, default=20)
     parser.add_argument('--debug_max', type=int, default=3)
@@ -718,7 +767,7 @@ if __name__ == "__main__":
     # ------------------------------------------------------------
 
     # Arguments for multiple runs to test variance
-    parser.add_argument('--num_runs', type=int, default=3, help="Number of runs to execute")
+    parser.add_argument('--num_runs', type=int, default=5, help="Number of runs to execute")
     parser.add_argument('--base_seed', type=int, default=42, help="Base seed value for the first run")
 
 

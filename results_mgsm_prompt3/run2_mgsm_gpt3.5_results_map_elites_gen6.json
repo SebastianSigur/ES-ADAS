@@ -1,0 +1,58 @@
+{
+    "Chain-of-Thought Reasoning,0": {
+        "thought": "By encouraging the LLM to think step by step rather than directly outputting an answer, chain-of-thought reasoning enables complex problem-solving through intermediate steps. This practice improves the model's ability to handle tasks that require deeper reasoning and provides insight into its decision-making process.",
+        "name": "Chain-of-Thought",
+        "code": "def forward(self, taskInfo):\n    # Instruction for the Chain-of-Thought (CoT) approach\n    # It is an important practice that allows the LLM to think step by step before solving the task.\n    cot_instruction = \"Please think step by step and then solve the task.\"\n\n    # Instantiate a new LLM agent specifically for CoT\n    # To allow LLM thinking before answering, we need to set an additional output field 'thinking'.\n    cot_agent = LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent')\n\n    # Prepare the inputs for the CoT agent\n    # The input should be a list of Info, and the first one is often the taskInfo\n    cot_agent_inputs = [taskInfo]\n\n    # Get the response from the CoT agent\n    thinking, answer = cot_agent(cot_agent_inputs, cot_instruction)\n\n    # Return only the final answer\n    return answer\n",
+        "api_calls": 1,
+        "structure_label": "Chain-of-Thought Reasoning",
+        "generation": "initial",
+        "fitness": "95% Bootstrap Confidence Interval: (8.6%, 20.3%), Median: 14.1%"
+    },
+    "Chain-of-Thought Reasoning,1": null,
+    "Abstraction to Principles Reasoning,0": {
+        "thought": "Let LLM first think about the principles involved in solving this task which could be helpful. By understanding the underlying principles, the model can better reason through the problem and provide a more accurate solution.",
+        "name": "Step-back Abstraction",
+        "code": "def forward(self, taskInfo):\n        # Instruction for understanding the principles involved in the task\n        principle_instruction = \"What are the physics, chemistry or biology principles and concepts involved in solving this task? First think step by step. Then list all involved principles and explain them.\"\n        \n        # Instruction for solving the task based on the principles\n        cot_instruction = \"Given the question and the involved principle behind the question, think step by step and then solve the task.\"\n        \n        # Instantiate LLM agents\n        principle_agent = LLMAgentBase(['thinking', 'principle'], 'Principle Agent')\n        cot_agent = LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent')\n        \n        # Get the principles involved in the task\n        thinking, principle = principle_agent([taskInfo], principle_instruction)\n\n        # Use the principles to solve the task\n        thinking, answer = cot_agent([taskInfo, thinking, principle], cot_instruction)\n        return answer\n",
+        "api_calls": 2,
+        "structure_label": "Abstraction to Principles Reasoning",
+        "generation": "initial",
+        "fitness": "95% Bootstrap Confidence Interval: (18.0%, 32.8%), Median: 25.0%"
+    },
+    "Abstraction to Principles Reasoning,1": null,
+    "Multi-Agent Reasoning,0": {
+        "thought": "**Insights:**\nThe existing architecture can benefit from a more structured critique process that involves consensus-building among multiple reasoning agents. Instead of just critiquing diverse answers, the agents should also engage in a collaborative discussion to refine their outputs, leading to a more robust final answer.\n\n**Overall Idea:**\nThis architecture will consist of multiple agents generating diverse answers and then engaging in a collaborative discussion to critique and refine those answers collectively. This approach minimizes redundancy in critique responses and utilizes the strengths of each agent effectively without exceeding the API call limit.\n\n**Implementation:**\n1. Use a single LLMAgentBase instance that generates diverse answers followed by a critique process.\n2. Each agent will contribute to the critique phase, discussing strengths and weaknesses while enhancing the final consensus answer in one API call.\n3. Ensure that the implementation is straightforward and maintains clarity in response formatting.",
+        "name": "Collaborative Consensus Reasoning Agent",
+        "code": "def forward(self, taskInfo):\n    # Instruction for generating diverse answers and engaging in collaborative critique\n    instruction = \"Please think step by step and provide three varied answers to the task. Then, collaboratively discuss the strengths and weaknesses of each answer. Finally, provide a consensus final answer.\"\n    \n    # Instantiate a single LLM agent to handle both generating and critiquing answers\n    agent = LLMAgentBase([\"final_answer\"], 'Collaborative Consensus Reasoning Agent')\n    \n    # Call the agent with the task information to generate diverse answers and critiques\n    response = agent([taskInfo], instruction)\n    \n    # Return the final answer extracted from the response\n    return response[0].content",
+        "fitness": "95% Bootstrap Confidence Interval: (6.2%, 17.2%), Median: 11.7%",
+        "generation": 3,
+        "api_calls": 1,
+        "structure_label": "Multi-Agent Reasoning"
+    },
+    "Multi-Agent Reasoning,1": {
+        "thought": "Similar to Quality-Diversity methods, let LLM generate multiple diverse interesting solutions could help. By encouraging the model to explore different reasoning paths, we can increase the chances of finding the best solution.",
+        "name": "Quality-Diversity",
+        "code": "def forward(self, taskInfo):\n    # Instruction for initial reasoning\n    cot_initial_instruction = \"Please think step by step and then solve the task.\"\n\n    # Instruction for giving diverse answers\n    qd_instruction = \"Given previous attempts, try to come up with another interesting way to solve the task.\"\n    cot_agent = LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent')\n\n    # Instruction for final decision-making based on collected reasoning and answers\n    final_decision_instruction = \"Given all the above solutions, reason over them carefully and provide a final answer.\"\n    final_decision_agent = LLMAgentBase(['thinking', 'answer'], 'Final Decision Agent', temperature=0.1)\n    \n    N_max = 3 # Maximum number of attempts\n\n    # Initial attempt\n    cot_inputs = [taskInfo]\n    possible_answers = []\n    thinking, answer = cot_agent(cot_inputs, cot_initial_instruction, 0)\n\n    # Add the answer to the list of possible answers\n    possible_answers.extend([thinking, answer])\n\n    for i in range(N_max):\n        # Reflect on previous attempts and generate another interesting answer\n        cot_inputs.extend([thinking, answer])\n\n        # Generate another interesting answer\n        thinking, answer = cot_agent(cot_inputs, qd_instruction, i + 1)\n        possible_answers.extend([thinking, answer])\n\n    # Make the final decision based on all generated answers\n    thinking, answer = final_decision_agent([taskInfo] + possible_answers, final_decision_instruction)\n    return answer\n",
+        "api_calls": 7,
+        "structure_label": "Multi-Agent Reasoning",
+        "generation": "initial",
+        "fitness": "95% Bootstrap Confidence Interval: (49.2%, 66.4%), Median: 57.8%"
+    },
+    "Self-Reflection Reasoning,0": {
+        "thought": "To enhance the architecture, I propose a refined version that aligns closely with the Chain-of-Thought (CoT) strategy but tightly integrates self-critique. This will ensure that while the model reasons through the problem statement, it also assesses its reasoning at every step, refining the final output from these evaluations. The instruction set will be crafted to emphasize step-by-step reasoning, and the critique will assess the quality of each step rather than generalize after the answer is produced.",
+        "name": "Integrated Self-Critique Chain-of-Thought",
+        "code": "def forward(self, taskInfo):\n    # Instruction for reasoning with integrated self-critique\n    instruction = \"Please think step by step to solve the task. After each reasoning step, evaluate it for correctness and clarity. Provide a final answer based on the best insights from your evaluation.\"\n    \n    # Instantiate a single LLM agent for reasoning\n    agent = LLMAgentBase([\"final_answer\"], \"Integrated Self-Critique Agent\")\n    \n    # Call the agent with the task information to perform reasoning and self-critique\n    response = agent([taskInfo], instruction)\n    \n    # Directly return the final answer from the response\n    return response[0].content",
+        "fitness": "95% Bootstrap Confidence Interval: (12.5%, 25.8%), Median: 18.8%",
+        "generation": 6,
+        "api_calls": 1,
+        "structure_label": "Self-Reflection Reasoning"
+    },
+    "Self-Reflection Reasoning,1": {
+        "thought": "To enhance its performance, an LLM can iteratively improve its answer based on feedback. By reflecting on its previous attempts and incorporating feedback, the model can refine its reasoning and provide a more accurate solution.",
+        "name": "Self-Refine (Reflexion)",
+        "code": "def forward(self, taskInfo):\n    # Instruction for initial reasoning\n    cot_initial_instruction = \"Please think step by step and then solve the task.\"\n\n    # Instruction for reflecting on previous attempts and feedback to improve\n    cot_reflect_instruction = \"Given previous attempts and feedback, carefully consider where you could go wrong in your latest attempt. Using insights from previous attempts, try to solve the task better.\"\n    cot_agent = LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent')\n\n    # Instruction for providing feedback and correcting the answer\n    critic_instruction = \"Please review the answer above and criticize on where might be wrong. If you are absolutely sure it is correct, output 'True' in 'correct'.\"\n    critic_agent = LLMAgentBase(['feedback', 'correct'], 'Critic Agent')\n    \n    N_max = 5 # Maximum number of attempts\n\n    # Initial attempt\n    cot_inputs = [taskInfo]\n    thinking, answer = cot_agent(cot_inputs, cot_initial_instruction, 0)\n\n    for i in range(N_max):\n        # Get feedback and correct status from the critic\n        feedback, correct = critic_agent([taskInfo, thinking, answer], critic_instruction, i)\n        if correct.content == 'True':\n            break\n            \n        # Add feedback to the inputs for the next iteration\n        cot_inputs.extend([thinking, answer, feedback])\n\n        # Reflect on previous attempts and refine the answer\n        thinking, answer = cot_agent(cot_inputs, cot_reflect_instruction, i + 1)\n    return answer\n",
+        "api_calls": 7,
+        "structure_label": "Self-Reflection Reasoning",
+        "generation": "initial",
+        "fitness": "95% Bootstrap Confidence Interval: (7.8%, 19.5%), Median: 13.3%"
+    }
+}
