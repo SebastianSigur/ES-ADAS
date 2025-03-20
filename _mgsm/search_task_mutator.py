@@ -14,7 +14,7 @@ from google import genai
 from google.genai import types
 
 
-from mgsm_prompt import get_init_archive, get_prompt, get_reflexion_prompt
+from mgsm_prompt import get_init_archive, get_prompt, get_reflexion_prompt, get_code_mutator_prompt, get_task_mutated_instruction, get_prompt_mutated
 
 openai_client = openai.OpenAI()
 gemini_client = genai.Client(api_key=os.getenv('GOOGLE_AI_API_KEY'))
@@ -202,7 +202,36 @@ def search(args):
 
     for n in range(start, args.n_generation):
         print(f"============Generation {n + 1}=================")
-        system_prompt, prompt = get_prompt(archive)
+        archive_for_prompt = copy.deepcopy(archive)
+        for sol in archive_for_prompt:
+            # Removing the Code Mutator description so that it does not influence future runs
+            if 'code_mutator' in sol:
+                del sol['code_mutator']
+            # Removing the Task Mutator description so that it does not influence future runs
+            if 'task_mutator' in sol:
+                del sol['task_mutator']
+            # Removing the Task Mutated Instruction so that it does not influence future runs
+            if 'mutated_instruction' in sol:
+                del sol['mutated_instruction']
+        # Removing agents that have 0% accuracy (only from the archive given as context, not from the saved archive)
+        archive_for_prompt_tmp = []        
+        for sol in archive_for_prompt:
+            if 'fitness' in sol:
+                if get_upper_bound(sol['fitness']) == 0.:
+                    continue
+            archive_for_prompt_tmp.append(sol)
+        archive_for_prompt = archive_for_prompt_tmp
+
+        # Task mutator only applied to new agents, not to initial ones
+        system_prompt_task, task_mutator_prompt, task_mutator = get_task_mutated_instruction()
+        msg_list_task_mut_query = [
+            {"role": "system", "content": system_prompt_task},
+            {"role": "user", "content": task_mutator_prompt},
+        ]
+        task_mutator_instruction = get_json_response_from_gpt_reflect(msg_list_task_mut_query)
+        task_mutator_instruction = task_mutator_instruction['instruction']
+
+        system_prompt, prompt = get_prompt_mutated(archive_for_prompt, task_mutator_instruction)
         msg_list = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompt},
@@ -215,7 +244,8 @@ def search(args):
             msg_list.append({"role": "assistant", "content": str(next_solution)})
             msg_list.append({"role": "user", "content": Reflexion_prompt_1})
             next_solution = get_json_response_from_gpt_reflect(msg_list)
-            # Reflexion 2
+
+            # Reflexion 2 (Moved it to the end)
             msg_list.append({"role": "assistant", "content": str(next_solution)})
             msg_list.append({"role": "user", "content": Reflexion_prompt_2})
             next_solution = get_json_response_from_gpt_reflect(msg_list)
@@ -251,6 +281,13 @@ def search(args):
         fitness_str = bootstrap_confidence_interval(acc_list)
         next_solution['fitness'] = fitness_str
         next_solution['generation'] = n + 1
+
+        # Adding the Code Mutator Instruction:
+        # next_solution['code_mutator'] = code_mutator_instruction
+
+        # Adding the Task Mutator Instruction:
+        next_solution['task_mutator'] = task_mutator
+        next_solution['mutated_instruction'] = task_mutator_instruction
 
         if 'debug_thought' in next_solution:
             del next_solution['debug_thought']
@@ -394,9 +431,9 @@ if __name__ == "__main__":
     parser.add_argument('--max_workers', type=int, default=48)
     parser.add_argument('--debug', action='store_true', default=True)
     parser.add_argument('--save_dir', type=str, default='results/')
-    parser.add_argument('--expr_name', type=str, default="test5_mgsm_gpt3.5_results")
-    parser.add_argument('--n_generation', type=int, default=30)
-    parser.add_argument('--debug_max', type=int, default=5)
+    parser.add_argument('--expr_name', type=str, default="task_mutator_test6_mgsm_openai_gemini_results")
+    parser.add_argument('--n_generation', type=int, default=20)
+    parser.add_argument('--debug_max', type=int, default=3)
     parser.add_argument('--max_agents', type=int, default=5)
 
 

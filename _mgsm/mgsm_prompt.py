@@ -1,4 +1,5 @@
 import json
+import numpy as np
 
 EXAMPLE = {
     "thought": "**Insights:**\nYour insights on what should be the next interesting agent.\n**Overall Idea:**\nyour reasoning and the overall concept behind the agent design.\n**Implementation:**\ndescribe the implementation step by step.",
@@ -8,6 +9,42 @@ EXAMPLE = {
     return answer
 """
 }
+
+CODE_MUTATOR_PROMPTS = [
+    'Modify the Python code to improve its performance.',
+    'Change the code to solve the problem in a different way.',
+    'Come up with another creative way to solve the problem.',
+    'Explore a different way to solve the problem.',
+    'Just change this code to make it more fun, think WELL outside the box.',
+    'Act as an experienced Python programmer and LLM expert. Create a new solution that vastly improves the current one.',
+    'Revamp the current Python code to create a complex structured solution that has never been seen before.'
+]
+
+# # Tests 1-5
+# TASK_MUTATOR_PROMPTS = [
+#     'Make a variant of the prompt.',
+#     'Modify the following instruction creatively, giving some advice on how to solve it.',
+#     'Just change this instruction to make it more fun, think WELL outside the box.',
+#     'How would you help an LLM to follow the instruction?',
+#     'Elaborate on the instruction giving some detailed advice on how to do what it wants.',
+#     'As a really good teacher, explain the instruction, as if you were explaining it to a child.',
+#     'Imagine you need to follow this instruction. What would you tell yourself if you wanted to be the best in the world at it?',
+#     "Do not think about the instruction at all, but let it inspire you to do something related. Talk about what that might be.",
+#     'Rephrase the instruction without using any of the same words. Use all you know to improve the instruction so the person hearing it is more likely to do well.',
+#     'Here is how an expert researcher in Large Language Models (LLMs) would detail the instructions to an LLM.'
+# ]
+
+# Tests 6-
+TASK_MUTATOR_PROMPTS = [
+    'Make a variant of the prompt.',
+    'Modify the following instruction creatively, giving some advice on how to solve it.',
+    'Promote breaking down problems: Instead of asking the user to solve the problem as a whole, prompt them to break it down into smaller, more manageable parts.',
+    'Break free from conventional constraints and generate a mutated task prompt that takes the task prompt to uncharted territories. Challenge the norm and create a mutated task prompt that pushes the boundaries of traditional interpretations.',
+    "Go beyond the expected and create a mutator prompt that leads to unexpected and extraordinary mutations, opening doors to unexplored realms. Increase Specificity: If the original prompt is too general, like 'Tell me about X,' the modified version could be,'Discuss the history, impact, and current status of X.'",
+    'Embrace unconventional ideas and mutate the task prompt in a way that surprises and inspires unique variations. Think outside the box and develop a mutated task prompt that encourages unconventional approaches and fresh perspectives.',
+    'Step into the realm of imagination and create a mutated task prompt that transcends limitations and encourages innovative mutations. Break through the ordinary and think outside the box to generate a mutated task prompt that unlocks new possibilities and unconventional paths.',
+    'Embrace the power of unconventional thinking and create a mutated task prompt that sparks unconventional mutations and imaginative outcomes. Challenge traditional assumptions and break the mold with a mutated task prompt that encourages revolutionary and out-of-the-box variations.'
+]
 
 COT = {
     "thought": "By encouraging the LLM to think step by step rather than directly outputting an answer, chain-of-thought reasoning enables complex problem-solving through intermediate steps. This practice improves the model's ability to handle tasks that require deeper reasoning and provides insight into its decision-making process.",
@@ -226,7 +263,7 @@ system_prompt = """You are a helpful assistant. Make sure to return in a WELL-FO
 base = """# Overview
 You are an expert machine learning researcher testing various agentic systems. Your objective is to design building blocks such as prompts and control flows within these systems to solve complex tasks. Your aim is to design an optimal agent performing well on the Multilingual Grade School Math Benchmark (MGSM) which evaluates mathematical problem-solving abilities across various languages to ensure broad and effective multilingual performance.
 
-## An example question from MGSM:
+## An EXAMPLE question from MGSM:
 
 **Question**: この数学の問題を解いてください。\n\n近所では、ペットのウサギの数がペットの犬と猫を合わせた数よりも12匹少ない。犬1匹あたり2匹の猫がおり、犬の数は60匹だとすると、全部で近所には何匹のペットがいますか？
 
@@ -537,3 +574,340 @@ def get_reflexion_prompt(prev_example):
     prev_example_str = "Here is the previous agent you tried:\n" + json.dumps(prev_example) + "\n\n"
     r1 = Reflexion_prompt_1.replace("[EXAMPLE]", prev_example_str) if prev_example else Reflexion_prompt_1.replace("[EXAMPLE]", "")
     return r1, Reflexion_prompt_2
+
+# CODE MUTATORS
+
+def get_code_mutator():
+    code_mutator = '# INSTRUCTION: ' + str(np.random.choice(CODE_MUTATOR_PROMPTS))
+
+    return code_mutator
+
+def get_code_mutator_prompt(code):
+    # Choosing Mutator Instruction
+    mutator_instruction = get_code_mutator()
+
+    # Building Mutator Prompt
+    mutator_prompt = ''
+    mutator_prompt += 'You have written the following forward function:\n\n```'
+    mutator_prompt += code + '''```\n\n'''
+    clarification = '''# IMPORTANT: Remember the structure for the Info NamedTuple \n```Info = namedtuple('Info', ['name', 'author', 'content', 'iteration_idx'])```\n\n'''
+    # mutator_prompt += clarification
+    mutator_prompt += mutator_instruction
+
+    return mutator_prompt, mutator_instruction
+
+base_2 = """# Overview
+You are an expert machine learning researcher testing various agentic systems. Your objective is to design building blocks such as prompts and control flows within these systems to solve complex tasks. Your aim is to design an optimal agent performing well on the Multilingual Grade School Math Benchmark (MGSM) which evaluates mathematical problem-solving abilities across various languages to ensure broad and effective multilingual performance.
+
+## An EXAMPLE question from MGSM:
+
+**Question**: この数学の問題を解いてください。\n\n近所では、ペットのウサギの数がペットの犬と猫を合わせた数よりも12匹少ない。犬1匹あたり2匹の猫がおり、犬の数は60匹だとすると、全部で近所には何匹のペットがいますか？
+
+**Answer (Not Given)**: 348
+
+# The utility code:
+
+```python
+from collections import namedtuple
+from typing import Union
+import numpy as np
+import json
+
+import openai
+import backoff
+from utils import random_id
+
+# Initialize the OpenAI client
+client = openai.OpenAI()
+
+# Named tuple for holding task information
+Info = namedtuple('Info', ['name', 'author', 'content', 'iteration_idx'])
+
+# Format instructions for LLM response
+FORMAT_INST = lambda request_keys: f"Reply EXACTLY with the following JSON format.\n{str(request_keys)}\nDO NOT MISS ANY FIELDS AND MAKE SURE THE JSON FORMAT IS CORRECT!\n"
+
+# Description of the role for the LLM
+ROLE_DESC = lambda role: f"You are a {role}."
+
+@backoff.on_exception(backoff.expo, openai.RateLimitError)
+def get_json_response_from_gpt(msg, system_message, temperature=0.5):
+    \"""
+    Function to get JSON response from GPT model.
+    
+    Args:
+    - msg (str): The user message.
+    - system_message (str): The system message.
+    - temperature (float): Sampling temperature.
+    
+    Returns:
+    - dict: The JSON response.
+    \"""
+    response = client.chat.completions.create(
+        messages=[
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": msg},
+        ],
+        temperature=temperature,
+        max_tokens=1024,
+        stop=None,
+        response_format={"type": "json_object"}
+    )
+    content = response.choices[0].message.content
+    json_dict = json.loads(content)
+    return json_dict
+
+class LLMAgentBase:
+    \"""
+    Base class for an LLM agent.
+    
+    Attributes:
+    - output_fields (list): Fields expected in the output.
+    - agent_name (str): Name of the agent.
+    - role (str): Role description for the agent.
+    - temperature (float): Sampling temperature.
+    - id (str): Unique identifier for the agent instance.
+    \"""
+
+    def __init__(self, output_fields: list, agent_name: str, role='helpful assistant', model='gpt-3.5-turbo-0125', temperature=0.5) -> None:
+        self.output_fields = output_fields
+        self.agent_name = agent_name
+        self.role = role
+
+        self.temperature = temperature
+        self.id = random_id()
+    
+    def generate_prompt(self, input_infos, instruction) -> str:
+        \"""
+        Generates a prompt for the LLM.
+        
+        Args:
+        - input_infos (list): List of input information.
+        - instruction (str): Instruction for the task.
+        
+        Returns:
+        - tuple: System prompt and user prompt.
+
+        An example of a generated prompt:
+        ""
+        You are a helpful assistant.
+        
+        # Output Format:
+        Reply EXACTLY with the following JSON format.
+        ...
+
+        # Your Task:
+        You will be given some number of paired example inputs and outputs. The outputs ...
+
+        ### thinking #1 by Chain-of-Thought Agent hkFo (yourself):
+        ...
+        
+        ### code #1 by Chain-of-Thought Agent hkFo (yourself):
+        ...
+
+        ### answer by Chain-of-Thought Agent hkFo's code evaluator:...
+
+
+        # Instruction: 
+        Please think step by step and then solve the task by writing the code.
+        ""
+        \"""
+        output_fields_and_description = {key: f"Your {key}." if not 'answer' in key else f"Your {key}. Return ONLY the alphabet choice, i.e. A or B or C or D." for key in self.output_fields}
+        system_prompt = ROLE_DESC(self.role) + "\n\n" + FORMAT_INST(output_fields_and_description)
+
+        input_infos_text = ''
+        for input_info in input_infos:
+            if isinstance(input_info, Info):
+                (field_name, author, content, iteration_idx) = input_info
+            else:
+                continue
+            if author == self.__repr__():
+                author += ' (yourself)'
+            if field_name == 'task':
+                input_infos_text += f'# Your Task:\n{content}\n\n'
+            elif iteration_idx != -1:
+                input_infos_text += f'### {field_name} #{iteration_idx+1} by {author}:\n{content}\n\n'
+            else:
+                input_infos_text += f'### {field_name} by {author}:\n{content}\n\n'
+
+        prompt = input_infos_text + instruction
+        return system_prompt, prompt 
+
+    def query(self, input_infos: list, instruction, iteration_idx=-1) -> list[Info]:
+        \"""
+        Queries the LLM with provided input information and instruction.
+        
+        Args:
+        - input_infos (list): List of input information.
+        - instruction (str): Instruction for the task.
+        - iteration_idx (int): Iteration index for the task.
+        
+        Returns:
+        - output_infos (list[Info]): Output information.
+        \"""
+        system_prompt, prompt = self.generate_prompt(input_infos, instruction)
+        response_json = get_json_response_from_gpt(prompt, system_prompt, self.temperature)
+
+        output_infos = []
+        for key, value in response_json.items():
+            info = Info(key, self.__repr__(), value, iteration_idx)
+            output_infos.append(info)
+        return output_infos
+
+    def __repr__(self):
+        return f"{self.agent_name} {self.id}"
+    
+    def __call__(self, input_infos: list, instruction, iteration_idx=-1):
+        # Note:
+        # The output of the LLM is a list of Info. If you are only querying one output, you should access it with [0].
+        # It is a good practice to always include 'thinking' in the output.
+        return self.query(input_infos, instruction, iteration_idx=iteration_idx)
+
+class AgentArchitecture:
+    \"""
+    Fill in your code here.
+    \"""
+    def forward(self, taskInfo) -> Union[Info, str]:
+        \"""
+        Placeholder method for processing task information.
+        
+        Args:
+        - taskInfo (Info): Task information.
+        
+        Returns:
+        - Answer (Union[Info, str]): Your FINAL Answer. Return either a namedtuple Info or a string of answers.
+        \"""
+        pass
+```
+# Discovered architecture archive
+Here is the archive of the discovered architectures:
+
+[ARCHIVE]
+
+The fitness value is the median and 95% Bootstrap Confidence Interval of the correct rate on a validation question set. Your GOAL is to maximize the "fitness".
+
+# Output Instruction and Example:
+The first key should be ("thought"), and it should capture your thought process for designing the next function. In the "thought" section, first reason about what should be the next interesting agent to try, then describe your reasoning and the overall concept behind the agent design, and finally detail the implementation steps.
+The second key ("name") corresponds to the name of your next agent architecture. 
+Finally, the last key ("code") corresponds to the exact “forward()” function in Python code that you would like to try. You must write a COMPLETE CODE in "code": Your code will be part of the entire project, so please implement complete, reliable, reusable code snippets.
+
+Here is an example of the output format for the next agent architecture:
+
+[EXAMPLE]
+
+You must use the exact function interface used above. You need to specify the instruction, input information, and the required output fields for various LLM agents to do their specific part of the architecture. 
+Also, it could be helpful to set the LLM’s role and temperature to further control the LLM’s response. Note that the LLMAgentBase() will automatically parse the output and return a list of “Infos”. You can get the content by Infos.content. 
+DO NOT FORGET the taskInfo input to LLM if you think it is needed, otherwise LLM will not know about the task.
+
+## WRONG Implementation examples:
+Here are some mistakes you may make:
+
+1. This is WRONG: ```
+feedback, correct = critic_agent([taskInfo, thinking, answer], critic_instruction, i)
+feedback_info = verifier_agent([taskInfo, Info('feedback', 'Critic Agent', thinking, 0)], verification_instruction)
+```
+It is wrong to use "Info('feedback', 'Critic Agent', thinking, 0)". The returned "feedback" from LLMAgentBase is already Info.
+
+2. This is WRONG: ```
+# Debugging: Log the generated answer
+print('Generated Answer:', ...)
+feedback_info = verifier_agent([taskInfo, Info('feedback', 'Critic Agent', thinking, 0)], verification_instruction)
+if len(feedback_info) < 3:  # Check if feedback_info has enough elements
+    return 'Error: Feedback info incomplete'
+```
+First, the len(feedback_info) will not work.
+Second, you should never return an error message. You should always return the best answer you can get.
+Third, you should never print anything in the code.
+Lastly, again, DO NOT CREATE Info object by yourself.
+
+3. This is WRONG: ```
+all_thinking = []
+all_answers = []
+for agent, role in zip(agents, roles):
+    outputs = agent([taskInfo], independent_reasoning_instruction.format(role=role))
+    all_thinking.append(outputs[0].content)
+    all_answers.append(outputs[1].content)
+
+# Aggregate the reasoning paths and answers
+aggregated_thinking = '\n'.join(all_thinking)
+aggregated_answers = '\n'.join(all_answers)
+```
+You SHOULD NOT extract the content from the Info object by yourself. You should use the Info object directly. If you want to aggregate the content, you should just put those Info objects into a list and then use the list as input to the next LLM agent.
+
+4. This is WRONG: ```
+reasoning_agent = LLMAgentBase(['thinking', 'answer'], 'Reasoning Agent')
+response_infos = reasoning_agent([taskInfo] + ..., reasoning_instruction)
+    
+# Extract the final answer from the response_infos
+for info in response_infos:
+    if info.name == 'final_answer':
+        return info
+# Fallback if no answer is found
+return Info('answer', 'Final Decision Agent', 'No answer generated.', 0)
+```
+You should not extract the final answer by yourself. You SHOULD directly return the answer Info. Also, you should always return the best answer you can get.
+CORRECT example: ```
+reasoning_agent = LLMAgentBase(['thinking', 'answer'], 'Reasoning Agent')
+thinking, answer = reasoning_agent([taskInfo] + ..., reasoning_instruction)
+return answer
+```
+
+
+"""
+
+# def get_prompt_v2(current_archive, adaptive=False):
+#     # archive_str = ",\n".join([json.dumps(sol) for sol in current_archive])
+#     # Trying to only give the initial archive as context to the Code Mutator
+#     archive_str = ",\n".join([json.dumps(sol) for sol in get_init_archive()])
+
+#     archive_str = f"[{archive_str}]"
+#     prompt = base_2.replace("[ARCHIVE]", archive_str) # ARCHIVE could be either fixed to the initial one, the latest solution, or the current archive
+#     prompt = prompt.replace("[EXAMPLE]", json.dumps(EXAMPLE)) # Example could also be empty to test how this changes performance...
+
+#     return system_prompt, prompt
+
+# def get_code_mutator_prompt_v2(code, archive):
+#     system_prompt, prompt = get_prompt_v2(archive, adaptive=False)
+
+#     # Choosing Mutator Instruction
+#     mutator_instruction = get_code_mutator()
+
+#     # Building Mutator Prompt
+#     mutator_prompt = prompt
+#     mutator_prompt += 'You have written the following forward function:\n\n```'
+#     mutator_prompt += code + '''```\n\n'''
+#     clarification = '''# IMPORTANT: Remember the structure for the Info NamedTuple \n```Info = namedtuple('Info', ['name', 'author', 'content', 'iteration_idx'])```\n\n'''
+#     mutator_prompt += clarification
+#     mutator_prompt += mutator_instruction
+
+#     return mutator_prompt, mutator_instruction
+
+# TASK MUTATORS
+
+def get_task_mutator():
+    task_mutator = str(np.random.choice(TASK_MUTATOR_PROMPTS))
+
+    return task_mutator
+
+def get_task_mutated_instruction():
+    task_mutator = get_task_mutator()
+    system_prompt = 'You are a helpful assistant helping to rewrite a task instruction. Make sure to return in a WELL-FORMED JSON object with ONLY ONE KEY: "instruction".'
+    base_task_prompt = '''You are deeply familiar with LLM prompting techniques and LLM agent works from the literature. Your goal is to maximize "fitness" by proposing interestingly new agents. 
+Observe the discovered architectures carefully and think about what insights, lessons, or stepping stones can be learned from them.
+Be creative to think about the next interesting architecture to try. You are encouraged to draw inspiration from related LLM agent papers or academic papers from other research areas.
+Using the knowledge learned from the archive and the inspiration from academic literature to give the next interesting architecture.
+THINK OUTSIDE THE BOX.'''
+
+    task_mutator_prompt = str(task_mutator)
+    task_mutator_prompt += '\n\n# INSTRUCTION: ' + base_task_prompt + '\n\n# INSTRUCTION MUTANT:'
+
+    return system_prompt, task_mutator_prompt, task_mutator
+
+def get_prompt_mutated(current_archive, task_mutator_instruction, adaptive=False):
+    archive_str = ",\n".join([json.dumps(sol) for sol in current_archive])
+    archive_str = f"[{archive_str}]"
+    prompt = base_2.replace("[ARCHIVE]", archive_str)
+    prompt = prompt.replace("[EXAMPLE]", json.dumps(EXAMPLE))
+    prompt += '# YOUR TASK\n'
+    prompt += task_mutator_instruction
+
+    return system_prompt, prompt
