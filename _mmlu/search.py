@@ -180,9 +180,11 @@ def search(args):
     else:
         archive = get_init_archive()
         start = 0
-
+    initial_archive_scores = []
     for solution in archive:
         if 'fitness' in solution:
+            upper_bound = get_upper_bound(solution['fitness'])
+            initial_archive_scores.append(upper_bound)
             continue
 
         solution['generation'] = "initial"
@@ -196,6 +198,8 @@ def search(args):
 
         fitness_str = bootstrap_confidence_interval(acc_list)
         solution['fitness'] = fitness_str
+        upper_bound = get_upper_bound(fitness_str)
+        initial_archive_scores.append(upper_bound)
 
         # save results
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
@@ -249,8 +253,12 @@ def search(args):
         if not acc_list:
             n -= 1
             continue
-
+        
         fitness_str = bootstrap_confidence_interval(acc_list)
+        upper_bound = get_upper_bound(fitness_str)
+        if upper_bound < min(initial_archive_scores):
+            n -= 1
+            continue
         next_solution['fitness'] = fitness_str
         next_solution['generation'] = n + 1
 
