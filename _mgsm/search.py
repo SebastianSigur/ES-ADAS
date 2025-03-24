@@ -576,24 +576,33 @@ def search(args):
             print(f"Skipping invalid agent from generation {n+1}")
             continue  # Skip this agent
 
-        archive.append(next_solution)
+        # Check if the new agent is at least as good as the worst in the archive
+        current_upper_bounds = [get_upper_bound(agent['fitness']) for agent in archive]
+        min_current_upper = min(current_upper_bounds) if current_upper_bounds else 0.0
+        new_upper = get_upper_bound(next_solution['fitness'])
 
-        # save results
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        with open(file_path, 'w') as json_file:
-            json.dump(archive, json_file, indent=4)
-        
-        # ------------------------------------------------------------
-        # Updates map of elites in case of better performance achieved for that specific cell.
-        map_elites = create_map_elites_structure_api(archive,
-                                                     bins_api=args.bins_dim2,
-                                                     candidate_labels=None,
-                                                     min_api=args.min_dim2, max_api=args.max_dim2)
-               
-        # Store the map of elites after every generation as a new file.
-        map_file_path = os.path.join(args.save_dir, f"{args.expr_name}_map_elites_gen{n+1}.json")
-        with open(map_file_path, 'w') as f:
-            json.dump(map_elites, f, indent=4)
+        if new_upper >= min_current_upper:
+            archive.append(next_solution)
+            print(f"Added new agent with fitness {next_solution['fitness']} to archive.")
+
+            # Save results
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            with open(file_path, 'w') as json_file:
+                json.dump(archive, json_file, indent=4)
+            
+            # Update map of elites
+            map_elites = create_map_elites_structure_api(archive,
+                                                        bins_api=args.bins_dim2,
+                                                        candidate_labels=None,
+                                                        min_api=args.min_dim2, max_api=args.max_dim2)
+            
+            # Store the map of elites after every generation as a new file
+            map_file_path = os.path.join(args.save_dir, f"{args.expr_name}_map_elites_gen{n+1}.json")
+            with open(map_file_path, 'w') as f:
+                json.dump(map_elites, f, indent=4)
+        else:
+            print(f"New agent with fitness {next_solution['fitness']} not added; below archive minimum of {min_current_upper}.")
+            continue  # Skip this agent and proceed to next generation
         # ------------------------------------------------------------
 
 
@@ -750,7 +759,7 @@ if __name__ == "__main__":
     parser.add_argument('--multiprocessing', action='store_true', default=True)
     parser.add_argument('--max_workers', type=int, default=48)
     parser.add_argument('--debug', action='store_true', default=True)
-    parser.add_argument('--save_dir', type=str, default='results_mgsm_credits_run3/')
+    parser.add_argument('--save_dir', type=str, default='results_mgsm_archive_limited_run2_seed_43/')
     parser.add_argument('--expr_name', type=str, default="mgsm_gpt3.5_results")
     parser.add_argument('--n_generation', type=int, default=30)
     parser.add_argument('--debug_max', type=int, default=3)
@@ -768,7 +777,7 @@ if __name__ == "__main__":
 
     # Arguments for multiple runs to test variance
     parser.add_argument('--num_runs', type=int, default=1, help="Number of runs to execute")
-    parser.add_argument('--base_seed', type=int, default=44, help="Base seed value for the first run")
+    parser.add_argument('--base_seed', type=int, default=43, help="Base seed value for the first run")
 
 
 
