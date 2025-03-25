@@ -331,12 +331,12 @@ def recheck_label_with_gemini(agent_name, agent_thought, agent_code, candidate_l
         "       return final_decision_agent(answers)\n"
         "   ```\n"
         "   Structural Analysis:\n"
-        "   - Control Flow: For-loop with 3 iterations\n"
-        "   - Agent Count: 1 LLMAgentBase instantiation (cot_agent)\n"
-        "   - Coordination: None - single agent reused\n"
-        "   - Key Pattern: Same agent receives modified inputs in each iteration\n"
-        "   Rationale: Despite generating multiple answers, this uses a SINGLE agent instance in a loop with input modification, meeting all Iterative Refinement requirements.\n"
-        "   Correct Label: Iterative Refinement\n\n"
+        "   - Control Flow: Iterates over a list of unique agent instances to generate diverse outputs\n"
+        "   - Agent Count: 3 unique LLMAgentBase instances for answer generation plus 1 separate final decision agent\n"
+        "   - Coordination: Independent outputs are aggregated via a final decision agent using a consensus mechanism\n"
+        "   - Key Pattern: Multiple independent agents generate diverse answers that are coordinated to produce the final decision\n"
+        "   Rationale: This architecture instantiates multiple unique agents with explicit coordination, which meets all the criteria for Multi-Agent Reasoning.\n"
+        "   Correct Label: Multi-Agent Reasoning\n\n"
 
         "   === Example 2 ===\n"
         "   Agent Name: Self-Refine (Reflexion)\n"
@@ -434,7 +434,6 @@ def recheck_label_with_gemini(agent_name, agent_thought, agent_code, candidate_l
     user_prompt = (
         f"AGENT ANALYSIS REQUEST\n"
         f"Agent Name: {agent_name}\n"
-        f"Agent's Thought Process Description: {agent_thought}\n"
         f"Agent's Code Structure:\n```python\n{agent_code}\n```\n\n"
         f"Required Classification: Select SOLELY from these structural categories - {', '.join(candidate_labels)}\n\n"
         "Focus exclusively on the code's architectural patterns, NOT the problem domain or description."
@@ -913,7 +912,7 @@ if __name__ == "__main__":
     parser.add_argument('--multiprocessing', action='store_true', default=True)
     parser.add_argument('--max_workers', type=int, default=48)
     parser.add_argument('--debug', action='store_true', default=True)
-    parser.add_argument('--save_dir', type=str, default='results_mgsm_archive_label_test8/')
+    parser.add_argument('--save_dir', type=str, default='results_mgsm_archive_label_test10/')
     parser.add_argument('--expr_name', type=str, default="mgsm_gpt3.5_results")
     parser.add_argument('--n_generation', type=int, default=10)
     parser.add_argument('--debug_max', type=int, default=3)
