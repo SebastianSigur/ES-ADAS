@@ -481,14 +481,24 @@ return answer
 # Your task
 You are deeply familiar with LLM prompting techniques and LLM agent works from the literature.
 Your goal is to maximize "fitness" by designing an improved agent that is specifically tailored to the category: [STRUCTURE_LABEL] and [API_LABEL]. You are provided with a selected agent as inspiration: [SELECTED_AGENT].
-Your task is to mutate and refine this agent to create a better-performing variant that meets the structure [STRUCTURE_LABEL] and has [API_LABEL]. Stay within the category for the structure ([LABEL DESCRIPTION]) of the agent. Your goal is to improve its performance.
+Your task is to mutate and refine this agent to create a better-performing variant that meets the structure [STRUCTURE_LABEL] and has [API_LABEL].
 
 Observe the discovered architectures carefully and consider the insights, lessons, or stepping stones they provide.
 Draw inspiration from related LLM agent papers or academic literature from other research areas. Focus on modifications that can enhance performance while optimizing resource usage in line with the specified category.
 THINK OUTSIDE THE BOX.
 
+NECESSARY REQUIREMENTS:
+- Stay within the category for the structure ([LABEL DESCRIPTION]) of the agent.
+- Stay within the category for the API calls ([API_LABEL]). Ensure that the new agent has [API_LABEL]. The label many API calls means more than 5 API Calls and the label few API calls means 1-5 API calls.
+- Adhere to the correct counting principle for API calls:
+    - ONLY count AGENT METHOD CALLS (agent())
+    - DO NOT count LLMAgentBase instantiations
+    - Count ALL calls regardless of nesting or scope  
+
+
 IMPORTANT RULES:
 [RULES]
+Double-check whether the necessary requirements are met. If the agent does not have the desired structure [STRUCTURE_LABEL] and API calls [API_LABEL], adjust the agent accordingly.
 These rules MUST be followed strictly. Any solution that violates these rules will be rejected.
 
 """

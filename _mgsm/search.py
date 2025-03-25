@@ -248,9 +248,86 @@ def count_api_calls(forward_code):
     The analysis accounts for loops, multiple agents, or recursive calls.
     Returns a JSON object with the 'api_calls' field as an integer.
     """
-    system_prompt = ("You are a code analysis expert. Given a Python function, predict the number of API calls it makes to an LLM. "
-                     "Each call to `LLMAgentBase(...)(...)` counts as one API call. Account for loops, multiple agents, or recursive calls. "
-                     "Return a JSON object with the 'api_calls' field as an integer.")
+    system_prompt = """You are a code analysis expert specializing in LLM agent architectures. Analyze the Python function to count API calls according to these STRICT RULES:
+
+    1. Counting Principles:
+    - ONLY count AGENT METHOD CALLS (agent())
+    - DO NOT count LLMAgentBase instantiations
+    - Count ALL calls regardless of nesting or scope
+
+    2. Loop Handling:
+    - FOR/WHILE loops: Multiply counts by iterations
+    - List comprehensions: Treat as implicit loops
+    - Nested loops: Multiply counts at all levels
+
+    3. Special Cases:
+    - Recursive calls: Count each stack frame
+    - Conditional calls: Count ALL possible paths
+    - Reused agents: Count each execution separately
+
+    4. Calculation Steps:
+    1. Find all agent() method calls
+    2. Analyze loop structures
+    3. Multiply counts by loop iterations
+    4. Sum all execution counts
+
+    5. REVISION STEP - CHECK FOR COMMON MISTAKES:
+    BEFORE FINALIZING, VERIFY:
+    1. LOOP ITERATIONS: Multiply nested loops (rounds×agents)
+    2. CONDITIONAL PATHS: Take MAX branch
+    3. REUSED AGENTS: Count per execution
+    4. SHADOWED AGENTS: Catch loop-redefines
+    5. ROUTING LOGIC: Only executed agents
+    6. GENERATORS: Treat as implicit loops
+    7. PHASE SEPARATION: No init counts
+
+    EXAMPLES:
+
+    === Complex Loop (Original) ===
+    for _ in range(3):
+        agent(); helper() → 6 calls
+
+    === Variable-Length Loop (New) ===
+    N = 3  # Dynamic iterations
+    for _ in range(N): agent() → 3 calls
+
+    === Hybrid Agent Pattern (New) ===
+    base = LLMAgentBase()
+    for _ in range(2):
+        base()          # 2
+        LLMAgentBase()() # 2 → Total 4
+
+    === Multi-Branch Conditional (New) ===
+    if X: a() 
+    elif Y: a(); a() 
+    else: pass → Count 2
+
+    === Variable Shadowing (New) ===
+    for _ in range(2):
+        agent = LLMAgentBase()  # New each iter
+        agent() → 2 calls
+
+    === Generator Pattern (New) ===
+    agents = (LLMAgentBase() for _ in range(3))
+    sum(agent() for agent in agents) → 3
+
+    === Routing Logic (Original) ===
+    router(); experts[choice]() → 2
+
+    === Nested Debate (Original) ===
+    2 rounds × 2 agents = 4
+
+    === Collaborative Refinement (Original) ===
+    3 agents × 2 phases = 6
+
+    === Phase Separation (Original) ===
+    agent1 = LLMAgentBase() → 0
+    agent1() → 1
+
+    === Recursive Pattern (Original) ===
+    run(2) → 3 calls
+
+    Return JSON: {"api_calls": integer}"""
     user_message = f"Analyze the following code and predict the number of API calls per execution:\n\n```python\n{forward_code}\n```"
     
     try:
@@ -624,41 +701,62 @@ def search(args):
     ## Generates n new solutions (n_generation parameter)
     for n in range(start, args.n_generation):
 
-        # Randomly choses a cell in the map. Then passes stores the respective agent of that cell and the category in two new variables agent & category
         # ------------------------------------------------------------
-        keys = list(map_elites.keys())
-        random_index = random.randint(0, len(keys) - 1)
-        cell = keys[random_index]
-        parts = cell.split(',')
-        structure_label = parts[0]
-        api_bin = int(parts[1])
-        # Define the mapping for API calls bins using only 2 bins.
+        # First sampling: select parent cell for agent
+        while True:  # Keep searching until we find a valid agent
+            parent_keys = list(map_elites.keys())
+            parent_random_index = random.randint(0, len(parent_keys) - 1)
+            parent_cell = parent_keys[parent_random_index]
+            parent_parts = parent_cell.split(',')
+            parent_structure_label = parent_parts[0]
+            parent_api_bin = int(parent_parts[1])
+            parent_api_calls_mapping = {0: "few API calls", 1: "many API calls"}
+            parent_api_label = parent_api_calls_mapping.get(parent_api_bin, "few API calls")
+            
+            selected_agent = map_elites[parent_cell]
+          
+            # First fallback: try same structure agents
+            if selected_agent is None:
+                same_structure_agents = [agent for key, agent in map_elites.items() 
+                                        if key.startswith(f"{parent_structure_label},") 
+                                        and agent is not None]
+                if same_structure_agents:
+                    selected_agent = max(same_structure_agents, 
+                                    key=lambda x: get_upper_bound(x['fitness']))
+            
+            # Second fallback: if still None, search entire archive
+             # Second fallback: if still None, search entire archive
+            if selected_agent is None:
+                non_empty_agents = [agent for agent in map_elites.values() if agent is not None]
+                if non_empty_agents:
+                    selected_agent = random.choice(non_empty_agents)
+            
+            # If we found a valid agent, break the loop
+            if selected_agent is not None:
+                break
+
+        # Second sampling: select target structure and API labels
+        possible_structure_labels = list(set([cell.split(',')[0] for cell in map_elites.keys()]))
+        possible_api_bins = list(range(args.bins_dim2))  # 0 to bins_dim2-1
+        target_structure_label = random.choice(possible_structure_labels)
+        target_api_bin = random.choice(possible_api_bins)
         api_calls_mapping = {0: "few API calls", 1: "many API calls"}
-        api_label = api_calls_mapping.get(api_bin, "few API calls")
-        
-        selected_agent = map_elites[cell]
-        # If the selected cell is empty, search for another cell with the same structure_label.
-        if selected_agent is None:
-            same_structure_agents = [agent for key, agent in map_elites.items() 
-                                    if key.startswith(f"{structure_label},") and agent is not None
-                                    ]
-        
-            selected_agent = max(same_structure_agents, 
-                            key=lambda x: get_upper_bound(x['fitness']))
+        target_api_label = api_calls_mapping.get(target_api_bin, "few API calls")
         # ------------------------------------------------
 
         ## Uses pre-defined system prompt to generate new solution
         ## Performs two relfexions to improve quality of new solution
         print(f"============Generation {n + 1}=================")
-        
-        print(f"Selected Cell: {cell} (Structure Label: {structure_label}, API Label: {api_label})")    	
 
+        print(f"Parent Cell: {parent_cell} (Structure: {parent_structure_label}, API: {parent_api_bin})")
+        print(f"Mutation Target: Structure {target_structure_label}, API {target_api_label}")  
+        
         if selected_agent is None or selected_agent == "Take inspiration from an agent with similar architecture in the archive":
             print(f"Selected Agent: {selected_agent}")
         else:
             print(f"Selected Agent: {selected_agent.get('name', 'Unnamed Agent') if selected_agent else 'No agent found'}")
 
-        system_prompt, prompt = get_prompt(archive, selected_agent, structure_label, api_label)
+        system_prompt, prompt = get_prompt(archive, selected_agent, target_structure_label, target_api_label)
         msg_list = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompt},
@@ -667,7 +765,7 @@ def search(args):
 
             next_solution = get_json_response_from_gpt_reflect(msg_list)
 
-            Reflexion_prompt_1, Reflexion_prompt_2 = get_reflexion_prompt(archive[-1] if n > 0 else None, structure_label, api_label)
+            Reflexion_prompt_1, Reflexion_prompt_2 = get_reflexion_prompt(archive[-1] if n > 0 else None, target_structure_label, target_api_label)
             # Reflexion 1
             msg_list.append({"role": "assistant", "content": str(next_solution)})
             msg_list.append({"role": "user", "content": Reflexion_prompt_1})
@@ -919,7 +1017,7 @@ if __name__ == "__main__":
     parser.add_argument('--multiprocessing', action='store_true', default=True)
     parser.add_argument('--max_workers', type=int, default=48)
     parser.add_argument('--debug', action='store_true', default=True)
-    parser.add_argument('--save_dir', type=str, default='results_mgsm_archive_label_test11/')
+    parser.add_argument('--save_dir', type=str, default='results_mgsm_new_selection_tes3/')
     parser.add_argument('--expr_name', type=str, default="mgsm_gpt3.5_results")
     parser.add_argument('--n_generation', type=int, default=10)
     parser.add_argument('--debug_max', type=int, default=3)
