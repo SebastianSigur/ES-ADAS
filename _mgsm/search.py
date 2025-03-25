@@ -192,7 +192,14 @@ def create_map_elites_structure_api(
     """
     # Derive candidate labels from the archive if not provided.
     if candidate_labels is None:
-        candidate_labels = list({sol.get("structure_label") for sol in archive if "structure_label" in sol})
+        candidate_labels = [
+    "Linear Chain-of-Thought",
+    "Iterative Refinement",
+    "Tree-of-Thought",
+    "Decompositional Reasoning",
+    "Multi-Agent Reasoning",
+    "Abstraction to Principles Reasoning"
+]
     
     # Collect all API call counts.
     api_calls_values = [sol['api_calls'] for sol in archive if 'api_calls' in sol]
@@ -912,7 +919,7 @@ if __name__ == "__main__":
     parser.add_argument('--multiprocessing', action='store_true', default=True)
     parser.add_argument('--max_workers', type=int, default=48)
     parser.add_argument('--debug', action='store_true', default=True)
-    parser.add_argument('--save_dir', type=str, default='results_mgsm_archive_label_test10/')
+    parser.add_argument('--save_dir', type=str, default='results_mgsm_archive_label_test11/')
     parser.add_argument('--expr_name', type=str, default="mgsm_gpt3.5_results")
     parser.add_argument('--n_generation', type=int, default=10)
     parser.add_argument('--debug_max', type=int, default=3)
