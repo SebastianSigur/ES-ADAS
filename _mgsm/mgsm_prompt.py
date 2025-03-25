@@ -481,24 +481,118 @@ return answer
 # Your task
 You are deeply familiar with LLM prompting techniques and LLM agent works from the literature.
 Your goal is to maximize "fitness" by designing an improved agent that is specifically tailored to the category: [STRUCTURE_LABEL] and [API_LABEL]. You are provided with a selected agent as inspiration: [SELECTED_AGENT].
-Your task is to mutate and refine this agent to create a better-performing variant that meets the structure [STRUCTURE_LABEL] and has [API_LABEL].
+Your task is to mutate and refine this agent to create a better-performing variant that meets the structure [STRUCTURE_LABEL] and has [API_LABEL]. To achieve this, you will perform two mutations: A structure mutation and an API call mutation.
+
+how can i add these ideas/sentences from my previous system prompt into this new version?
 
 Observe the discovered architectures carefully and consider the insights, lessons, or stepping stones they provide.
 Draw inspiration from related LLM agent papers or academic literature from other research areas. Focus on modifications that can enhance performance while optimizing resource usage in line with the specified category.
 THINK OUTSIDE THE BOX.
 
-NECESSARY REQUIREMENTS:
-- Stay within the category for the structure ([LABEL DESCRIPTION]) of the agent.
-- Stay within the category for the API calls ([API_LABEL]). Ensure that the new agent has [API_LABEL]. The label many API calls means more than 5 API Calls and the label few API calls means 1-5 API calls.
-- Adhere to the correct counting principle for API calls:
-    - ONLY count AGENT METHOD CALLS (agent())
-    - DO NOT count LLMAgentBase instantiations
-    - Count ALL calls regardless of nesting or scope  
+I. STRUCTURE MUTATION:
+Your mutated code must conform exactly to the targeted structure specified by [STRUCTURE_LABEL]. Follow these instructions precisely:
 
+1. Understand the Target Structure:
+   - "Linear Chain-of-Thought": A single, straight-line execution with one call to agent() and no loops, branches, or feedback mechanisms.
+   - "Iterative Refinement": A loop-based design where the same agent() call is invoked repeatedly (with feedback or modified inputs) to refine the answer.
+   - "Tree-of-Thought": A branching architecture where, at key decision points, multiple reasoning paths are generated, and one branch is selected for the final answer.
+   - "Decompositional Reasoning": A design that breaks the problem into sub-tasks solved by distinct agent instances (or separate calls), with their results combined to produce the final answer.
+   - "Multi-Agent Reasoning": A design that concurrently instantiates two or more unique agent() instances (not reusing the same one in a loop) and coordinates their outputs (e.g., via voting or consensus) to decide the final answer.
+   - "Abstraction to Principles Reasoning": A two-phase process where the agent first abstracts the problem into high-level principles and then uses these abstractions to guide the solution.
+
+2. Implementation Guidelines:
+Step 1. Incorporate Core Features from the Selected Agent:
+   - Analyze the selected agent ([SELECTED_AGENT]) and identify its core reasoning features that contribute to its performance.
+   - Integrate these beneficial features into your mutated design while ensuring that the final code still strictly conforms to the target structure [STRUCTURE_LABEL].
+   - For example, if the selected agent uses an effective feedback loop or clear abstraction mechanism, incorporate a similar approach into your mutation—as long as the overall architecture remains within the desired category.
+Step 2. Perform the structure mutation:
+   - Modify the control flow to reflect the target structure. For example, if [STRUCTURE_LABEL] is "Iterative Refinement", introduce a clear loop that repeatedly calls the agent() method with updated inputs.
+   - Ensure that agent instantiation patterns match the target:
+       * For "Multi-Agent Reasoning", instantiate at least two unique LLMAgentBase objects (do not simply reuse one inside a loop).
+       * For "Linear Chain-of-Thought", ensure there is only a single agent() call without any loops or branches.
+       * For "Tree-of-Thought", incorporate conditional branches or multiple calls that represent divergent reasoning paths, followed by a selection step.
+       * For "Decompositional Reasoning", design the code so that sub-tasks are solved independently (possibly by different agent instances) before combining their outputs.
+       * For "Abstraction to Principles Reasoning", structure the code into two phases: first, extract and process high-level principles; then, use these principles to generate the final answer.
+   - Use concise inline comments to indicate which parts of your code implement the key aspects of the target structure (e.g., "Loop for iterative refinement: 3 iterations", "Branching for Tree-of-Thought", etc.).
+
+3. Self-Review:
+   - Before finalizing your mutated code, carefully review the overall control flow and agent instantiation pattern to ensure it matches the target structure [STRUCTURE_LABEL].
+
+4. Example Structure Mutation Strategies:
+▸ From Linear → Multi-Agent: Split monolithic calls into specialized agents  
+▸ From Multi → Iterative: Add feedback gathering between rounds  
+▸ From Iterative → Tree: Convert loop into conditional branches  
+▸ From Abstraction → Tree: Create principle-specific reasoning paths 
+
+II. API CALL MUTATION:
+Follow these instructions precisely:
+
+1. Stay within Target API Calls:
+Your mutated code must meet the targeted API call count specified by [API_LABEL].
+   - If [API_LABEL] is "few API calls", your final code must include between 1 and 5 calls to agent().
+   - If [API_LABEL] is "many API calls", your final code must include more than 5 calls to agent().
+
+2. Counting Rules:
+   - Only count invocations of the agent() method (do NOT count LLMAgentBase instantiations).
+   - Count every agent() call, regardless of its location (inside loops, conditionals, etc.).
+   - Include concise inline comments indicating the number of calls per code block (e.g., "Loop: 3 iterations x 1 call = 3 calls").
+
+3. Self-Review:
+   - Before finalizing your code, carefully review it to ensure that the total number of agent() calls falls exactly within the required range.
+   - If the agent does not meet the specified number of API calls, reiterate on the agent's code to achieve the required API calls.
+
+4. Examples of API call mutations:
+========= Mutation to Few API Call Category =================
+# Original Agent (2 calls)
+def forward():
+    agent1 = LLMAgentBase()
+    result1 = agent1()  # 1 call
+    result2 = agent1()  # 1 call (Total: 2)
+
+# Mutated Agent (4 calls - "Few API" compliant)
+def forward():
+    agent1 = LLMAgentBase()
+    # Initial analysis phase
+    for _ in range(2):  # 2 iterations × 1 call = 2 calls
+        agent1()  
+    
+    # Final refinement
+    inputs = [taskInfo, previous_results]
+    agent1(inputs)  # 1 call
+    
+    # Validation step
+    if needs_correction:  # Always True path
+        agent1()  # 1 call (Total: 2+1+1=4)
+========= Mutation to Many API Call Category =================
+# Original Agent (3 calls)
+def forward():
+    agents = [LLMAgentBase() for _ in range(3)]
+    for a in agents:
+        a()  # 3 calls
+
+# Mutated Agent (7 calls - "Many API" compliant)
+def forward():
+    # Parallel agent pool
+    agents = [LLMAgentBase() for _ in range(3)]  # 0 calls (instantiation)
+    
+    # First debate round
+    for a in agents:  # 3 iterations × 1 call = 3
+        a()  
+    
+    # Second refinement round 
+    for i in range(2):  # 2 iterations × 2 agents = 4
+        for a in agents[:2]:  
+            a()  # (Total: 3+4=7)
+
+III. CODE QUALITY ASSURANCE:
+Your final mutated code must:
+   - Be syntactically correct and runnable without errors.
+   - Produce meaningful outputs (non-zero accuracy) rather than returning a constant or zero value.
+   - Pass a self-review of code quality: double-check for potential syntax issues, logical errors, and ensure that all required functions execute as intended.
+   - Focus on delivering a robust solution that not only meets the target structure and API call constraints but also avoids coding errors that lead to 0 accuracy.
 
 IMPORTANT RULES:
 [RULES]
-Double-check whether the necessary requirements are met. If the agent does not have the desired structure [STRUCTURE_LABEL] and API calls [API_LABEL], adjust the agent accordingly.
 These rules MUST be followed strictly. Any solution that violates these rules will be rejected.
 
 """
