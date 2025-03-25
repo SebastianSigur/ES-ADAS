@@ -1,0 +1,12 @@
+[
+    {
+        "thought": "By encouraging the LLM to think step by step rather than directly outputting an answer, chain-of-thought reasoning enables complex problem-solving through intermediate steps. This practice improves the model's ability to handle tasks that require deeper reasoning and provides insight into its decision-making process.",
+        "name": "Chain-of-Thought",
+        "code": "def forward(self, taskInfo):\n    # Instruction for the Chain-of-Thought (CoT) approach\n    # It is an important practice that allows the LLM to think step by step before solving the task.\n    cot_instruction = \"Please think step by step and then solve the task.\"\n\n    # Instantiate a new LLM agent specifically for CoT\n    # To allow LLM thinking before answering, we need to set an additional output field 'thinking'.\n    cot_agent = LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent')\n\n    # Prepare the inputs for the CoT agent\n    # The input should be a list of Info, and the first one is often the taskInfo\n    cot_agent_inputs = [taskInfo]\n\n    # Get the response from the CoT agent\n    thinking, answer = cot_agent(cot_agent_inputs, cot_instruction)\n\n    # Return only the final answer\n    return answer\n",
+        "api_calls": 1,
+        "structure_label": "Linear Chain-of-Thought",
+        "generation": "initial",
+        "fitness": "95% Bootstrap Confidence Interval: (8.6%, 20.3%), Median: 14.1%",
+        "test_fitness": "95% Bootstrap Confidence Interval: (11.2%, 15.9%), Median: 13.5%"
+    }
+]

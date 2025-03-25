@@ -272,22 +272,172 @@ def count_api_calls(forward_code):
 # The label is created via using a BERT model and gemini
 def recheck_label_with_gemini(agent_name, agent_thought, agent_code, candidate_labels):
     system_prompt = (
-        "You are an expert in classification and label verification. You are given an agent’s name, its detailed \"thought\" description, "
-        "and a set of candidate labels. The initial classification from a BERT model is highly uncertain (confidence ≤ 0.75). Your task is to "
-        "reassess the agent’s approach and decide which candidate label best fits the agent’s design. Below are the candidate labels with their descriptions:\n\n"
-        "1. Chain-of-Thought Reasoning: Generates a single, linear, step-by-step reasoning process with every intermediate step explicitly shown.\n"
-        "2. Multi-Agent Reasoning: Runs several independent reasoning modules in parallel and aggregates their outputs to form the final answer.\n"
-        "3. Self-Reflection Reasoning: Produces an initial answer, then internally critiques and refines it through iterative self-review.\n"
-        "4. Abstraction to Principles Reasoning: First abstracts the problem’s details into high-level principles, then uses these abstractions to guide the solution.\n"
-        "Do all the reasoning internally and output only the final label prediction (which must exactly match one of the provided candidate labels) with no additional explanation or text."
+        "You are a specialist in LLM agent architecture analysis. Your task is to classify agents by their fundamental reasoning structure through rigorous code examination. "
+        "Follow this analytical process:\n\n"
+        "1. STRUCTURAL ANALYSIS: Identify key architectural patterns in the code related to:\n"
+        "  - Control Flow:\n"
+        "       * Linear: No loops/conditionals altering reasoning path\n"
+        "       * Iterative: Look for FOR/WHILE loops with:\n"
+        "           - Feedback incorporation (previous answers/feedback as input)\n"
+        "           - Same LLMAgentBase instance reused\n"
+        "       * Branching: IF/ELSE or SWITCH that create distinct reasoning paths\n"
+        "   - Agent Count:\n"
+        "       * Count ALL LLMAgentBase() instantiations\n"
+        "       * When counting LLMAgentBase instances, only consider unique instantiations; if a single instance is reused within a loop, this does not count as multiple agents but is a sign for Iterative Refinement."
+        "       * Multi-Agent = 2+ unique instances (not reused in loops)\n"
+        "   - Coordination Mechanisms:\n"
+        "       * Voting/Consensus: Aggregation of multiple agent outputs\n"
+        "       * Debate: Agents directly reference each other's outputs\n"
+        "       * Parallel Execution: Simultaneous agent calls (list comprehensions)\n"
+        "   - Abstraction Markers:\n"
+        "       * Explicit principle extraction (e.g., 'principle_agent')\n"
+        "       * Problem decomposition into sub-tasks\n"
+        "   - Self-Reflection:\n"
+        "       * Critique/feedback loops modifying inputs\n"
+        "       * Explicit correctness checking\n\n"
+        "2. LABEL MAPPING: Match patterns to these EXCLUSIVE categories:\n"
+        "   1. Linear Chain-of-Thought: The agent produces its final answer in a single, linear chain-of-thought without any iterative self-refinement or use of multiple agents.\n"
+        "   2. Iterative Refinement: The agent continually repcrosses its chain-of-thought, revising, re-evaluating, and self-assessing its intermediate steps - to progressively converge on a robust final answer.\n"
+        "       - REQUIRED: Single LLMAgentBase instance reused in loop\n"
+        "       - REQUIRED: Modified inputs between iterations (feedback/previous answers)\n"
+        "       - Even if generating diverse answers, STILL Iterative if single agent\n"
+        "       - Common misclassification trap: Voting over single-agent outputs ≠ Multi-Agent\n\n"
+        "   3. Tree-of-Thought: The agent creates a tree-of-thought by dynamically branches out at key decision points, exploring multiple reasoning paths and selectively following the most promising branch to arrive at the final answer.\n"
+        "   4. Decompositional Reasoning: The agent breaks down a complex problem into independent sub-problems, solves each one separately, and then integrates these solutions into a cohesive final answer.\n"
+        "   5. Multi-Agent Reasoning: The agent concurrently creates several LLM instances that interact with one another and create different reasoning trajectories. The agent aggreates the outcome from the different LLM instances - such as through voting or consensus - to produce the final decision. Common mistake: A single agent generating multiple responses  is NOT multi-agent reasoning. Multi-agent reasoning requires multiple LLMAgentBase instances with coordination.\n"
+        "       - MUST HAVE ALL:\n"
+        "        * 2+ unique LLMAgentBase instances (NOT reused in loops)\n"
+        "        * Explicit coordination between agents\n"
+        "        * Parallel execution (not sequential)\n" 
+        "      - FORBIDDEN: Any agent instance reuse\n"
+        "   6. Abstraction to Principles Reasoning: First abstracts the problem’s details into high-level principles, then uses these abstractions to guide the solution.\n"
+        "3. Check for common classification mistakes:\n"
+        "   - Do not misclassify a single LLMAgentBase instance used in a loop as Multi-Agent Reasoning—this pattern should be identified as Iterative Refinement.\n"
+        "   - Do not classify agents that loop over a single, reused LLMAgentBase instance as Multi-Agent Reasoning. Multi-Agent Reasoning requires multiple unique LLMAgentBase instances with inter-agent coordination.\n"
+        "   - If principle extraction is present, even in a single API call, the agent must be labeled as Abstraction to Principles Reasoning.\n\n"
+        "4. DECISION RULES:\n"
+        "   - Prioritize structural implementation over described intent\n"
+        "   - If multiple patterns exist, choose the DOMINANT structural paradigm\n"
+        "   - Reject any hybrid categories - force into the single best fit\n"
+        "   - Check your decision for the common mistakes above\n"
+        "5. Examples of correct classification:\n"
+        "   === Example 1 ===\n"
+        "   Agent Name: Quality-Diversity\n"
+        "   Agent's Code Structure:\n```python\n"
+        "   def forward(self, taskInfo):\n"
+        "       cot_agent = LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent')\n"
+        "       for i in range(3):\n"
+        "           thinking, answer = cot_agent(...)  # Same instance reused\n"
+        "       return final_decision_agent(answers)\n"
+        "   ```\n"
+        "   Structural Analysis:\n"
+        "   - Control Flow: For-loop with 3 iterations\n"
+        "   - Agent Count: 1 LLMAgentBase instantiation (cot_agent)\n"
+        "   - Coordination: None - single agent reused\n"
+        "   - Key Pattern: Same agent receives modified inputs in each iteration\n"
+        "   Rationale: Despite generating multiple answers, this uses a SINGLE agent instance in a loop with input modification, meeting all Iterative Refinement requirements.\n"
+        "   Correct Label: Iterative Refinement\n\n"
+
+        "   === Example 2 ===\n"
+        "   Agent Name: Self-Refine (Reflexion)\n"
+        "   Agent's Code Structure:\n```python\n"
+        "   def forward(self, taskInfo):\n"
+        "       cot_agent = LLMAgentBase(...)\n"
+        "       critic_agent = LLMAgentBase(...)\n"
+        "       for i in range(5):\n"
+        "           feedback = critic_agent(...)\n"
+        "           thinking, answer = cot_agent(...)  # Sequential refinement\n"
+        "   ```\n"
+        "   Structural Analysis:\n"
+        "   - Control Flow: Explicit feedback loop with 5 iterations\n"
+        "   - Agent Count: 2 agents but ONLY cot_agent refined\n"
+        "   - Key Pattern: Iterative input modification (cot_inputs.extend())\n"
+        "   Rationale: Main refinement loop focuses on cot_agent with growing input context, making Iterative Refinement the dominant pattern despite critic presence.\n"
+        "   Correct Label: Iterative Refinement\n\n"
+
+        "   === Example 3 ===\n"
+        "   Agent Name: Dynamic Assignment of Roles\n"
+        "   Agent's Code Structure:\n```python\n"
+        "   def forward(self, taskInfo):\n"
+        "       expert_agents = [LLMAgentBase(...) for role in roles]\n"
+        "       choice = routing_agent(...)\n"
+        "       return expert_agents[choice](taskInfo)\n"
+        "   ```\n"
+        "   Structural Analysis:\n"
+        "   - Control Flow: Sequential execution with routing\n"
+        "   - Agent Count: Multiple agents but only ONE used\n"
+        "   - Key Pattern: Problem decomposition into selection + execution\n"
+        "   Rationale: Agents work independently - no coordination between experts, pure decomposition into sub-tasks.\n"
+        "   Correct Label: Decompositional Reasoning\n\n"
+
+        "   === Example 4 ===\n"
+        "   Agent Name: LLM Debate\n"
+        "   Agent's Code Structure:\n```python\n"
+        "   def forward(self, taskInfo):\n"
+        "       debate_agents = [LLMAgentBase(...), LLMAgentBase(...), LLMAgentBase(...)]\n"
+        "       answers = [agent(taskInfo) for agent in debate_agents]\n"
+        "       return consensus(answers)\n"
+        "   ```\n"
+        "   Structural Analysis:\n"
+        "   - Agent Count: 3 unique instances\n"
+        "   - Coordination: Parallel execution + consensus\n"
+        "   - Key Pattern: No instance reuse, true parallelism\n"
+        "   Rationale: Multiple independent agents with aggregated output fulfills all Multi-Agent requirements.\n"
+        "   Correct Label: Multi-Agent Reasoning\n\n"
+
+        "   === Example 5 ===\n"
+        "   Agent Name: Step-back Abstraction\n"
+        "   Agent's Code Structure:\n```python\n"
+        "   def forward(self, taskInfo):\n"
+        "       principle_agent = LLMAgentBase(...)\n"
+        "       principle = principle_agent(...)\n"
+        "       answer = solver_agent([principle])\n"
+        "   ```\n"
+        "   Structural Analysis:\n"
+        "   - Abstraction Markers: Explicit principle extraction\n"
+        "   - Control Flow: Two-stage process (principles → solution)\n"
+        "   - Key Pattern: Principle output directly guides solver\n"
+        "   Rationale: Clear separation of abstraction and application phases, even with multiple agents.\n"
+        "   Correct Label: Abstraction to Principles Reasoning\n\n"
+
+        "   === Example 6 ===\n"
+        "   Agent Name: Chain-of-Thought\n"
+        "   Agent's Code Structure:\n```python\n"
+        "   def forward(self, taskInfo):\n"
+        "       cot_agent = LLMAgentBase(...)\n"
+        "       thinking, answer = cot_agent(taskInfo)\n"
+        "   ```\n"
+        "   Structural Analysis:\n"
+        "   - Control Flow: Single pass, no loops\n"
+        "   - Agent Count: 1 instance\n"
+        "   - Key Pattern: Straight-line execution\n"
+        "   Rationale: No iteration, branching, or coordination - pure linear processing.\n"
+        "   Correct Label: Linear Chain-of-Thought\n\n"
+
+        "   === Example 7 ===\n"
+        "   Agent Name: Principle Evaluation and Solution Agent\n"
+        "   Agent's Code Structure:\n```python\n"
+        "   def forward(self, taskInfo):\n"
+        "       combined_agent = LLMAgentBase(...)\n"
+        "       output = combined_agent([taskInfo], instruction)\n"
+        "       return output[3]\n"
+        "   ```\n"
+        "   Structural Analysis:\n"
+        "   - Abstraction Markers: Explicit principle identification in instruction\n"
+        "   - Control Flow: Single call with integrated phases\n"
+            "   - Key Pattern: Abstraction guides solution in one step\n"
+        "   Rationale: Combined process still emphasizes principle-guided solving as core paradigm.\n"
+        "   Correct Label: Abstraction to Principles Reasoning\n\n"  
+        "6. Output Format: Output only the final label prediction (which must exactly match one of the provided candidate labels) with no additional explanation or text."        
     )
     
     user_prompt = (
+        f"AGENT ANALYSIS REQUEST\n"
         f"Agent Name: {agent_name}\n"
-        f"Agent Thought: {agent_thought}\n"
-        f"Agent Code: {agent_code}\n"
-        f"Candidate Labels: {', '.join(candidate_labels)}\n\n"
-        "Please evaluate which single candidate label fits the agent best based on the agent thought and agent code. If the agent structure would fit to multiple labels, choose the one label it fits to the most. Output only the final label prediction and nothing else."
+        f"Agent's Thought Process Description: {agent_thought}\n"
+        f"Agent's Code Structure:\n```python\n{agent_code}\n```\n\n"
+        f"Required Classification: Select SOLELY from these structural categories - {', '.join(candidate_labels)}\n\n"
+        "Focus exclusively on the code's architectural patterns, NOT the problem domain or description."
     )
     
     try:
@@ -319,9 +469,11 @@ def get_structure_label(solution):
     """
     # Define the candidate labels for structure classification.
     candidate_labels = [
-        "Chain-of-Thought Reasoning",
+        "Linear Chain-of-Thought",
+        "Iterative Refinement",
+        "Tree-of-Thought",
+        "Decompositional Reasoning",
         "Multi-Agent Reasoning",
-        "Self-Reflection Reasoning",
         "Abstraction to Principles Reasoning"
     ]
     
@@ -369,9 +521,11 @@ def validate_agent(agent: dict) -> bool:
     }
     
     valid_structure_labels = [
-        "Chain-of-Thought Reasoning",
+        "Linear Chain-of-Thought",
+        "Iterative Refinement",
+        "Tree-of-Thought",
+        "Decompositional Reasoning",
         "Multi-Agent Reasoning",
-        "Self-Reflection Reasoning",
         "Abstraction to Principles Reasoning"
     ]
 
@@ -759,9 +913,9 @@ if __name__ == "__main__":
     parser.add_argument('--multiprocessing', action='store_true', default=True)
     parser.add_argument('--max_workers', type=int, default=48)
     parser.add_argument('--debug', action='store_true', default=True)
-    parser.add_argument('--save_dir', type=str, default='results_mgsm_archive_limited_run2_seed_43/')
+    parser.add_argument('--save_dir', type=str, default='results_mgsm_archive_label_test8/')
     parser.add_argument('--expr_name', type=str, default="mgsm_gpt3.5_results")
-    parser.add_argument('--n_generation', type=int, default=30)
+    parser.add_argument('--n_generation', type=int, default=10)
     parser.add_argument('--debug_max', type=int, default=3)
     parser.add_argument('--max_agents', type=int, default=3)
 
@@ -777,7 +931,7 @@ if __name__ == "__main__":
 
     # Arguments for multiple runs to test variance
     parser.add_argument('--num_runs', type=int, default=1, help="Number of runs to execute")
-    parser.add_argument('--base_seed', type=int, default=43, help="Base seed value for the first run")
+    parser.add_argument('--base_seed', type=int, default=42, help="Base seed value for the first run")
 
 
 

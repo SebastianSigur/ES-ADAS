@@ -578,9 +578,11 @@ def get_prompt(current_archive, selected_agent=None, structure_label=None, api_l
     
     # Replace [LABEL DESCRIPTION] with the corresponding description based on structure_label.
     label_descriptions = {
-        "Chain-of-Thought Reasoning": "Generates a single, linear, step-by-step reasoning process with every intermediate step explicitly shown.",
-        "Multi-Agent Reasoning": "Runs several independent reasoning modules in parallel and aggregates their outputs to form the final answer.",
-        "Self-Reflection Reasoning": "Produces an initial answer, then internally critiques and refines it through iterative self-review.",
+        "Linear Chain-of-Thought": "The agent produces its final answer in a single, linear chain-of-thought without any iterative self-refinement or use of multiple agents.",
+        "Iterative Refinement": "The agent continually repcrosses its chain-of-thought, revising, re-evaluating, and self-assessing its intermediate steps - to progressively converge on a robust final answer.",
+        "Tree-of-Thought": "The agent creates a tree-of-thought by dynamically branches out at key decision points, exploring multiple reasoning paths and selectively following the most promising branch to arrive at the final answer.",
+        "Decompositional Reasoning": "The agent breaks down a complex problem into independent sub-problems, solves each one separately, and then integrates these solutions into a cohesive final answer.",
+        "Multi-Agent Reasoning": "The agent concurrently creates several LLM instances that interact with one another and create different reasoning trajectories. The agent aggreates the outcome from the different LLM instances - such as through voting or consensus - to produce the final decision. Common mistake: A single agent generating multiple responses  is NOT multi-agent reasoning. Multi-agent reasoning requires multiple LLMAgentBase instances with coordination.",
         "Abstraction to Principles Reasoning": "First abstracts the problem’s details into high-level principles, then uses these abstractions to guide the solution."
     }
 
