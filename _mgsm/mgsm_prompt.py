@@ -405,10 +405,7 @@ class AgentArchitecture:
         \"""
         pass
 ```
-# Discovered architecture archive
-Here is the archive of the discovered architectures:
-
-[ARCHIVE]
+# Agent's fitness value
 
 The fitness value is the median and 95% Bootstrap Confidence Interval of the correct rate on a validation question set. Your GOAL is to maximize the "fitness".
 
@@ -688,8 +685,10 @@ def get_prompt(current_archive, selected_agent=None, structure_label=None, api_l
     archive_str = f"[{archive_str}]"
 
     # Replace [ARCHIVE] and [EXAMPLE] as before
-    prompt = base.replace("[ARCHIVE]", archive_str)
-    prompt = prompt.replace("[EXAMPLE]", json.dumps(EXAMPLE))
+    #prompt = base.replace("[ARCHIVE]", archive_str)
+    #prompt = prompt.replace("[EXAMPLE]", json.dumps(EXAMPLE))
+    prompt = base.replace("[EXAMPLE]", json.dumps(EXAMPLE))
+
 
     # Use the api_label (if provided) to generate rules.
     rules = RULES(api_label if api_label is not None else "few API calls")
