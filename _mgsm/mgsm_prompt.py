@@ -589,7 +589,26 @@ Your final mutated code must:
    - Be syntactically correct and runnable without errors.
    - Produce meaningful outputs (non-zero accuracy) rather than returning a constant or zero value.
    - Pass a self-review of code quality: double-check for potential syntax issues, logical errors, and ensure that all required functions execute as intended.
-   - Focus on delivering a robust solution that not only meets the target structure and API call constraints but also avoids coding errors that lead to 0 accuracy.
+   - Data Type and Functional Correctness: Ensure that all variables and operations use the correct data types and that arithmetic and data structure manipulations are valid. Verify that your code’s evaluation produces realistic, non-zero values.
+   - Focus on delivering a robust solution that not only meets the target structure and API call constraints but also avoids coding errors leading to 0 accuracy.
+
+IV. PERFORMANCE VERIFICATION:
+Before finalizing your mutated code, ensure that the agent actually performs a computation to solve the benchmark:
+   - Analyze the logic to confirm that the code processes the input taskInfo and produces a meaningful result.
+   - Check that the code does not simply return a default value (e.g., 0 or constant) or an empty result.
+   - Internally verify that all computations, data manipulations, and output assignments are correct and yield non-zero, plausible values.
+   - Ensure that the solution would effectively solve the intended benchmark rather than just meeting structural or API constraints.
+
+V. OUTPUT FORMAT ENFORCEMENT:
+Your final mutated code must:
+   - Use the exact function interface specified.
+   - Include the required instruction, input information, and output fields for the LLM agents.
+   - Ensure the output format exactly matches the following example:
+   
+[EXAMPLE]
+
+   - Set the LLM’s role and temperature as needed.
+   - DO NOT FORGET the taskInfo input when calling the agent.
 
 IMPORTANT RULES:
 [RULES]
