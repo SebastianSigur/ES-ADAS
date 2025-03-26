@@ -410,7 +410,7 @@ if __name__ == "__main__":
     parser.add_argument('--save_dir', type=str, default='results/')
     parser.add_argument('--expr_name', type=str, default="gpqa_gpt3.5_results")
     parser.add_argument('--n_generation', type=int, default=30)
-    parser.add_argument('--debug_max', type=int, default=3)
+    parser.add_argument('--debug_max', type=int, default=1)
 
     args = parser.parse_args()
     # search
