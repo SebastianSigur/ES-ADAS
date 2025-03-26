@@ -193,13 +193,13 @@ def create_map_elites_structure_api(
     # Derive candidate labels from the archive if not provided.
     if candidate_labels is None:
         candidate_labels = [
-    "Linear Chain-of-Thought",
-    "Iterative Refinement",
-    "Tree-of-Thought",
-    "Decompositional Reasoning",
-    "Multi-Agent Reasoning",
-    "Abstraction to Principles Reasoning"
-]
+            "Linear Chain-of-Thought",
+            "Iterative Refinement",
+            "Tree-of-Thought",
+            "Decompositional Reasoning",
+            "Multi-Agent Reasoning",
+            "Abstraction to Principles Reasoning"
+        ]
     
     # Collect all API call counts.
     api_calls_values = [sol['api_calls'] for sol in archive if 'api_calls' in sol]
@@ -223,8 +223,12 @@ def create_map_elites_structure_api(
             continue
         
         api_val = sol["api_calls"]
-        norm_api = (api_val - min_api) / (max_api - min_api) if max_api != min_api else 0
-        api_bin = min(int(norm_api * bins_api), bins_api - 1)
+        # Use a simple condition: if API calls are <= 5, assign bin 0 ("few API calls"), else bin 1 ("many API calls").
+        if api_val <= 5:
+            api_bin = 0
+        else:
+            api_bin = 1
+        
         cell_key = f"{label},{api_bin}"
         new_fitness = get_upper_bound(sol['fitness'])
         
@@ -735,7 +739,7 @@ def search(args):
         #     if selected_agent is not None:
         #         break
 
-                # First sampling: select parent cell for agent
+        # First sampling: select parent cell for agent
         while True:  # Keep searching until we find a valid agent
             # Create a list of valid parent cells (cells with non-None agents)
             valid_cells = [key for key in map_elites if map_elites[key] is not None]
@@ -774,11 +778,43 @@ def search(args):
                 break
 
 
-        # Second sampling: select target structure and API labels
-        possible_structure_labels = list(set([cell.split(',')[0] for cell in map_elites.keys()]))
-        possible_api_bins = list(range(args.bins_dim2))  # 0 to bins_dim2-1
-        target_structure_label = random.choice(possible_structure_labels)
-        target_api_bin = random.choice(possible_api_bins)
+        # # Second sampling: select target structure and API labels
+        # possible_structure_labels = list(set([cell.split(',')[0] for cell in map_elites.keys()]))
+        # possible_api_bins = list(range(args.bins_dim2))  # 0 to bins_dim2-1
+        # target_structure_label = random.choice(possible_structure_labels)
+        # target_api_bin = random.choice(possible_api_bins)
+        # api_calls_mapping = {0: "few API calls", 1: "many API calls"}
+        # target_api_label = api_calls_mapping.get(target_api_bin, "few API calls")
+
+        # Second sampling: select target structure and API labels,
+        # weighted by inverted fitness (cells with lower fitness get higher probability),
+        # and include cells with a null agent by assigning them the minimum raw fitness.
+
+        all_keys = list(map_elites.keys())
+
+        # Compute raw fitness values for non-null cells
+        non_null_raws = [get_upper_bound(map_elites[k]['fitness']) for k in all_keys if map_elites[k] is not None]
+        min_raw = min(non_null_raws) if non_null_raws else 1  # fallback to 1 if all cells are null
+
+        # Compute raw weights for all cells: if cell is null, assign min_raw
+        raw_weights_target = []
+        for key in all_keys:
+            if map_elites[key] is not None:
+                raw_weights_target.append(get_upper_bound(map_elites[key]['fitness']))
+            else:
+                raw_weights_target.append(min_raw)
+
+        # Apply softmax transformation on inverted raw weights using numpy
+        temperature = 2.0  # Adjust as needed
+        inverted_weights = np.exp(-np.array(raw_weights_target) / temperature)
+        total_inverted = np.sum(inverted_weights)
+        softmax_inv = inverted_weights / total_inverted  # NumPy array of probabilities
+
+        # Sample one target cell weighted by the inverted softmax probabilities
+        target_cell = random.choices(all_keys, weights=softmax_inv.tolist(), k=1)[0]
+        target_parts = target_cell.split(',')
+        target_structure_label = target_parts[0]
+        target_api_bin = int(target_parts[1])
         api_calls_mapping = {0: "few API calls", 1: "many API calls"}
         target_api_label = api_calls_mapping.get(target_api_bin, "few API calls")
         # ------------------------------------------------
@@ -1056,11 +1092,11 @@ if __name__ == "__main__":
     parser.add_argument('--multiprocessing', action='store_true', default=True)
     parser.add_argument('--max_workers', type=int, default=48)
     parser.add_argument('--debug', action='store_true', default=True)
-    parser.add_argument('--save_dir', type=str, default='results_mgsm_softmax_sampling_1_no_archive/')
+    parser.add_argument('--save_dir', type=str, default='results_mgsm_softmax_sampling_direction_3_no_archive/')
     parser.add_argument('--expr_name', type=str, default="mgsm_gpt3.5_results")
     parser.add_argument('--n_generation', type=int, default=30)
     parser.add_argument('--debug_max', type=int, default=3)
-    parser.add_argument('--max_agents', type=int, default=3)
+    parser.add_argument('--max_agents', type=int, default=5)
 
     # ------------------------------------------------------------
     # Map elites arguments:
