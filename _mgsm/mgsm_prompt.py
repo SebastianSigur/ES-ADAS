@@ -500,9 +500,9 @@ Your mutated code must conform exactly to the targeted structure specified by [S
 
 2. Implementation Guidelines:
 Step 1. Incorporate Core Features from the Selected Agent:
-   - Analyze the selected agent ([SELECTED_AGENT]) and identify its core reasoning features that contribute to its performance.
-   - Integrate these beneficial features into your mutated design while ensuring that the final code still strictly conforms to the target structure [STRUCTURE_LABEL].
-   - For example, if the selected agent uses an effective feedback loop or clear abstraction mechanism, incorporate a similar approach into your mutation—as long as the overall architecture remains within the desired category.
+   - Analyze the selected agent ([SELECTED_AGENT]) and identify its most impactful reasoning components—those that have contributed significantly to its performance.
+   - Prioritize and integrate only these high-performing features into your mutated design, rather than incorporating every minor detail.
+   - For instance, if the selected agent employs a particular feedback loop or abstraction mechanism that correlates with high fitness, incorporate that feature while ignoring less impactful elements.
 Step 2. Perform the structure mutation:
    - Modify the control flow to reflect the target structure. For example, if [STRUCTURE_LABEL] is "Iterative Refinement", introduce a clear loop that repeatedly calls the agent() method with updated inputs.
    - Ensure that agent instantiation patterns match the target:
@@ -582,16 +582,14 @@ def forward():
             a()  # (Total: 3+4=7)
 
 III. FITNESS MAXIMIZATION IMPROVEMENT:
-Your ultimate goal is to maximize the agent's fitness—its performance must be the best it can be given the target structure ([STRUCTURE_LABEL]) and target API call constraints ([API_LABEL]). In this review, you must:
-   - Critically analyze the overall reasoning chain and computation to ensure that the agent fully exploits the insights from the selected agent and all beneficial strategies.
-   - Identify any redundant computations, unnecessary iterations, or inefficient control flows that may be hindering performance.
-   - Consider improvements such as:
-       • Refining feedback loops to reduce noise and focus on key corrections.
-       • Optimizing arithmetic and data manipulations to ensure accurate and non-zero outputs.
-       • Adjusting the LLM's roles, temperatures, or prompt phrasing to encourage deeper, more robust reasoning.
-       • Integrating alternative reasoning paths and selecting the best-performing one.
-       • Eliminating any default or constant outputs that do not contribute to solving the benchmark.
-   - Ensure that your final solution is the most effective, accurate, and resource-optimized version possible, fully leveraging the strong elements of the selected agent while strictly adhering to the target structure and API call constraints.
+Your final solution must not only meet the target structure and API call constraints but also achieve the highest possible performance (fitness) on the benchmark. To maximize fitness, you must:
+   - Critically analyze the entire reasoning chain and computational steps to ensure they produce accurate, meaningful, and non-zero results.
+   - Optimize key computations by streamlining feedback loops, refining arithmetic operations, and eliminating redundant data manipulations to reduce noise and enhance accuracy.
+   - Adjust prompt phrasing, LLM roles, temperature settings, and hyperparameters to encourage deeper, more robust reasoning.
+   - Prioritize and incorporate only high-impact features from the selected agent ([SELECTED_AGENT]); evaluate each inherited component for its contribution to fitness and discard minor or redundant elements.
+   - Compare your mutated solution against high-performing benchmarks or baseline performance metrics, iterating until the performance is significantly improved.
+   - Validate your design using simulated test cases to ensure that the logic effectively solves the benchmark.
+   - Eliminate any default or constant outputs that do not represent genuine computation.
 
 IV. CODE QUALITY ASSURANCE:
 Your final mutated code must:
