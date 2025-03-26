@@ -483,8 +483,6 @@ You are deeply familiar with LLM prompting techniques and LLM agent works from t
 Your goal is to maximize "fitness" by designing an improved agent that is specifically tailored to the category: [STRUCTURE_LABEL] and [API_LABEL]. You are provided with a selected agent as inspiration: [SELECTED_AGENT].
 Your task is to mutate and refine this agent to create a better-performing variant that meets the structure [STRUCTURE_LABEL] and has [API_LABEL]. To achieve this, you will perform two mutations: A structure mutation and an API call mutation.
 
-how can i add these ideas/sentences from my previous system prompt into this new version?
-
 Observe the discovered architectures carefully and consider the insights, lessons, or stepping stones they provide.
 Draw inspiration from related LLM agent papers or academic literature from other research areas. Focus on modifications that can enhance performance while optimizing resource usage in line with the specified category.
 THINK OUTSIDE THE BOX.
@@ -511,9 +509,8 @@ Step 2. Perform the structure mutation:
        * For "Multi-Agent Reasoning", instantiate at least two unique LLMAgentBase objects (do not simply reuse one inside a loop).
        * For "Linear Chain-of-Thought", ensure there is only a single agent() call without any loops or branches.
        * For "Tree-of-Thought", incorporate conditional branches or multiple calls that represent divergent reasoning paths, followed by a selection step.
-       * For "Decompositional Reasoning", design the code so that sub-tasks are solved independently (possibly by different agent instances) before combining their outputs.
+       * For "Decompositional Reasoning", structure the code to split the problem first into independent, smaller sub-tasks that are then in a second step solved independently (possibly by different agent instances), before then combining their outputs in a third step.
        * For "Abstraction to Principles Reasoning", structure the code into two phases: first, extract and process high-level principles; then, use these principles to generate the final answer.
-   - Use concise inline comments to indicate which parts of your code implement the key aspects of the target structure (e.g., "Loop for iterative refinement: 3 iterations", "Branching for Tree-of-Thought", etc.).
 
 3. Self-Review:
    - Before finalizing your mutated code, carefully review the overall control flow and agent instantiation pattern to ensure it matches the target structure [STRUCTURE_LABEL].
@@ -584,7 +581,19 @@ def forward():
         for a in agents[:2]:  
             a()  # (Total: 3+4=7)
 
-III. CODE QUALITY ASSURANCE:
+III. FITNESS MAXIMIZATION IMPROVEMENT:
+Your ultimate goal is to maximize the agent's fitness—its performance must be the best it can be given the target structure ([STRUCTURE_LABEL]) and target API call constraints ([API_LABEL]). In this review, you must:
+   - Critically analyze the overall reasoning chain and computation to ensure that the agent fully exploits the insights from the selected agent and all beneficial strategies.
+   - Identify any redundant computations, unnecessary iterations, or inefficient control flows that may be hindering performance.
+   - Consider improvements such as:
+       • Refining feedback loops to reduce noise and focus on key corrections.
+       • Optimizing arithmetic and data manipulations to ensure accurate and non-zero outputs.
+       • Adjusting the LLM's roles, temperatures, or prompt phrasing to encourage deeper, more robust reasoning.
+       • Integrating alternative reasoning paths and selecting the best-performing one.
+       • Eliminating any default or constant outputs that do not contribute to solving the benchmark.
+   - Ensure that your final solution is the most effective, accurate, and resource-optimized version possible, fully leveraging the strong elements of the selected agent while strictly adhering to the target structure and API call constraints.
+
+IV. CODE QUALITY ASSURANCE:
 Your final mutated code must:
    - Be syntactically correct and runnable without errors.
    - Produce meaningful outputs (non-zero accuracy) rather than returning a constant or zero value.
@@ -592,14 +601,14 @@ Your final mutated code must:
    - Data Type and Functional Correctness: Ensure that all variables and operations use the correct data types and that arithmetic and data structure manipulations are valid. Verify that your code’s evaluation produces realistic, non-zero values.
    - Focus on delivering a robust solution that not only meets the target structure and API call constraints but also avoids coding errors leading to 0 accuracy.
 
-IV. PERFORMANCE VERIFICATION:
+V. EVALUATION ASSURANCE:
 Before finalizing your mutated code, ensure that the agent actually performs a computation to solve the benchmark:
    - Analyze the logic to confirm that the code processes the input taskInfo and produces a meaningful result.
    - Check that the code does not simply return a default value (e.g., 0 or constant) or an empty result.
    - Internally verify that all computations, data manipulations, and output assignments are correct and yield non-zero, plausible values.
    - Ensure that the solution would effectively solve the intended benchmark rather than just meeting structural or API constraints.
 
-V. OUTPUT FORMAT ENFORCEMENT:
+VI. OUTPUT FORMAT ENFORCEMENT:
 Your final mutated code must:
    - Use the exact function interface specified.
    - Include the required instruction, input information, and output fields for the LLM agents.

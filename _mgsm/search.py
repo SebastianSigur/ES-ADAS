@@ -1017,7 +1017,7 @@ if __name__ == "__main__":
     parser.add_argument('--multiprocessing', action='store_true', default=True)
     parser.add_argument('--max_workers', type=int, default=48)
     parser.add_argument('--debug', action='store_true', default=True)
-    parser.add_argument('--save_dir', type=str, default='results_mgsm_new_selection_test7/')
+    parser.add_argument('--save_dir', type=str, default='results_mgsm_new_selection_test8/')
     parser.add_argument('--expr_name', type=str, default="mgsm_gpt3.5_results")
     parser.add_argument('--n_generation', type=int, default=20)
     parser.add_argument('--debug_max', type=int, default=3)
