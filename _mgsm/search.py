@@ -702,11 +702,57 @@ def search(args):
     for n in range(start, args.n_generation):
 
         # ------------------------------------------------------------
-        # First sampling: select parent cell for agent
+        # # First sampling: select parent cell for agent
+        # while True:  # Keep searching until we find a valid agent
+        #     parent_keys = list(map_elites.keys())
+        #     parent_random_index = random.randint(0, len(parent_keys) - 1)
+        #     parent_cell = parent_keys[parent_random_index]
+        #     parent_parts = parent_cell.split(',')
+        #     parent_structure_label = parent_parts[0]
+        #     parent_api_bin = int(parent_parts[1])
+        #     parent_api_calls_mapping = {0: "few API calls", 1: "many API calls"}
+        #     parent_api_label = parent_api_calls_mapping.get(parent_api_bin, "few API calls")
+            
+        #     selected_agent = map_elites[parent_cell]
+          
+        #     # First fallback: try same structure agents
+        #     if selected_agent is None:
+        #         same_structure_agents = [agent for key, agent in map_elites.items() 
+        #                                 if key.startswith(f"{parent_structure_label},") 
+        #                                 and agent is not None]
+        #         if same_structure_agents:
+        #             selected_agent = max(same_structure_agents, 
+        #                             key=lambda x: get_upper_bound(x['fitness']))
+            
+        #     # Second fallback: if still None, search entire archive
+        #      # Second fallback: if still None, search entire archive
+        #     if selected_agent is None:
+        #         non_empty_agents = [agent for agent in map_elites.values() if agent is not None]
+        #         if non_empty_agents:
+        #             selected_agent = random.choice(non_empty_agents)
+            
+        #     # If we found a valid agent, break the loop
+        #     if selected_agent is not None:
+        #         break
+
+                # First sampling: select parent cell for agent
         while True:  # Keep searching until we find a valid agent
-            parent_keys = list(map_elites.keys())
-            parent_random_index = random.randint(0, len(parent_keys) - 1)
-            parent_cell = parent_keys[parent_random_index]
+            # Create a list of valid parent cells (cells with non-None agents)
+            valid_cells = [key for key in map_elites if map_elites[key] is not None]
+            if not valid_cells:
+                raise RuntimeError("No valid agent found in map_elites")
+            
+            # Compute raw weights from each agent's fitness using get_upper_bound
+            raw_weights = [get_upper_bound(map_elites[key]['fitness']) for key in valid_cells]
+            
+            # Apply softmax transformation using numpy
+            temperature = 1.0  # Adjust as needed
+            exp_weights = np.exp(np.array(raw_weights) / temperature)
+            total_exp = np.sum(exp_weights)
+            softmax_weights = exp_weights / total_exp
+            
+            # Sample one parent cell weighted by the softmax probabilities
+            parent_cell = random.choices(valid_cells, weights=softmax_weights.tolist(), k=1)[0]
             parent_parts = parent_cell.split(',')
             parent_structure_label = parent_parts[0]
             parent_api_bin = int(parent_parts[1])
@@ -714,26 +760,19 @@ def search(args):
             parent_api_label = parent_api_calls_mapping.get(parent_api_bin, "few API calls")
             
             selected_agent = map_elites[parent_cell]
-          
-            # First fallback: try same structure agents
+            
+            # First fallback: try same structure agents if the selected cell is empty
             if selected_agent is None:
-                same_structure_agents = [agent for key, agent in map_elites.items() 
-                                        if key.startswith(f"{parent_structure_label},") 
-                                        and agent is not None]
+                same_structure_agents = [
+                    agent for key, agent in map_elites.items()
+                    if key.startswith(f"{parent_structure_label},") and agent is not None
+                ]
                 if same_structure_agents:
-                    selected_agent = max(same_structure_agents, 
-                                    key=lambda x: get_upper_bound(x['fitness']))
+                    selected_agent = max(same_structure_agents, key=lambda x: get_upper_bound(x['fitness']))
             
-            # Second fallback: if still None, search entire archive
-             # Second fallback: if still None, search entire archive
-            if selected_agent is None:
-                non_empty_agents = [agent for agent in map_elites.values() if agent is not None]
-                if non_empty_agents:
-                    selected_agent = random.choice(non_empty_agents)
-            
-            # If we found a valid agent, break the loop
             if selected_agent is not None:
                 break
+
 
         # Second sampling: select target structure and API labels
         possible_structure_labels = list(set([cell.split(',')[0] for cell in map_elites.keys()]))
@@ -1017,7 +1056,7 @@ if __name__ == "__main__":
     parser.add_argument('--multiprocessing', action='store_true', default=True)
     parser.add_argument('--max_workers', type=int, default=48)
     parser.add_argument('--debug', action='store_true', default=True)
-    parser.add_argument('--save_dir', type=str, default='results_mgsm_new_selection_test10/')
+    parser.add_argument('--save_dir', type=str, default='results_mgsm_softmax_sampling_1_no_archive/')
     parser.add_argument('--expr_name', type=str, default="mgsm_gpt3.5_results")
     parser.add_argument('--n_generation', type=int, default=30)
     parser.add_argument('--debug_max', type=int, default=3)
