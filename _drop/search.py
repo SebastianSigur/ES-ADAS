@@ -183,8 +183,10 @@ def search(args):
         archive = get_init_archive()
         start = 0
 
+    achive_fitnesses = []
     for solution in archive:
         if 'fitness' in solution:
+            achive_fitnesses.append(get_upper_bound(solution['fitness']))
             continue
 
         solution['generation'] = "initial"
@@ -198,7 +200,7 @@ def search(args):
 
         fitness_str = bootstrap_confidence_interval(acc_list)
         solution['fitness'] = fitness_str
-
+        achive_fitnesses.append(get_upper_bound(fitness_str))
         # save results
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         with open(file_path, 'w') as json_file:
@@ -255,6 +257,11 @@ def search(args):
         fitness_str = bootstrap_confidence_interval(acc_list)
         next_solution['fitness'] = fitness_str
         next_solution['generation'] = n + 1
+
+        if get_upper_bound(fitness_str) < min(achive_fitnesses):
+            print(f"Skipping agent because it has a lower fitness than the minimum fitness in the archive")
+            n -= 1
+            continue
 
         if 'debug_thought' in next_solution:
             del next_solution['debug_thought']
@@ -400,10 +407,11 @@ if __name__ == "__main__":
     parser.add_argument('--debug', action='store_true', default=True)
     parser.add_argument('--save_dir', type=str, default='results/')
     parser.add_argument('--expr_name', type=str, default="drop_gpt3.5_results")
-    parser.add_argument('--n_generation', type=int, default=20)
+    parser.add_argument('--n_generation', type=int, default=30)
     parser.add_argument('--debug_max', type=int, default=3)
     parser.add_argument('--max_agents', type=int, default=5)
 
+    print('no bad agents')
     args = parser.parse_args()
     # search
     SEARCHING_MODE = True
