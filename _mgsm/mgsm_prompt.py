@@ -405,6 +405,12 @@ class AgentArchitecture:
         \"""
         pass
 ```
+# Discovered MAP Elites
+
+The below is the current MAP of Elite Agents. The map is based on two dimensions: structure and API calls (with 0 for few and 1 for many API Calls):
+
+[MAP_ELITES]
+
 # Agent's fitness value
 
 The fitness value is the median and 95% Bootstrap Confidence Interval of the correct rate on a validation question set. Your GOAL is to maximize the "fitness".
@@ -679,15 +685,20 @@ def get_init_archive():
     return [COT, COT_SC, Reflexion, LLM_debate, Take_a_step_back, QD, Role_Assignment]
 
 
-def get_prompt(current_archive, selected_agent=None, structure_label=None, api_label=None, adaptive=False):
+def get_prompt(current_archive, current_map, selected_agent=None, structure_label=None, api_label=None, adaptive=False):
     # Convert the archive to a JSON string
     archive_str = ",\n".join([json.dumps(sol) for sol in current_archive])
     archive_str = f"[{archive_str}]"
+
+    # Convert the map to a JSON string
+    map_str = ",\n".join([json.dumps(sol) for sol in current_map])
+    map_str = f"[{map_str}]"
 
     # Replace [ARCHIVE] and [EXAMPLE] as before
     #prompt = base.replace("[ARCHIVE]", archive_str)
     #prompt = prompt.replace("[EXAMPLE]", json.dumps(EXAMPLE))
     prompt = base.replace("[EXAMPLE]", json.dumps(EXAMPLE))
+    prompt = prompt.replace("[MAP_ELITES]",json.dumps(map_str))
 
 
     # Use the api_label (if provided) to generate rules.
