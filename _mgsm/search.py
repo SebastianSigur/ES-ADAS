@@ -1092,7 +1092,7 @@ if __name__ == "__main__":
     parser.add_argument('--multiprocessing', action='store_true', default=True)
     parser.add_argument('--max_workers', type=int, default=48)
     parser.add_argument('--debug', action='store_true', default=True)
-    parser.add_argument('--save_dir', type=str, default='results_mgsm_map_fitness_uniform_1/')
+    parser.add_argument('--save_dir', type=str, default='results_mgsm_map_fitness_uniform_2_just_sampling/')
     parser.add_argument('--expr_name', type=str, default="mgsm_gpt3.5_results")
     parser.add_argument('--n_generation', type=int, default=50)
     parser.add_argument('--debug_max', type=int, default=3)
