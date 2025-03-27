@@ -20,6 +20,20 @@ CODE_MUTATOR_PROMPTS = [
     'Revamp the current Python code to create a complex structured solution that has never been seen before.'
 ]
 
+# Test 10-
+# CODE_MUTATOR_PROMPTS = [
+#     'Modify the Python code to improve its performance.',
+#     'Change the code to solve the problem in a completely DIFFERENT approach.',
+#     'How would an experience programmer alter the code to make it better? Modify the code like he would.',
+#     'Come up with another creative way to solve the problem.',
+#     'Just change this code to make it more fun, think WELL outside the box.',
+#     'Embrace unconventional ideas and mutate the code in a way that surprises and inspires unique variations. Think outside the box and develop a mutated code that encourages unconventional approaches and fresh perspectives.',
+#     'Step into the realm of imagination and create a mutated task prompt that transcends limitations and encourages innovative mutations. Break through the ordinary and think outside the box to generate a mutated task prompt that unlocks new possibilities and unconventional paths.',
+#     'Improve the code so that it ALWAYS arrives at the correct answer.',
+#     'Revamp the current Python code to create a complex structured solution that has never been seen before.'
+# ]
+
+
 # # Tests 1-5
 # TASK_MUTATOR_PROMPTS = [
 #     'Make a variant of the prompt.',
@@ -591,7 +605,7 @@ def get_code_mutator_prompt(code):
     mutator_prompt += 'You have written the following forward function:\n\n```'
     mutator_prompt += code + '''```\n\n'''
     clarification = '''# IMPORTANT: Remember the structure for the Info NamedTuple \n```Info = namedtuple('Info', ['name', 'author', 'content', 'iteration_idx'])```\n\n'''
-    # mutator_prompt += clarification
+    mutator_prompt += clarification
     mutator_prompt += mutator_instruction
 
     return mutator_prompt, mutator_instruction
@@ -854,32 +868,32 @@ return answer
 
 """
 
-# def get_prompt_v2(current_archive, adaptive=False):
-#     # archive_str = ",\n".join([json.dumps(sol) for sol in current_archive])
-#     # Trying to only give the initial archive as context to the Code Mutator
-#     archive_str = ",\n".join([json.dumps(sol) for sol in get_init_archive()])
+def get_prompt_v2(current_archive, adaptive=False):
+    archive_str = ",\n".join([json.dumps(sol) for sol in current_archive])
+    # Trying to only give the initial archive as context to the Code Mutator
+    # archive_str = ",\n".join([json.dumps(sol) for sol in get_init_archive()])
 
-#     archive_str = f"[{archive_str}]"
-#     prompt = base_2.replace("[ARCHIVE]", archive_str) # ARCHIVE could be either fixed to the initial one, the latest solution, or the current archive
-#     prompt = prompt.replace("[EXAMPLE]", json.dumps(EXAMPLE)) # Example could also be empty to test how this changes performance...
+    archive_str = f"[{archive_str}]"
+    prompt = base_2.replace("[ARCHIVE]", archive_str) # ARCHIVE could be either fixed to the initial one, the latest solution, or the current archive
+    prompt = prompt.replace("[EXAMPLE]", json.dumps(EXAMPLE)) # Example could also be empty to test how this changes performance...
 
-#     return system_prompt, prompt
+    return system_prompt, prompt
 
-# def get_code_mutator_prompt_v2(code, archive):
-#     system_prompt, prompt = get_prompt_v2(archive, adaptive=False)
+def get_code_mutator_prompt_v2(code, archive):
+    system_prompt, prompt = get_prompt_v2(archive, adaptive=False)
 
-#     # Choosing Mutator Instruction
-#     mutator_instruction = get_code_mutator()
+    # Choosing Mutator Instruction
+    mutator_instruction = get_code_mutator()
 
-#     # Building Mutator Prompt
-#     mutator_prompt = prompt
-#     mutator_prompt += 'You have written the following forward function:\n\n```'
-#     mutator_prompt += code + '''```\n\n'''
-#     clarification = '''# IMPORTANT: Remember the structure for the Info NamedTuple \n```Info = namedtuple('Info', ['name', 'author', 'content', 'iteration_idx'])```\n\n'''
-#     mutator_prompt += clarification
-#     mutator_prompt += mutator_instruction
+    # Building Mutator Prompt
+    mutator_prompt = prompt
+    mutator_prompt += 'You have written the following forward function:\n\n```'
+    mutator_prompt += code + '''```\n\n'''
+    clarification = '''# IMPORTANT: Remember the structure for the Info NamedTuple \n```Info = namedtuple('Info', ['name', 'author', 'content', 'iteration_idx'])```\n\n'''
+    mutator_prompt += clarification
+    mutator_prompt += mutator_instruction
 
-#     return mutator_prompt, mutator_instruction
+    return mutator_prompt, mutator_instruction
 
 # TASK MUTATORS
 

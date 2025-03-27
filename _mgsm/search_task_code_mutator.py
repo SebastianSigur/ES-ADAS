@@ -14,7 +14,7 @@ from google import genai
 from google.genai import types
 
 
-from mgsm_prompt import get_init_archive, get_prompt, get_reflexion_prompt, get_code_mutator_prompt, get_code_mutator_prompt_v2
+from mgsm_prompt import get_init_archive, get_prompt, get_reflexion_prompt, get_code_mutator_prompt, get_task_mutated_instruction, get_prompt_mutated
 
 openai_client = openai.OpenAI()
 gemini_client = genai.Client(api_key=os.getenv('GOOGLE_AI_API_KEY'))
@@ -55,7 +55,7 @@ def get_json_response_from_gpt(
             combined_prompt += f"Assistant: {content}\n\n"
     try:
         response = gemini_client.models.generate_content(
-            model='gemini-1.5-flash-8b', # 'gemini-1.5-flash-8b' ; 'gemini-2.0-flash-lite-001' ; 'gemini-2.0-flash-001'
+            model='gemini-1.5-flash-8b',
             contents=combined_prompt,
             config=types.GenerateContentConfig(
                 temperature=temperature,
@@ -207,9 +207,12 @@ def search(args):
             # Removing the Code Mutator description so that it does not influence future runs
             if 'code_mutator' in sol:
                 del sol['code_mutator']
-            # Removing the Task Mutator description so that it does not influence future runs (for Task Mutation Implementation)
+            # Removing the Task Mutator description so that it does not influence future runs
             if 'task_mutator' in sol:
                 del sol['task_mutator']
+            # Removing the Task Mutated Instruction so that it does not influence future runs
+            if 'mutated_instruction' in sol:
+                del sol['mutated_instruction']
         # Removing agents that have 0% accuracy (only from the archive given as context, not from the saved archive)
         archive_for_prompt_tmp = []        
         for sol in archive_for_prompt:
@@ -219,7 +222,16 @@ def search(args):
             archive_for_prompt_tmp.append(sol)
         archive_for_prompt = archive_for_prompt_tmp
 
-        system_prompt, prompt = get_prompt(archive_for_prompt)
+        # Task mutator only applied to new agents, not to initial ones
+        system_prompt_task, task_mutator_prompt, task_mutator = get_task_mutated_instruction()
+        msg_list_task_mut_query = [
+            {"role": "system", "content": system_prompt_task},
+            {"role": "user", "content": task_mutator_prompt},
+        ]
+        task_mutator_instruction = get_json_response_from_gpt_reflect(msg_list_task_mut_query)
+        task_mutator_instruction = task_mutator_instruction['instruction']
+
+        system_prompt, prompt = get_prompt_mutated(archive_for_prompt, task_mutator_instruction)
         msg_list = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompt},
@@ -232,19 +244,9 @@ def search(args):
             msg_list.append({"role": "assistant", "content": str(next_solution)})
             msg_list.append({"role": "user", "content": Reflexion_prompt_1})
             next_solution = get_json_response_from_gpt_reflect(msg_list)
-            
-
-            # Code Mutator
-            # First Attempt (adding mutator to msg list)
-            # Using LLM Mutator to further mutate code
-            # code_mutator = get_code_mutator_prompt(next_solution["code"])
-            # msg_list.append({"role": "assistant", "content": str(next_solution)})
-            # msg_list.append({"role": "user", "content": code_mutator})
-            # next_solution = get_json_response_from_gpt_reflect(msg_list)
-            
 
             # Second Attempt (separate query to 'Mutator' LLM)
-            code_mutator, code_mutator_instruction = get_code_mutator_prompt_v2(next_solution["code"], archive_for_prompt) # get_code_mutator_prompt,get_code_mutator_prompt_v2
+            code_mutator, code_mutator_instruction = get_code_mutator_prompt(next_solution["code"])
             mutator_msg_list = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": code_mutator},
@@ -256,7 +258,6 @@ def search(args):
                 if 'thought' in mutated_solution:
                     next_solution['thought'] = mutated_solution['thought'] # or feedback?
                 next_solution['code'] = mutated_solution['code']
-    
 
             # Reflexion 2 (Moved it to the end)
             msg_list.append({"role": "assistant", "content": str(next_solution)})
@@ -299,7 +300,8 @@ def search(args):
         next_solution['code_mutator'] = code_mutator_instruction
 
         # Adding the Task Mutator Instruction:
-        # next_solution['task_mutator'] = task_mutator_instruction
+        next_solution['task_mutator'] = task_mutator
+        next_solution['mutated_instruction'] = task_mutator_instruction
 
         if 'debug_thought' in next_solution:
             del next_solution['debug_thought']
@@ -443,9 +445,9 @@ if __name__ == "__main__":
     parser.add_argument('--max_workers', type=int, default=48)
     parser.add_argument('--debug', action='store_true', default=True)
     parser.add_argument('--save_dir', type=str, default='results/')
-    parser.add_argument('--expr_name', type=str, default="code_mutator_test10_mgsm_openai_gemini_results")
-    parser.add_argument('--n_generation', type=int, default=30)
-    parser.add_argument('--debug_max', type=int, default=5)
+    parser.add_argument('--expr_name', type=str, default="task_code_mutator_test1_mgsm_openai_gemini_results")
+    parser.add_argument('--n_generation', type=int, default=20)
+    parser.add_argument('--debug_max', type=int, default=3)
     parser.add_argument('--max_agents', type=int, default=5)
 
 
