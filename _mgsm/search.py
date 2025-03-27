@@ -805,7 +805,7 @@ def search(args):
                 raw_weights_target.append(min_raw)
 
         # Apply softmax transformation on inverted raw weights using numpy
-        temperature = 1.5  # Adjust as needed
+        temperature = 1.0  # Adjust as needed
         inverted_weights = np.exp(-np.array(raw_weights_target) / temperature)
         total_inverted = np.sum(inverted_weights)
         softmax_inv = inverted_weights / total_inverted  # NumPy array of probabilities
@@ -1092,7 +1092,7 @@ if __name__ == "__main__":
     parser.add_argument('--multiprocessing', action='store_true', default=True)
     parser.add_argument('--max_workers', type=int, default=48)
     parser.add_argument('--debug', action='store_true', default=True)
-    parser.add_argument('--save_dir', type=str, default='results_mgsm_softmax_sampling_direction_4_no_archive/')
+    parser.add_argument('--save_dir', type=str, default='results_mgsm_softmax_sampling_direction_5_no_archive/')
     parser.add_argument('--expr_name', type=str, default="mgsm_gpt3.5_results")
     parser.add_argument('--n_generation', type=int, default=30)
     parser.add_argument('--debug_max', type=int, default=3)
