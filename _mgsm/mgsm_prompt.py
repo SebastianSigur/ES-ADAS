@@ -405,11 +405,6 @@ class AgentArchitecture:
         \"""
         pass
 ```
-# Discovered Agents Archive
-These are the discovered agents so far:
-
-[TOP_3_AGENTS_FROM_MAP]
-
 # Agent's fitness value
 
 The fitness value is the median and 95% Bootstrap Confidence Interval of the correct rate on a validation question set. Your GOAL is to maximize the "fitness".
