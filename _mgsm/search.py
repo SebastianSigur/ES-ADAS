@@ -837,7 +837,7 @@ def search(args):
         # Sort in descending order (highest fitness first) using get_upper_bound on the 'fitness' field
         top3_agents = sorted(valid_agents, key=lambda x: get_upper_bound(x['fitness']), reverse=True)[:3]
 
-        system_prompt, prompt = get_prompt(archive, map_elites, top3_agents, selected_agent, target_structure_label, target_api_label)
+        system_prompt, prompt = get_prompt(archive, valid_agents, top3_agents, selected_agent, target_structure_label, target_api_label)
         msg_list = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompt},
@@ -1098,7 +1098,7 @@ if __name__ == "__main__":
     parser.add_argument('--multiprocessing', action='store_true', default=True)
     parser.add_argument('--max_workers', type=int, default=48)
     parser.add_argument('--debug', action='store_true', default=True)
-    parser.add_argument('--save_dir', type=str, default='results_mgsm_map_fitness_uniform_1_gen100_seed_45/')
+    parser.add_argument('--save_dir', type=str, default='results_mgsm_map_fitness_uniform_3_gen100_seed_47/')
     parser.add_argument('--expr_name', type=str, default="mgsm_gpt3.5_results")
     parser.add_argument('--n_generation', type=int, default=100)
     parser.add_argument('--debug_max', type=int, default=3)
@@ -1116,7 +1116,7 @@ if __name__ == "__main__":
 
     # Arguments for multiple runs to test variance
     parser.add_argument('--num_runs', type=int, default=1, help="Number of runs to execute")
-    parser.add_argument('--base_seed', type=int, default=45, help="Base seed value for the first run")
+    parser.add_argument('--base_seed', type=int, default=47, help="Base seed value for the first run")
 
 
 

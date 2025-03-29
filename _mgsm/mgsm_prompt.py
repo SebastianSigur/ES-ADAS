@@ -407,7 +407,7 @@ class AgentArchitecture:
 ```
 # Discovered Architectures
  
- Below are the discovered architectures. They are presented in a map with two dimensions: structure and API calls (with 0 for few and 1 for many API Calls):
+ Below are the discovered architectures.
  
  [MAP_ELITES]
 
