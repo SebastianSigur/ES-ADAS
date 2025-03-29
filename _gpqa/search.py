@@ -4,7 +4,7 @@ import json
 import os
 from collections import namedtuple
 from concurrent.futures import ThreadPoolExecutor
-
+import re
 import backoff
 import numpy as np
 import openai
@@ -73,7 +73,8 @@ def get_json_response_from_gpt(
 def get_json_response_from_gpt_reflect(
         msg_list,
         temperature=0.8
-):
+):  
+    print('messaging openai')
     response = openai_client.chat.completions.create(
         model='gpt-4o-mini-2024-07-18',
         messages=msg_list,
@@ -173,8 +174,10 @@ def search(args):
         archive = get_init_archive()
         start = 0
 
+    initial_archive_fitnesses = []
     for solution in archive:
         if 'fitness' in solution:
+            initial_archive_fitnesses.append(get_upper_bound(solution['fitness']))
             continue
 
         solution['generation'] = "initial"
@@ -188,7 +191,7 @@ def search(args):
 
         fitness_str = bootstrap_confidence_interval(acc_list)
         solution['fitness'] = fitness_str
-
+        initial_archive_fitnesses.append(get_upper_bound(fitness_str))
         # save results
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         with open(file_path, 'w') as json_file:
@@ -243,6 +246,10 @@ def search(args):
             continue
 
         fitness_str = bootstrap_confidence_interval(acc_list)
+        if get_upper_bound(fitness_str) < min(initial_archive_fitnesses):
+            print(f"Skipping agent because it has a lower fitness than the minimum fitness in the archive")
+            n -= 1
+            continue
         next_solution['fitness'] = fitness_str
         next_solution['generation'] = n + 1
 
@@ -412,6 +419,7 @@ if __name__ == "__main__":
     parser.add_argument('--n_generation', type=int, default=30)
     parser.add_argument('--debug_max', type=int, default=1)
 
+    print('no bad agents')
     args = parser.parse_args()
     # search
     SEARCHING_MODE = True
