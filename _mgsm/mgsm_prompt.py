@@ -405,6 +405,12 @@ class AgentArchitecture:
         \"""
         pass
 ```
+# Discovered Architectures
+ 
+ Below are the discovered architectures. They are presented in a map with two dimensions: structure and API calls (with 0 for few and 1 for many API Calls):
+ 
+ [MAP_ELITES]
+
 # Agent's fitness value
 
 The fitness value is the median and 95% Bootstrap Confidence Interval of the correct rate on a validation question set. Your GOAL is to maximize the "fitness".
@@ -684,19 +690,19 @@ def get_prompt(current_archive, current_map, top3_agents, selected_agent=None, s
     archive_str = ",\n".join([json.dumps(sol) for sol in current_archive])
     archive_str = f"[{archive_str}]"
 
-    # # Convert the map to a JSON string
-    # map_str = ",\n".join([json.dumps(sol) for sol in current_map])
-    # map_str = f"[{map_str}]"
+    # Convert the map to a JSON string
+    map_str = ",\n".join([json.dumps(sol) for sol in current_map])
+    map_str = f"[{map_str}]"
 
     # Replace [ARCHIVE] and [EXAMPLE] as before
     #prompt = base.replace("[ARCHIVE]", archive_str)
     #prompt = prompt.replace("[EXAMPLE]", json.dumps(EXAMPLE))
     prompt = base.replace("[EXAMPLE]", json.dumps(EXAMPLE))
-    #prompt = prompt.replace("[MAP_ELITES]",json.dumps(map_str))
+    prompt = prompt.replace("[MAP_ELITES]",json.dumps(map_str))
 
-    # Format the top 3 agents as a JSON list (without their keys)
-    top3_str = "[\n" + ",\n".join([json.dumps(agent, indent=2) for agent in top3_agents]) + "\n]"
-    prompt = prompt.replace("[TOP_3_AGENTS_FROM_MAP]", top3_str)
+    # # Format the top 3 agents as a JSON list (without their keys)
+    # top3_str = "[\n" + ",\n".join([json.dumps(agent, indent=2) for agent in top3_agents]) + "\n]"
+    # prompt = prompt.replace("[TOP_3_AGENTS_FROM_MAP]", top3_str)
 
     # Use the api_label (if provided) to generate rules.
     rules = RULES(api_label if api_label is not None else "few API calls")
