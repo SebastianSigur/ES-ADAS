@@ -443,7 +443,7 @@ if __name__ == "__main__":
     parser.add_argument('--max_workers', type=int, default=48)
     parser.add_argument('--debug', action='store_true', default=True)
     parser.add_argument('--save_dir', type=str, default='results/')
-    parser.add_argument('--expr_name', type=str, default="code_mutator_test10_mgsm_openai_gemini_results")
+    parser.add_argument('--expr_name', type=str, default="task_mutator_test11_mgsm_openai_gemini_results")
     parser.add_argument('--n_generation', type=int, default=30)
     parser.add_argument('--debug_max', type=int, default=5)
     parser.add_argument('--max_agents', type=int, default=5)

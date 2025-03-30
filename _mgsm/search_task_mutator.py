@@ -3,7 +3,7 @@ import copy
 import json
 import os
 import random
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 import re
 import backoff
@@ -12,9 +12,20 @@ import openai
 from tqdm import tqdm
 from google import genai
 from google.genai import types
+import scipy as sp
+
+from mgsm_prompt import get_init_archive, get_prompt, get_reflexion_prompt, get_code_mutator_prompt, get_task_mutated_instruction, get_prompt_mutated, TASK_MUTATOR_PROMPTS
+
+GENERATE_TASK_MUTATORS = False
+TASK_MUTATORS_PERFORMANCE_SAMPLING = False
+
+if GENERATE_TASK_MUTATORS:
+    pass # if True we will generate a list of task mutators and overwrite `TASK_MUTATOR_PROMPTS`
 
 
-from mgsm_prompt import get_init_archive, get_prompt, get_reflexion_prompt, get_code_mutator_prompt, get_task_mutated_instruction, get_prompt_mutated
+# Set the global seeds per run
+random.seed(42)
+np.random.seed(42)
 
 openai_client = openai.OpenAI()
 gemini_client = genai.Client(api_key=os.getenv('GOOGLE_AI_API_KEY'))
@@ -200,6 +211,40 @@ def search(args):
         with open(file_path, 'w') as json_file:
             json.dump(archive, json_file, indent=4)
 
+    # Creating OrderedDict to keep track of Task Mutators
+    if TASK_MUTATORS_PERFORMANCE_SAMPLING:
+        # Getting the Avg. Fitness of Initial archive
+        median_initial_accs = []
+        for sol in archive:
+            if 'initial' == sol['generation']:
+                initial_acc = get_median_fitness(sol['fitness'])
+                median_initial_accs.append(initial_acc)
+        initial_avg_acc = np.array(median_initial_accs).mean().item()
+
+        # Initializing Mutators avg accuracy w the avg of the initial archive
+        task_mutators_dict = OrderedDict()
+        for i in range(len(TASK_MUTATOR_PROMPTS)):
+            task_mutators_dict[i] = {
+                'task_mutator' : TASK_MUTATOR_PROMPTS[i],
+                'n' : 0,
+                'results' : [],
+                'generation': [],
+                'avg_accuracy' : initial_avg_acc
+            }
+        
+        # If there is already runs, the results, and avg. accuracies need to be updated
+        # Iterating through the archive, and if a generation exists, then we add its fitness
+        for sol in archive:
+            if 'initial' != sol['generation']:
+                acc = get_median_fitness(sol['fitness'])
+                mut_id = TASK_MUTATOR_PROMPTS.index(sol['task_mutator'])
+                task_mutators_dict[mut_id]['results'].append(acc)
+        # Re-iterating through the dict to update the avg. accuracies
+        for i in range(len(TASK_MUTATOR_PROMPTS)):
+            new_mutator_avg = np.array(task_mutators_dict[i]['results']).mean().item()
+            task_mutators_dict[i]['avg_accuracy'] = new_mutator_avg
+
+
     for n in range(start, args.n_generation):
         print(f"============Generation {n + 1}=================")
         archive_for_prompt = copy.deepcopy(archive)
@@ -222,8 +267,15 @@ def search(args):
             archive_for_prompt_tmp.append(sol)
         archive_for_prompt = archive_for_prompt_tmp
 
+        # If Performance Sampling is on for Task mutators it calculates de probs using Softmax
+        if TASK_MUTATORS_PERFORMANCE_SAMPLING:
+            # Get Performances and use Softmax to get p
+            mutators_accuracies = [task_mutators_dict[k]['avg_accuracy'] for k in task_mutators_dict.keys()]
+            p = sp.special.softmax(np.array(mutators_accuracies))
+        else:
+            p = np.ones(len(TASK_MUTATOR_PROMPTS)) / len(TASK_MUTATOR_PROMPTS)
         # Task mutator only applied to new agents, not to initial ones
-        system_prompt_task, task_mutator_prompt, task_mutator = get_task_mutated_instruction()
+        system_prompt_task, task_mutator_prompt, task_mutator_id, task_mutator = get_task_mutated_instruction(TASK_MUTATOR_PROMPTS, p)
         msg_list_task_mut_query = [
             {"role": "system", "content": system_prompt_task},
             {"role": "user", "content": task_mutator_prompt},
@@ -289,6 +341,15 @@ def search(args):
         next_solution['task_mutator'] = task_mutator
         next_solution['mutated_instruction'] = task_mutator_instruction
 
+        # Updating Task Mutator Dict (if available)
+        if TASK_MUTATORS_PERFORMANCE_SAMPLING:
+            task_mutators_dict[task_mutator_id]['n'] += 1
+            task_mutators_dict[task_mutator_id]['generation'].append(n+1)
+            task_mutators_dict[task_mutator_id]['results'].append(get_median_fitness(next_solution['fitness']))
+            new_mutator_avg = np.array(task_mutators_dict[task_mutator_id]['results']).mean().item()
+            task_mutators_dict[task_mutator_id]['avg_accuracy'] = new_mutator_avg
+
+
         if 'debug_thought' in next_solution:
             del next_solution['debug_thought']
         if 'reflection' in next_solution:
@@ -304,6 +365,13 @@ def get_upper_bound(upper_bound_string):
     match = re.search(r'\(([\d.]+)%,\s*([\d.]+)%\)', upper_bound_string)
     if match:
         return float(match.group(2))
+    else:
+        return 0.0
+
+def get_median_fitness(fitness_string):
+    match = re.search(r'Median:\s*([\d.]+)%$', fitness_string)
+    if match:
+        return float(match.group(1))
     else:
         return 0.0
 
@@ -428,11 +496,11 @@ if __name__ == "__main__":
     parser.add_argument('--shuffle_seed', type=int, default=0)
     parser.add_argument('--n_repreat', type=int, default=1)
     parser.add_argument('--multiprocessing', action='store_true', default=True)
-    parser.add_argument('--max_workers', type=int, default=48)
+    parser.add_argument('--max_workers', type=int, default=32)
     parser.add_argument('--debug', action='store_true', default=True)
     parser.add_argument('--save_dir', type=str, default='results/')
-    parser.add_argument('--expr_name', type=str, default="task_mutator_test6_mgsm_openai_gemini_results")
-    parser.add_argument('--n_generation', type=int, default=20)
+    parser.add_argument('--expr_name', type=str, default="task_mutator_test20_mgsm_openai_gemini_results")
+    parser.add_argument('--n_generation', type=int, default=30)
     parser.add_argument('--debug_max', type=int, default=3)
     parser.add_argument('--max_agents', type=int, default=5)
 
