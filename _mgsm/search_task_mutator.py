@@ -219,7 +219,7 @@ def search(args):
             if 'initial' == sol['generation']:
                 initial_acc = get_median_fitness(sol['fitness'])
                 median_initial_accs.append(initial_acc)
-        initial_avg_acc = np.array(median_initial_accs).mean().item()
+        initial_avg_acc = np.median(np.array(median_initial_accs)).item()
 
         # Initializing Mutators avg accuracy w the avg of the initial archive
         task_mutators_dict = OrderedDict()
@@ -241,7 +241,7 @@ def search(args):
                 task_mutators_dict[mut_id]['results'].append(acc)
         # Re-iterating through the dict to update the avg. accuracies
         for i in range(len(TASK_MUTATOR_PROMPTS)):
-            new_mutator_avg = np.array(task_mutators_dict[i]['results']).mean().item()
+            new_mutator_avg = np.median(np.array(task_mutators_dict[i]['results'])).item()
             task_mutators_dict[i]['avg_accuracy'] = new_mutator_avg
 
 
@@ -346,7 +346,7 @@ def search(args):
             task_mutators_dict[task_mutator_id]['n'] += 1
             task_mutators_dict[task_mutator_id]['generation'].append(n+1)
             task_mutators_dict[task_mutator_id]['results'].append(get_median_fitness(next_solution['fitness']))
-            new_mutator_avg = np.array(task_mutators_dict[task_mutator_id]['results']).mean().item()
+            new_mutator_avg = np.median(np.array(task_mutators_dict[task_mutator_id]['results'])).item()
             task_mutators_dict[task_mutator_id]['avg_accuracy'] = new_mutator_avg
 
 
@@ -499,7 +499,7 @@ if __name__ == "__main__":
     parser.add_argument('--max_workers', type=int, default=32)
     parser.add_argument('--debug', action='store_true', default=True)
     parser.add_argument('--save_dir', type=str, default='results/')
-    parser.add_argument('--expr_name', type=str, default="task_mutator_test21_mgsm_openai_gemini_results")
+    parser.add_argument('--expr_name', type=str, default="task_mutator_test22_mgsm_openai_gemini_results")
     parser.add_argument('--n_generation', type=int, default=30)
     parser.add_argument('--debug_max', type=int, default=3)
     parser.add_argument('--max_agents', type=int, default=5)
