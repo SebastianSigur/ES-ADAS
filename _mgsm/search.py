@@ -1150,7 +1150,7 @@ if __name__ == "__main__":
     original_expr_name = args.expr_name
 
     # Run exactly three runs with custom seeds and save directories.
-    for run, (seed, folder) in enumerate(zip([45, 47], ["map_fitness_fitness_gen100_seed45", "map_fitness_fitness_gen100_seed47"])):
+    for run, (seed, folder) in enumerate(zip([47], ["map_fitness_fitness_gen100_seed47"])):
         
         # --- Critical Fix: Create directory BEFORE any file operations ---
         args.save_dir = folder
