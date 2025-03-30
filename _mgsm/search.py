@@ -1122,21 +1122,48 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # Store the original expr_name for later prefixing.
+    # # Store the original expr_name for later prefixing.
+    # original_expr_name = args.expr_name
+
+    # for run in range(args.num_runs):
+    #     # Update the seed for each run (for example, add the run number to the base_seed)
+    #     run_seed = args.base_seed + run
+        
+    #     # Set the global seeds per run
+    #     random.seed(run_seed)
+    #     np.random.seed(run_seed)
+
+
+    #     # Modify expr_name to include the run prefix (run1_, run2_, etc.)
+    #     args.expr_name = f"run{run+1}_{original_expr_name}"
+    #     print(f"Starting run {run+1} with seed {run_seed} and expr_name {args.expr_name}")
+        
+    #     # Run the search phase with SEARCHING_MODE turned on.
+    #     SEARCHING_MODE = True
+    #     search(args)
+        
+    #     # Then perform the evaluation phase.
+    #     SEARCHING_MODE = False
+    #     evaluate(args)
+
+    # Original original_expr_name remains unchanged
     original_expr_name = args.expr_name
 
-    for run in range(args.num_runs):
-        # Update the seed for each run (for example, add the run number to the base_seed)
-        run_seed = args.base_seed + run
+    # Run exactly three runs with custom seeds and save directories.
+    for run, (seed, folder) in enumerate(zip([42, 45, 47], ["top3_fitness_uniform_gen100_seed42", "top3_fitness_uniform_gen100_seed45", "top3_fitness_uniform_gen100_seed47"])):
         
-        # Set the global seeds per run
+        # --- Critical Fix: Create directory BEFORE any file operations ---
+        args.save_dir = folder
+        os.makedirs(args.save_dir, exist_ok=True)  # Force create directory
+        
+        # Set the seed for this run
+        run_seed = seed
         random.seed(run_seed)
         np.random.seed(run_seed)
-
-
+        
         # Modify expr_name to include the run prefix (run1_, run2_, etc.)
         args.expr_name = f"run{run+1}_{original_expr_name}"
-        print(f"Starting run {run+1} with seed {run_seed} and expr_name {args.expr_name}")
+        print(f"Starting run {run+1} with seed {run_seed}, expr_name {args.expr_name}, and save_dir {args.save_dir}")
         
         # Run the search phase with SEARCHING_MODE turned on.
         SEARCHING_MODE = True
