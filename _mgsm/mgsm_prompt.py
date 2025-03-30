@@ -63,15 +63,37 @@ CODE_MUTATOR_PROMPTS = [
 #     'Embrace the power of unconventional thinking and create a mutated task prompt that sparks unconventional mutations and imaginative outcomes. Challenge traditional assumptions and break the mold with a mutated task prompt that encourages revolutionary and out-of-the-box variations.'
 # ]
 
+# TASK_MUTATOR_PROMPTS = [
+#     'Make a variant of the instruction.',
+#     'Modify the following instruction creatively, giving some advice on how to solve it.',
+#     'Promote breaking down problems: Instead of asking the user to solve the problem as a whole, prompt them to break it down into smaller, more manageable parts.',
+#     'Break free from conventional constraints and generate a new instruction that takes the instruction to uncharted territories. Challenge the norm and create a new instruction that pushes the boundaries of traditional interpretations.',
+#     "Go beyond the expected and create a new instruction that leads to unexpected and extraordinary variations, opening doors to unexplored realms. Increase Specificity: If the original instruction is too general, like 'Tell me about X,' the modified version could be,'Discuss the history, impact, and current status of X.'",
+#     'Embrace unconventional ideas and rewrite the instruction in a way that surprises and inspires unique variations. Think outside the box and develop an instruction that encourages unconventional approaches and fresh perspectives.',
+#     'Step into the realm of imagination and create a rewritten instruction that transcends limitations and encourages innovative solutions. Break through the ordinary and think outside the box to generate a new instruction that unlocks new possibilities and unconventional paths.',
+#     'Embrace the power of unconventional thinking and create an instruction that sparks unconventional variations and imaginative outcomes. Challenge traditional assumptions and break the mold with a rewritten instruction that encourages revolutionary and out-of-the-box variations.'
+# ]
+
+# TASK_MUTATOR_PROMPTS = [
+#     'Make a variant of the instruction.',
+#     'Modify the following instruction creatively, giving some advice on how to solve it.',
+#     'Promote breaking down problems: Instead of asking the user to solve the problem as a whole, prompt them to break it down into smaller, more manageable parts.',
+#     'Break free from conventional constraints and generate a new instruction that takes the instruction to uncharted territories. Challenge the norm and create a new instruction that pushes the boundaries of traditional interpretations.',
+#     "Go beyond the expected and create a new instruction that leads to unexpected and extraordinary variations, opening doors to unexplored realms. Increase Specificity: If the original instruction is too general, like 'Tell me about X,' the modified version could be,'Discuss the history, impact, and current status of X.'",
+#     'Embrace unconventional ideas and rewrite the instruction in a way that surprises and inspires unique variations. Think outside the box and develop an instruction that encourages unconventional approaches and fresh perspectives.',
+#     'Step into the realm of imagination and create a rewritten instruction that transcends limitations and encourages innovative solutions. Break through the ordinary and think outside the box to generate a new instruction that unlocks new possibilities and unconventional paths.',
+#     'Embrace the power of unconventional thinking and create an instruction that sparks unconventional variations and imaginative outcomes. Challenge traditional assumptions and break the mold with a rewritten instruction that encourages revolutionary and out-of-the-box variations.'
+# ]
+
 TASK_MUTATOR_PROMPTS = [
-    'Make a variant of the instruction.',
+    'Make a variant of the prompt.',
     'Modify the following instruction creatively, giving some advice on how to solve it.',
     'Promote breaking down problems: Instead of asking the user to solve the problem as a whole, prompt them to break it down into smaller, more manageable parts.',
-    'Break free from conventional constraints and generate a new instruction that takes the instruction to uncharted territories. Challenge the norm and create a new instruction that pushes the boundaries of traditional interpretations.',
-    "Go beyond the expected and create a new instruction that leads to unexpected and extraordinary variations, opening doors to unexplored realms. Increase Specificity: If the original instruction is too general, like 'Tell me about X,' the modified version could be,'Discuss the history, impact, and current status of X.'",
-    'Embrace unconventional ideas and rewrite the instruction in a way that surprises and inspires unique variations. Think outside the box and develop an instruction that encourages unconventional approaches and fresh perspectives.',
-    'Step into the realm of imagination and create a rewritten instruction that transcends limitations and encourages innovative solutions. Break through the ordinary and think outside the box to generate a new instruction that unlocks new possibilities and unconventional paths.',
-    'Embrace the power of unconventional thinking and create an instruction that sparks unconventional variations and imaginative outcomes. Challenge traditional assumptions and break the mold with a rewritten instruction that encourages revolutionary and out-of-the-box variations.'
+    'Break free from conventional constraints and generate a mutated instruction that takes the instruction to uncharted territories. Challenge the norm and create a mutated instruction that pushes the boundaries of traditional interpretations.',
+    "Go beyond the expected and create a mutated instruction that leads to unexpected and extraordinary mutations, opening doors to unexplored realms. Increase Specificity: If the original instruction is too general, like 'Tell me about X,' the modified version could be,'Discuss the history, impact, and current status of X.'",
+    'Embrace unconventional ideas and mutate the instruction in a way that surprises and inspires unique variations. Think outside the box and develop a mutated instruction that encourages unconventional approaches and fresh perspectives.',
+    'Step into the realm of imagination and create a mutated instruction that transcends limitations and encourages innovative mutations. Break through the ordinary and think outside the box to generate a mutated instruction that unlocks new possibilities and unconventional paths.',
+    'Embrace the power of unconventional thinking and create a mutated instruction that sparks unconventional mutations and imaginative outcomes. Challenge traditional assumptions and break the mold with a mutated instruction that encourages revolutionary and out-of-the-box variations.'
 ]
 
 COT = {
@@ -921,7 +943,7 @@ def get_task_mutator(PROVIDED_TASK_MUTATOR_PROMPTS, p):
 def get_task_mutated_instruction(PROVIDED_TASK_MUTATOR_PROMPTS, p):
     task_mutator_id, task_mutator = get_task_mutator(PROVIDED_TASK_MUTATOR_PROMPTS, p)
     # try an improved system prompt
-    system_prompt = 'You are a helpful assistant helping to rewrite a task instruction. Make sure to return in a WELL-FORMED JSON object with ONLY ONE KEY: "instruction".'
+    system_prompt = 'You are a helpful assistant helping to mutate a task instruction. Make sure to return in a WELL-FORMED JSON object with ONLY ONE KEY: "instruction".'
     # system_prompt = 'You are a helpful assistant helping to REWRITE a task instruction. Make sure to return in a WELL-FORMED JSON object with ONLY ONE KEY: "instruction". You should return the REWRITTEN task instruction in the JSON object, DO  NOT return your thought on how to rewrite the instruction nor mention that you are rewriting the instruction. You only need to REWRITE the instruction.'
     base_task_prompt = '''You are deeply familiar with LLM prompting techniques and LLM agent works from the literature. Your goal is to maximize "fitness" by proposing interestingly new agents. 
 Observe the discovered architectures carefully and think about what insights, lessons, or stepping stones can be learned from them.
@@ -929,9 +951,9 @@ Be creative to think about the next interesting architecture to try. You are enc
 Using the knowledge learned from the archive and the inspiration from academic literature to give the next interesting architecture.
 THINK OUTSIDE THE BOX.'''
 
-    task_mutator_prompt = 'You are helping to REWRITE an instruction. You should return the REWRITTEN task instruction, DO  NOT return your thought on how to rewrite the instruction nor mention that you are rewriting the instruction. You only need to REWRITE the instruction.\n\n'
+    task_mutator_prompt = 'You are helping to MUTATE an instruction. You should return the MUTATED task instruction, DO  NOT return your thought on how to rewrite the instruction nor mention that you are mutating the instruction. You only need to MUTATE the instruction.\n\n'
     task_mutator_prompt += str(task_mutator)
-    task_mutator_prompt += '\n\n# INSTRUCTION: ' + base_task_prompt + '\n\n# REWRITTEN INSTRUCTION (YOUR TASK):'
+    task_mutator_prompt += '\n\n# INSTRUCTION: ' + base_task_prompt + '\n\n# MUTATED INSTRUCTION (YOUR TASK):'
 
     return system_prompt, task_mutator_prompt, task_mutator_id, task_mutator
 
