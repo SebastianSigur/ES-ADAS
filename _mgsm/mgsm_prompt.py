@@ -405,11 +405,11 @@ class AgentArchitecture:
         \"""
         pass
 ```
-# Discovered Architectures
+# Selected Agent
  
-Below are the discovered architectures:
+Below is the selected agent that we want to mutate:
  
-[TOP_3_AGENTS_FROM_MAP]
+[SELECTED_AGENT]
 
 # Agent's fitness value
 
@@ -700,9 +700,9 @@ def get_prompt(current_archive, current_map, top3_agents, selected_agent=None, s
     prompt = base.replace("[EXAMPLE]", json.dumps(EXAMPLE))
     #prompt = prompt.replace("[MAP_ELITES]",json.dumps(map_str))
 
-    # Format the top 3 agents as a JSON list (without their keys)
-    top3_str = "[\n" + ",\n".join([json.dumps(agent, indent=2) for agent in top3_agents]) + "\n]"
-    prompt = prompt.replace("[TOP_3_AGENTS_FROM_MAP]", top3_str)
+    # # Format the top 3 agents as a JSON list (without their keys)
+    # top3_str = "[\n" + ",\n".join([json.dumps(agent, indent=2) for agent in top3_agents]) + "\n]"
+    # prompt = prompt.replace("[TOP_3_AGENTS_FROM_MAP]", top3_str)
 
     # Use the api_label (if provided) to generate rules.
     rules = RULES(api_label if api_label is not None else "few API calls")
