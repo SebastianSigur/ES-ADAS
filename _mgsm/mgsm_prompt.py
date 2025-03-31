@@ -409,7 +409,7 @@ class AgentArchitecture:
  
 Below are the discovered architectures:
  
-[MAP_ELITES]
+[ARCHIVE]
 
 # Agent's fitness value
 
@@ -695,10 +695,10 @@ def get_prompt(current_archive, current_map, top3_agents, selected_agent=None, s
     map_str = f"[{map_str}]"
 
     # Replace [ARCHIVE] and [EXAMPLE] as before
-    #prompt = base.replace("[ARCHIVE]", archive_str)
-    #prompt = prompt.replace("[EXAMPLE]", json.dumps(EXAMPLE))
-    prompt = base.replace("[EXAMPLE]", json.dumps(EXAMPLE))
-    prompt = prompt.replace("[MAP_ELITES]",json.dumps(map_str))
+    prompt = base.replace("[ARCHIVE]", archive_str)
+    prompt = prompt.replace("[EXAMPLE]", json.dumps(EXAMPLE))
+    # prompt = base.replace("[EXAMPLE]", json.dumps(EXAMPLE))
+    # prompt = prompt.replace("[MAP_ELITES]",json.dumps(map_str))
 
     # # Format the top 3 agents as a JSON list (without their keys)
     # top3_str = "[\n" + ",\n".join([json.dumps(agent, indent=2) for agent in top3_agents]) + "\n]"

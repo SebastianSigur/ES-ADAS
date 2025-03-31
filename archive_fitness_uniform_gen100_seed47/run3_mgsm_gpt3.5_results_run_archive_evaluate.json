@@ -1,0 +1,122 @@
+[
+    {
+        "thought": "By encouraging the LLM to think step by step rather than directly outputting an answer, chain-of-thought reasoning enables complex problem-solving through intermediate steps. This practice improves the model's ability to handle tasks that require deeper reasoning and provides insight into its decision-making process.",
+        "name": "Chain-of-Thought",
+        "code": "def forward(self, taskInfo):\n    # Instruction for the Chain-of-Thought (CoT) approach\n    # It is an important practice that allows the LLM to think step by step before solving the task.\n    cot_instruction = \"Please think step by step and then solve the task.\"\n\n    # Instantiate a new LLM agent specifically for CoT\n    # To allow LLM thinking before answering, we need to set an additional output field 'thinking'.\n    cot_agent = LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent')\n\n    # Prepare the inputs for the CoT agent\n    # The input should be a list of Info, and the first one is often the taskInfo\n    cot_agent_inputs = [taskInfo]\n\n    # Get the response from the CoT agent\n    thinking, answer = cot_agent(cot_agent_inputs, cot_instruction)\n\n    # Return only the final answer\n    return answer\n",
+        "api_calls": 1,
+        "structure_label": "Linear Chain-of-Thought",
+        "generation": "initial",
+        "fitness": "95% Bootstrap Confidence Interval: (10.9%, 24.2%), Median: 17.2%",
+        "test_fitness": "95% Bootstrap Confidence Interval: (10.6%, 15.2%), Median: 12.9%"
+    },
+    {
+        "thought": "While an LLM can arrive at the correct answer, its reasoning may vary. By repeatedly asking the same question with high temperature settings, we can generate different reasoning paths. We then combine multiple answers from these Chain-of-Thought (CoT) agents to produce a more accurate final answer through ensembling.",
+        "name": "Self-Consistency with Chain-of-Thought",
+        "code": "def forward(self, taskInfo):\n    # Instruction for step-by-step reasoning\n    cot_instruction = \"Please think step by step and then solve the task.\"\n    N = 5 # Number of CoT agents\n\n    # Initialize multiple CoT agents with a higher temperature for varied reasoning\n    cot_agents = [LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent', temperature=0.8) for _ in range(N)]\n\n    # Majority voting function to select the most common answer\n    from collections import Counter\n    def majority_voting(answers):\n        return Counter(answers).most_common(1)[0][0]\n    \n    possible_answers = []\n    for i in range(N):\n        thinking, answer = cot_agents[i]([taskInfo], cot_instruction)\n        possible_answers.append(answer.content)\n\n    # Ensembling the answers from multiple CoT agents\n    answer = majority_voting(possible_answers)\n    return answer  \n",
+        "api_calls": 5,
+        "structure_label": "Multi-Agent Reasoning",
+        "generation": "initial",
+        "fitness": "95% Bootstrap Confidence Interval: (6.2%, 17.2%), Median: 11.7%",
+        "test_fitness": "95% Bootstrap Confidence Interval: (11.8%, 16.6%), Median: 14.1%"
+    },
+    {
+        "thought": "To enhance its performance, an LLM can iteratively improve its answer based on feedback. By reflecting on its previous attempts and incorporating feedback, the model can refine its reasoning and provide a more accurate solution.",
+        "name": "Self-Refine (Reflexion)",
+        "code": "def forward(self, taskInfo):\n    # Instruction for initial reasoning\n    cot_initial_instruction = \"Please think step by step and then solve the task.\"\n\n    # Instruction for reflecting on previous attempts and feedback to improve\n    cot_reflect_instruction = \"Given previous attempts and feedback, carefully consider where you could go wrong in your latest attempt. Using insights from previous attempts, try to solve the task better.\"\n    cot_agent = LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent')\n\n    # Instruction for providing feedback and correcting the answer\n    critic_instruction = \"Please review the answer above and criticize on where might be wrong. If you are absolutely sure it is correct, output 'True' in 'correct'.\"\n    critic_agent = LLMAgentBase(['feedback', 'correct'], 'Critic Agent')\n    \n    N_max = 5 # Maximum number of attempts\n\n    # Initial attempt\n    cot_inputs = [taskInfo]\n    thinking, answer = cot_agent(cot_inputs, cot_initial_instruction, 0)\n\n    for i in range(N_max):\n        # Get feedback and correct status from the critic\n        feedback, correct = critic_agent([taskInfo, thinking, answer], critic_instruction, i)\n        if correct.content == 'True':\n            break\n            \n        # Add feedback to the inputs for the next iteration\n        cot_inputs.extend([thinking, answer, feedback])\n\n        # Reflect on previous attempts and refine the answer\n        thinking, answer = cot_agent(cot_inputs, cot_reflect_instruction, i + 1)\n    return answer\n",
+        "api_calls": 10,
+        "structure_label": "Iterative Refinement",
+        "generation": "initial",
+        "fitness": "95% Bootstrap Confidence Interval: (7.8%, 19.5%), Median: 13.3%",
+        "test_fitness": "95% Bootstrap Confidence Interval: (15.4%, 20.8%), Median: 18.0%"
+    },
+    {
+        "thought": "By letting different LLMs debate with each other, we can leverage their diverse perspectives to find better solutions for tasks.",
+        "name": "LLM Debate",
+        "code": "def forward(self, taskInfo):\n    # Instruction for initial reasoning\n    debate_initial_instruction = \"Please think step by step and then solve the task.\"\n\n    # Instruction for debating and updating the solution based on other agents' solutions\n    debate_instruction = \"Given solutions to the problem from other agents, consider their opinions as additional advice. Please think carefully and provide an updated answer.\"\n    \n    # Initialize debate agents with different roles and a moderate temperature for varied reasoning\n    debate_agents = [LLMAgentBase(['thinking', 'answer'], 'Debate Agent', temperature=0.8, role=role) for role in ['Math Professor', 'Grade School Teacher', 'Math Enthusiast']]\n\n    # Instruction for final decision-making based on all debates and solutions\n    final_decision_instruction = \"Given all the above thinking and answers, reason over them carefully and provide a final answer.\"\n    final_decision_agent = LLMAgentBase(['thinking', 'answer'], 'Final Decision Agent', temperature=0.1)\n\n    max_round = 2 # Maximum number of debate rounds\n    all_thinking = [[] for _ in range(max_round)]\n    all_answer = [[] for _ in range(max_round)]\n\n    # Perform debate rounds\n    for r in range(max_round):\n        for i in range(len(debate_agents)):\n            if r == 0:\n                thinking, answer = debate_agents[i]([taskInfo], debate_initial_instruction)\n            else:\n                input_infos = [taskInfo] + [all_thinking[r-1][i]] + all_thinking[r-1][:i] + all_thinking[r-1][i+1:]\n                thinking, answer = debate_agents[i](input_infos, debate_instruction)\n            all_thinking[r].append(thinking)\n            all_answer[r].append(answer)\n    \n    # Make the final decision based on all debate results and solutions\n    thinking, answer = final_decision_agent([taskInfo] + all_thinking[max_round-1] + all_answer[max_round-1], final_decision_instruction)\n    return answer\n",
+        "api_calls": 12,
+        "structure_label": "Multi-Agent Reasoning",
+        "generation": "initial",
+        "fitness": "95% Bootstrap Confidence Interval: (41.4%, 58.6%), Median: 50.0%",
+        "test_fitness": "95% Bootstrap Confidence Interval: (47.5%, 54.5%), Median: 51.0%"
+    },
+    {
+        "thought": "Let LLM first think about the principles involved in solving this task which could be helpful. By understanding the underlying principles, the model can better reason through the problem and provide a more accurate solution.",
+        "name": "Step-back Abstraction",
+        "code": "def forward(self, taskInfo):\n        # Instruction for understanding the principles involved in the task\n        principle_instruction = \"What are the physics, chemistry or biology principles and concepts involved in solving this task? First think step by step. Then list all involved principles and explain them.\"\n        \n        # Instruction for solving the task based on the principles\n        cot_instruction = \"Given the question and the involved principle behind the question, think step by step and then solve the task.\"\n        \n        # Instantiate LLM agents\n        principle_agent = LLMAgentBase(['thinking', 'principle'], 'Principle Agent')\n        cot_agent = LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent')\n        \n        # Get the principles involved in the task\n        thinking, principle = principle_agent([taskInfo], principle_instruction)\n\n        # Use the principles to solve the task\n        thinking, answer = cot_agent([taskInfo, thinking, principle], cot_instruction)\n        return answer\n",
+        "api_calls": 4,
+        "structure_label": "Abstraction to Principles Reasoning",
+        "generation": "initial",
+        "fitness": "95% Bootstrap Confidence Interval: (17.2%, 32.0%), Median: 24.2%",
+        "test_fitness": "95% Bootstrap Confidence Interval: (22.6%, 28.6%), Median: 25.6%"
+    },
+    {
+        "thought": "Similar to Quality-Diversity methods, let LLM generate multiple diverse interesting solutions could help. By encouraging the model to explore different reasoning paths, we can increase the chances of finding the best solution.",
+        "name": "Quality-Diversity",
+        "code": "def forward(self, taskInfo):\n    # Instruction for initial reasoning\n    cot_initial_instruction = \"Please think step by step and then solve the task.\"\n\n    # Instruction for giving diverse answers\n    qd_instruction = \"Given previous attempts, try to come up with another interesting way to solve the task.\"\n    cot_agent = LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent')\n\n    # Instruction for final decision-making based on collected reasoning and answers\n    final_decision_instruction = \"Given all the above solutions, reason over them carefully and provide a final answer.\"\n    final_decision_agent = LLMAgentBase(['thinking', 'answer'], 'Final Decision Agent', temperature=0.1)\n    \n    N_max = 3 # Maximum number of attempts\n\n    # Initial attempt\n    cot_inputs = [taskInfo]\n    possible_answers = []\n    thinking, answer = cot_agent(cot_inputs, cot_initial_instruction, 0)\n\n    # Add the answer to the list of possible answers\n    possible_answers.extend([thinking, answer])\n\n    for i in range(N_max):\n        # Reflect on previous attempts and generate another interesting answer\n        cot_inputs.extend([thinking, answer])\n\n        # Generate another interesting answer\n        thinking, answer = cot_agent(cot_inputs, qd_instruction, i + 1)\n        possible_answers.extend([thinking, answer])\n\n    # Make the final decision based on all generated answers\n    thinking, answer = final_decision_agent([taskInfo] + possible_answers, final_decision_instruction)\n    return answer\n",
+        "api_calls": 8,
+        "structure_label": "Multi-Agent Reasoning",
+        "generation": "initial",
+        "fitness": "95% Bootstrap Confidence Interval: (43.8%, 60.9%), Median: 52.3%",
+        "test_fitness": "95% Bootstrap Confidence Interval: (54.4%, 61.1%), Median: 57.8%"
+    },
+    {
+        "thought": "Similar to Auto-GPT and expert prompting, we can use dynamic control flow in the design to let the agent decide what expert we should use.",
+        "name": "Dynamic Assignment of Roles",
+        "code": "def forward(self, taskInfo):\n        # Instruction for step-by-step reasoning\n        cot_instruction = \"Please think step by step and then solve the task.\"\n        expert_agents = [LLMAgentBase(['thinking', 'answer'], 'Expert Agent', role=role) for role in ['Math Professor', 'Grade School Teacher', 'Math Enthusiast', 'Helpful Assistant']]\n\n        # Instruction for routing the task to the appropriate expert\n        routing_instruction = \"Given the task, please choose an Expert to answer the question. Choose from: Math Professor, Grade School Teacher, Math Enthusiast.\"\n        routing_agent = LLMAgentBase(['choice'], 'Routing agent')\n\n        # Get the choice of expert to route the task\n        choice = routing_agent([taskInfo], routing_instruction)[0]\n\n        if 'professor' in choice.content.lower():\n            expert_id = 0\n        elif 'teacher' in choice.content.lower():\n            expert_id = 1\n        elif 'enthusiast' in choice.content.lower():\n            expert_id = 2\n        else:\n            expert_id = 3 # Default to helpful assistant\n\n        thinking, answer = expert_agents[expert_id]([taskInfo], cot_instruction)\n        return answer\n",
+        "api_calls": 6,
+        "structure_label": "Decompositional Reasoning",
+        "generation": "initial",
+        "fitness": "95% Bootstrap Confidence Interval: (9.4%, 21.9%), Median: 15.6%",
+        "test_fitness": "95% Bootstrap Confidence Interval: (11.5%, 16.2%), Median: 13.9%"
+    },
+    {
+        "thought": "**Insights:**\nTo enhance the existing architecture, I propose a unified approach that combines reasoning and verification within a single call, ensuring efficiency and maintaining high performance. This architecture will guide the agent to analyze the problem step-by-step while calculating and validating the counts of pets all at once. This design maximizes clarity and accuracy while adhering to the linear structure and few API call requirements.\n\n**Overall Idea:**\nThe design will involve a single agent that receives a comprehensive instruction to analyze the problem, count the pets, and verify the counts simultaneously. This allows for a more efficient execution without redundant steps while ensuring the output is validated directly.\n\n**Implementation:**\n1. Define a clear, cohesive instruction that encapsulates analysis, counting, and validation in one step.\n2. Utilize a single instance of LLMAgentBase to execute this instruction, ensuring compliance with the few API calls requirement.\n3. Return the final answer directly from the response, which includes both the reasoning and the calculated numbers.",
+        "name": "Reflective Counting Agent",
+        "code": "def forward(self, taskInfo):\n    # Unified instruction for analyzing the problem and validating counts\n    instruction = \"Please analyze the following math problem step by step, count the number of rabbits, dogs, and cats, and ensure that these counts are correct.\"\n    # Create a single LLMAgentBase for performing the task\n    pet_agent = LLMAgentBase(['thinking', 'answer'], 'Pet Count and Validation Agent')  # 1 API call\n    # Call the agent to perform the task\n    response_infos = pet_agent([taskInfo], instruction)  # 1 API call\n    for info in response_infos:\n        if info.name == 'answer':\n            return info  # Return the final answer directly.",
+        "fitness": "95% Bootstrap Confidence Interval: (35.2%, 52.3%), Median: 43.8%",
+        "generation": 38,
+        "api_calls": 2,
+        "structure_label": "Linear Chain-of-Thought",
+        "test_fitness": "95% Bootstrap Confidence Interval: (35.5%, 42.2%), Median: 38.9%"
+    },
+    {
+        "thought": "**Insights:**\nTo enhance the effectiveness of the architecture, I suggest breaking the problem into distinct sub-tasks, allowing dedicated computation for each part. This will enable focused reasoning and allow for aggregation of results to form the final answer. The design will consist of a primary agent responsible for initial calculations and a secondary agent that consolidates these results, utilizing the strengths of both specialized processing and minimal API calls.\n**Overall Idea:**\nThe proposed architecture will create two specialized agents: one for the initial pet count calculations and another for consolidating these counts. This two-step approach facilitates clear reasoning paths while maintaining efficiency.\n**Implementation:**\n1. Define distinct instructions for calculating the number of each type of pet.\n2. Use two separate instances of LLMAgentBase for the two tasks, ensuring we stay within the allowed API call limits.\n3. Combine the results from both agents to produce the final output.",
+        "name": "Decompositional Reasoning Agent",
+        "code": "def forward(self, taskInfo):\n    # Instruction for calculating the number of pets\n    pet_calculation_instruction = \"Please analyze the following math problem step by step and provide the counts for rabbits, dogs, and cats.\"\n    # First agent for calculating pets\n    pet_agent = LLMAgentBase(['thinking', 'answer'], 'Pet Calculation Agent')\n    # Call the agent to calculate pets\n    pet_counts = pet_agent([taskInfo], pet_calculation_instruction)[1]  # 1 API call\n\n    # Instruction for consolidating final results\n    consolidation_instruction = \"Given the counts of each type of pet, provide the total number of pets.\"\n    # Second agent for consolidating results\n    consolidator_agent = LLMAgentBase(['thinking', 'answer'], 'Consolidator Agent')\n    # Call the agent to consolidate results\n    final_answer = consolidator_agent([taskInfo, pet_counts], consolidation_instruction)[1]  # 1 API call\n\n    return final_answer  # Return the final answer directly",
+        "fitness": "95% Bootstrap Confidence Interval: (32.8%, 50.0%), Median: 41.4%",
+        "generation": 9,
+        "api_calls": 2,
+        "structure_label": "Decompositional Reasoning",
+        "test_fitness": "95% Bootstrap Confidence Interval: (29.1%, 35.6%), Median: 32.4%"
+    },
+    {
+        "thought": "**Insights:**\nTo enhance the effectiveness of the architecture, I propose a design that integrates counting, validating, and providing a final output in a single step, ensuring a more streamlined process while keeping API calls to a minimum.\n**Overall Idea:**\nThe architecture will consist of a single LLMAgentBase instance tasked with analyzing the problem, counting the numbers of rabbits, dogs, and cats, and validating these counts seamlessly. The agent will ensure the output is correct and provide a final count in one go.",
+        "name": "Integrated Counting and Validation Agent",
+        "code": "def forward(self, taskInfo):\n    # Unified instruction for counting pets and ensuring correctness\n    instruction = \"Please analyze the following problem step by step, count the number of rabbits, dogs, and cats, and verify that these counts are accurate.\"\n    # Single agent for counting and validating pets\n    pet_agent = LLMAgentBase(['thinking', 'answer'], 'Integrated Counting and Validation Agent')  # 0 calls (instantiation)\n    # Call the agent to perform the task\n    response = pet_agent([taskInfo], instruction)  # 1 call\n    return response[1]  # Return the total count directly from the response.",
+        "fitness": "95% Bootstrap Confidence Interval: (32.0%, 49.2%), Median: 40.6%",
+        "generation": 50,
+        "api_calls": 1,
+        "structure_label": "Linear Chain-of-Thought",
+        "test_fitness": "95% Bootstrap Confidence Interval: (31.0%, 37.5%), Median: 34.2%"
+    },
+    {
+        "thought": "**Insights:**\nTo increase the architecture's effectiveness and interestingness, I propose an agent structure that emphasizes decompositional reasoning by utilizing multiple specialized agents. Each agent will focus on a specific aspect of the problem, allowing for thorough analysis and aggregation of results. This not only enhances the clarity of reasoning but also adheres to the 'many API calls' requirement by generating outputs from different agents. \n\n**Overall Idea:**\nThe architecture will consist of three distinct agents:\n1. **Counting Agent**: This agent will analyze the task and count the number of rabbits, dogs, and cats.\n2. **Validation Agent**: This agent will validate the counts to ensure accuracy and consistency.\n3. **Aggregation Agent**: This agent will sum the validated counts to provide the final answer. Each of these agents will be instantiated and called separately, ensuring clarity and correctness in the reasoning process.",
+        "name": "Decompositional Reasoning Agent",
+        "code": "def forward(self, taskInfo):\n    # Combined instruction for counting and validating pets\n    instruction = \"Please analyze the following problem step by step, count the number of rabbits, dogs, and cats, and ensure these counts are correct.\"\n    # Single agent for counting and validating pets\n    pet_agent = LLMAgentBase([\"thinking\", \"answer\"], \"Pet Count and Validation Agent\")  # 1 call\n    # Call the agent to perform the task\n    pet_counts = pet_agent([taskInfo], instruction)[1]  # 1 call\n\n    # Instruction for summing the counts\n    aggregation_instruction = \"Given the validated counts of rabbits, dogs, and cats, calculate the total number of pets.\"\n    # Second agent for aggregating results\n    aggregation_agent = LLMAgentBase([\"thinking\", \"answer\"], \"Aggregation Agent\")  # 1 call\n    total_pets = aggregation_agent([taskInfo, pet_counts], aggregation_instruction)[1]  # 1 call\n\n    return total_pets  # Return the total count",
+        "fitness": "95% Bootstrap Confidence Interval: (29.7%, 46.9%), Median: 38.3%",
+        "generation": 49,
+        "api_calls": 4,
+        "structure_label": "Decompositional Reasoning",
+        "test_fitness": "95% Bootstrap Confidence Interval: (30.8%, 37.2%), Median: 34.0%"
+    },
+    {
+        "thought": "**Insights:**\nTo enhance the architecture, I propose splitting the problem into distinct sub-tasks, allowing specialized agents to calculate the counts of rabbits, dogs, and cats. This design will ensure we stay within the limited API call requirements while leveraging the strengths of different agents. Each agent will handle a specific part of the task, leading to a clear aggregation of results for the final answer. \n\n**Overall Idea:**\nThe proposed architecture will consist of three agents: one for counting rabbits, one for counting dogs, and one for counting cats. Each agent will be called once, and their results will be combined to provide the total number of pets. This method simplifies the logic, ensures distinct task handling, and adheres to the few API calls rule.\n\n**Implementation:**\n1. Create a `LLMAgentBase` instance for counting rabbits with a clear instruction.\n2. Repeat the process for dogs and cats, creating distinct agents for each.\n3. After obtaining individual counts, sum these counts in a final step to get the total number of pets.",
+        "name": "Decompositional Pet Count Agent",
+        "code": "def forward(self, taskInfo):\n    # Single agent for counting all types of pets\n    pet_count_agent = LLMAgentBase(['thinking', 'answer'], 'Pet Count Agent')\n    # Instruction to count rabbits, dogs, and cats\n    instruction = \"Please analyze the following problem step by step and count the number of rabbits, dogs, and cats.\"\n    # Call the agent to calculate total pets in one go\n    response = pet_count_agent([taskInfo], instruction)[1]  # 1 API call\n    # Assuming response is formatted properly, extract individual counts\n    return response  # Directly return the total count from the response.",
+        "fitness": "95% Bootstrap Confidence Interval: (28.9%, 46.1%), Median: 37.5%",
+        "generation": 31,
+        "api_calls": 1,
+        "structure_label": "Decompositional Reasoning",
+        "test_fitness": "95% Bootstrap Confidence Interval: (34.8%, 41.5%), Median: 38.1%"
+    }
+]
