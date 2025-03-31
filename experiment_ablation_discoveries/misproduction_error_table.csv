@@ -1,0 +1,4 @@
+Configuration,Mean,StdDev
+config_archive,0.2467,0.0492
+config_map,0.2967,0.0918
+config_only_agent,0.3433,0.0309

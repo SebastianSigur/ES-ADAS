@@ -706,57 +706,11 @@ def search(args):
     for n in range(start, args.n_generation):
 
         # ------------------------------------------------------------
-        # # First sampling: select parent cell for agent
-        # while True:  # Keep searching until we find a valid agent
-        #     parent_keys = list(map_elites.keys())
-        #     parent_random_index = random.randint(0, len(parent_keys) - 1)
-        #     parent_cell = parent_keys[parent_random_index]
-        #     parent_parts = parent_cell.split(',')
-        #     parent_structure_label = parent_parts[0]
-        #     parent_api_bin = int(parent_parts[1])
-        #     parent_api_calls_mapping = {0: "few API calls", 1: "many API calls"}
-        #     parent_api_label = parent_api_calls_mapping.get(parent_api_bin, "few API calls")
-            
-        #     selected_agent = map_elites[parent_cell]
-          
-        #     # First fallback: try same structure agents
-        #     if selected_agent is None:
-        #         same_structure_agents = [agent for key, agent in map_elites.items() 
-        #                                 if key.startswith(f"{parent_structure_label},") 
-        #                                 and agent is not None]
-        #         if same_structure_agents:
-        #             selected_agent = max(same_structure_agents, 
-        #                             key=lambda x: get_upper_bound(x['fitness']))
-            
-        #     # Second fallback: if still None, search entire archive
-        #      # Second fallback: if still None, search entire archive
-        #     if selected_agent is None:
-        #         non_empty_agents = [agent for agent in map_elites.values() if agent is not None]
-        #         if non_empty_agents:
-        #             selected_agent = random.choice(non_empty_agents)
-            
-        #     # If we found a valid agent, break the loop
-        #     if selected_agent is not None:
-        #         break
-
         # First sampling: select parent cell for agent
         while True:  # Keep searching until we find a valid agent
-            # Create a list of valid parent cells (cells with non-None agents)
-            valid_cells = [key for key in map_elites if map_elites[key] is not None]
-            if not valid_cells:
-                raise RuntimeError("No valid agent found in map_elites")
-            
-            # Compute raw weights from each agent's fitness using get_upper_bound
-            raw_weights = [get_upper_bound(map_elites[key]['fitness']) for key in valid_cells]
-            
-            # Apply softmax transformation using numpy
-            temperature = 1.0  # Adjust as needed
-            exp_weights = np.exp(np.array(raw_weights) / temperature)
-            total_exp = np.sum(exp_weights)
-            softmax_weights = exp_weights / total_exp
-            
-            # Sample one parent cell weighted by the softmax probabilities
-            parent_cell = random.choices(valid_cells, weights=softmax_weights.tolist(), k=1)[0]
+            parent_keys = list(map_elites.keys())
+            parent_random_index = random.randint(0, len(parent_keys) - 1)
+            parent_cell = parent_keys[parent_random_index]
             parent_parts = parent_cell.split(',')
             parent_structure_label = parent_parts[0]
             parent_api_bin = int(parent_parts[1])
@@ -764,18 +718,64 @@ def search(args):
             parent_api_label = parent_api_calls_mapping.get(parent_api_bin, "few API calls")
             
             selected_agent = map_elites[parent_cell]
-            
-            # First fallback: try same structure agents if the selected cell is empty
+          
+            # First fallback: try same structure agents
             if selected_agent is None:
-                same_structure_agents = [
-                    agent for key, agent in map_elites.items()
-                    if key.startswith(f"{parent_structure_label},") and agent is not None
-                ]
+                same_structure_agents = [agent for key, agent in map_elites.items() 
+                                        if key.startswith(f"{parent_structure_label},") 
+                                        and agent is not None]
                 if same_structure_agents:
-                    selected_agent = max(same_structure_agents, key=lambda x: get_upper_bound(x['fitness']))
+                    selected_agent = max(same_structure_agents, 
+                                    key=lambda x: get_upper_bound(x['fitness']))
             
+            # Second fallback: if still None, search entire archive
+             # Second fallback: if still None, search entire archive
+            if selected_agent is None:
+                non_empty_agents = [agent for agent in map_elites.values() if agent is not None]
+                if non_empty_agents:
+                    selected_agent = random.choice(non_empty_agents)
+            
+            # If we found a valid agent, break the loop
             if selected_agent is not None:
                 break
+
+        # # First sampling: select parent cell for agent
+        # while True:  # Keep searching until we find a valid agent
+        #     # Create a list of valid parent cells (cells with non-None agents)
+        #     valid_cells = [key for key in map_elites if map_elites[key] is not None]
+        #     if not valid_cells:
+        #         raise RuntimeError("No valid agent found in map_elites")
+            
+        #     # Compute raw weights from each agent's fitness using get_upper_bound
+        #     raw_weights = [get_upper_bound(map_elites[key]['fitness']) for key in valid_cells]
+            
+        #     # Apply softmax transformation using numpy
+        #     temperature = 1.0  # Adjust as needed
+        #     exp_weights = np.exp(np.array(raw_weights) / temperature)
+        #     total_exp = np.sum(exp_weights)
+        #     softmax_weights = exp_weights / total_exp
+            
+        #     # Sample one parent cell weighted by the softmax probabilities
+        #     parent_cell = random.choices(valid_cells, weights=softmax_weights.tolist(), k=1)[0]
+        #     parent_parts = parent_cell.split(',')
+        #     parent_structure_label = parent_parts[0]
+        #     parent_api_bin = int(parent_parts[1])
+        #     parent_api_calls_mapping = {0: "few API calls", 1: "many API calls"}
+        #     parent_api_label = parent_api_calls_mapping.get(parent_api_bin, "few API calls")
+            
+        #     selected_agent = map_elites[parent_cell]
+            
+        #     # First fallback: try same structure agents if the selected cell is empty
+        #     if selected_agent is None:
+        #         same_structure_agents = [
+        #             agent for key, agent in map_elites.items()
+        #             if key.startswith(f"{parent_structure_label},") and agent is not None
+        #         ]
+        #         if same_structure_agents:
+        #             selected_agent = max(same_structure_agents, key=lambda x: get_upper_bound(x['fitness']))
+            
+        #     if selected_agent is not None:
+        #         break
 
 
         # Second sampling: select target structure and API labels
@@ -1150,7 +1150,7 @@ if __name__ == "__main__":
     original_expr_name = args.expr_name
 
     # Run exactly three runs with custom seeds and save directories.
-    for run, (seed, folder) in enumerate(zip([42,45,47], ["archive_fitness_uniform_gen100_seed42","archive_fitness_uniform_gen100_seed45","archive_fitness_uniform_gen100_seed47"])):
+    for run, (seed, folder) in enumerate(zip([42,45,47], ["just_sampling_uniform_uniform_gen100_seed42","just_sampling_uniform_uniform_gen100_seed45","just_sampling_uniform_uniform_gen100_seed47"])):
         
         # --- Critical Fix: Create directory BEFORE any file operations ---
         args.save_dir = folder
