@@ -118,7 +118,7 @@ def plot_configurations(data_dir, output_file, max_generation=100):
         generations = np.arange(max_generation + 1)
         
         color = colors[idx % len(colors)]
-        labels = {"config_map_fitness_fitness": "Fitness-based sampling of direction (temp 1)", "config_map_fitness_uni": "Uniform sampling of direction"}
+        labels = {"config_map_fitness_fitness": "Fitness-based sampling of mutation direction", "config_map_fitness_uni": "Uniform sampling of mutation direction", "config_only_agent":"Base MAP"}
         plt.plot(generations, mean_fit, label=labels[config_name], color=color, linewidth=2)
         # plt.plot(generations, mean_fit-std_fit,"r--", color=color, linewidth=1,)
         # plt.plot(generations, mean_fit+std_fit,"r--", color=color, linewidth=1,)
@@ -128,7 +128,7 @@ def plot_configurations(data_dir, output_file, max_generation=100):
     
     plt.xlabel("Generations")
     plt.ylabel("Highest Fitness Agent (%)")
-    plt.title("MGSM Benchmark")
+    plt.title("Ablation Mutation Direction (MGSM Benchmark)")
     plt.legend(loc="best")
     plt.grid(True, linestyle="--", alpha=0.6)
     plt.tight_layout()

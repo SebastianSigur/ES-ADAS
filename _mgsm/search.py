@@ -13,7 +13,6 @@ from tqdm import tqdm
 from google import genai
 from google.genai import types
 
-
 from mgsm_prompt import get_init_archive, get_prompt, get_reflexion_prompt
 
 openai_client = openai.OpenAI()

@@ -116,13 +116,14 @@ def plot_configurations_avg(data_dir, output_file, max_generation=100):
         generations = np.arange(max_generation + 1)
         
         color = colors[idx % len(colors)]
-        plt.plot(generations, mean_avg, label=config_name, color=color, linewidth=2)
+        labels = {"config_map_fitness_fitness_gen100": "Fitness-based sampling of mutation direction", "config_map_fitness_uni_gen100": "Uniform sampling of mutation direction", "config_only_agent":"Base MAP"}
+        plt.plot(generations, mean_avg, label=labels[config_name], color=color, linewidth=2)
         plt.fill_between(generations, mean_avg - std_avg, mean_avg + std_avg,
                          color=color, alpha=0.2)
 
     plt.xlabel("Generations")
-    plt.ylabel("Average Fitness")
-    plt.title("Average Fitness Across Generations")
+    plt.ylabel("Average Fitness in MAP")
+    plt.title("Ablation Mutation Direction (MGSM Benchmark)")
     plt.legend(loc="best")
     plt.grid(True, linestyle="--", alpha=0.6)
     plt.tight_layout()

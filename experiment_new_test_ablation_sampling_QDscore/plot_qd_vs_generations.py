@@ -118,14 +118,14 @@ def plot_configurations_qd(data_dir, output_file, max_generation=100):
         generations = np.arange(max_generation + 1)
 
         color = colors[idx % len(colors)]
-        labels = {"config_map_fitness_fitness_gen100": "Fitness-based sampling of agent (temp 1)", "config_map_uni_fitness_gen100": "Uniform sampling of agent"}
+        labels = {"config_map_fitness_fitness_gen100": "Fitness-based sampling of agent", "config_map_uni_fitness_gen100": "Uniform sampling of agent","config_only_agent":"Base MAP (also fitness-based)"}
         plt.plot(generations, mean_qd, label=labels[config_name], color=color, linewidth=2)
         plt.fill_between(generations, mean_qd - std_qd, mean_qd + std_qd,
                          color=color, alpha=0.2)
 
     plt.xlabel("Generations")
     plt.ylabel("QD Score (Coverage × Mean Fitness)")
-    plt.title("Quality Diversity Score Across Generations")
+    plt.title("Ablation Agent Sampling (MGSM Benchmark)")
     plt.legend(loc="best")
     plt.grid(True, linestyle="--", alpha=0.6)
     plt.tight_layout()
