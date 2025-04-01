@@ -778,45 +778,45 @@ def search(args):
         #         break
 
 
-        # Second sampling: select target structure and API labels
-        possible_structure_labels = list(set([cell.split(',')[0] for cell in map_elites.keys()]))
-        possible_api_bins = list(range(args.bins_dim2))  # 0 to bins_dim2-1
-        target_structure_label = random.choice(possible_structure_labels)
-        target_api_bin = random.choice(possible_api_bins)
-        api_calls_mapping = {0: "few API calls", 1: "many API calls"}
-        target_api_label = api_calls_mapping.get(target_api_bin, "few API calls")
-
-        # # Second sampling: select target structure and API labels,
-        # # weighted by inverted fitness (cells with lower fitness get higher probability),
-        # # and include cells with a null agent by assigning them the minimum raw fitness.
-
-        # all_keys = list(map_elites.keys())
-
-        # # Compute raw fitness values for non-null cells
-        # non_null_raws = [get_upper_bound(map_elites[k]['fitness']) for k in all_keys if map_elites[k] is not None]
-        # min_raw = min(non_null_raws) if non_null_raws else 1  # fallback to 1 if all cells are null
-
-        # # Compute raw weights for all cells: if cell is null, assign min_raw
-        # raw_weights_target = []
-        # for key in all_keys:
-        #     if map_elites[key] is not None:
-        #         raw_weights_target.append(get_upper_bound(map_elites[key]['fitness']))
-        #     else:
-        #         raw_weights_target.append(min_raw)
-
-        # # Apply softmax transformation on inverted raw weights using numpy
-        # temperature = 1.0  # Adjust as needed
-        # inverted_weights = np.exp(-np.array(raw_weights_target) / temperature)
-        # total_inverted = np.sum(inverted_weights)
-        # softmax_inv = inverted_weights / total_inverted  # NumPy array of probabilities
-
-        # # Sample one target cell weighted by the inverted softmax probabilities
-        # target_cell = random.choices(all_keys, weights=softmax_inv.tolist(), k=1)[0]
-        # target_parts = target_cell.split(',')
-        # target_structure_label = target_parts[0]
-        # target_api_bin = int(target_parts[1])
+        # # Second sampling: select target structure and API labels
+        # possible_structure_labels = list(set([cell.split(',')[0] for cell in map_elites.keys()]))
+        # possible_api_bins = list(range(args.bins_dim2))  # 0 to bins_dim2-1
+        # target_structure_label = random.choice(possible_structure_labels)
+        # target_api_bin = random.choice(possible_api_bins)
         # api_calls_mapping = {0: "few API calls", 1: "many API calls"}
         # target_api_label = api_calls_mapping.get(target_api_bin, "few API calls")
+
+        # Second sampling: select target structure and API labels,
+        # weighted by inverted fitness (cells with lower fitness get higher probability),
+        # and include cells with a null agent by assigning them the minimum raw fitness.
+
+        all_keys = list(map_elites.keys())
+
+        # Compute raw fitness values for non-null cells
+        non_null_raws = [get_upper_bound(map_elites[k]['fitness']) for k in all_keys if map_elites[k] is not None]
+        min_raw = min(non_null_raws) if non_null_raws else 1  # fallback to 1 if all cells are null
+
+        # Compute raw weights for all cells: if cell is null, assign min_raw
+        raw_weights_target = []
+        for key in all_keys:
+            if map_elites[key] is not None:
+                raw_weights_target.append(get_upper_bound(map_elites[key]['fitness']))
+            else:
+                raw_weights_target.append(min_raw)
+
+        # Apply softmax transformation on inverted raw weights using numpy
+        temperature = 1.0  # Adjust as needed
+        inverted_weights = np.exp(-np.array(raw_weights_target) / temperature)
+        total_inverted = np.sum(inverted_weights)
+        softmax_inv = inverted_weights / total_inverted  # NumPy array of probabilities
+
+        # Sample one target cell weighted by the inverted softmax probabilities
+        target_cell = random.choices(all_keys, weights=softmax_inv.tolist(), k=1)[0]
+        target_parts = target_cell.split(',')
+        target_structure_label = target_parts[0]
+        target_api_bin = int(target_parts[1])
+        api_calls_mapping = {0: "few API calls", 1: "many API calls"}
+        target_api_label = api_calls_mapping.get(target_api_bin, "few API calls")
         # # ------------------------------------------------
 
         ## Uses pre-defined system prompt to generate new solution
@@ -1150,7 +1150,7 @@ if __name__ == "__main__":
     original_expr_name = args.expr_name
 
     # Run exactly three runs with custom seeds and save directories.
-    for run, (seed, folder) in enumerate(zip([42,45,47], ["just_sampling_uniform_uniform_gen100_seed42","just_sampling_uniform_uniform_gen100_seed45","just_sampling_uniform_uniform_gen100_seed47"])):
+    for run, (seed, folder) in enumerate(zip([42,45,47], ["map_uniform_fitness_gen100_seed42","map_uniform_fitness_gen100_seed45","map_uniform_fitness_gen100_seed47"])):
         
         # --- Critical Fix: Create directory BEFORE any file operations ---
         args.save_dir = folder
