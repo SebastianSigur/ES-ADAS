@@ -830,11 +830,7 @@ def get_prompt(current_archive, current_map, top3_agents, selected_agent=None, s
     # prompt = base.replace("[ARCHIVE]", archive_str)
     # prompt = prompt.replace("[EXAMPLE]", json.dumps(EXAMPLE))
     prompt = base.replace("[EXAMPLE]", json.dumps(EXAMPLE))
-    #prompt = prompt.replace("[MAP_ELITES]",json.dumps(map_str))
-
-    # # Format the top 3 agents as a JSON list (without their keys)
-    # top3_str = "[\n" + ",\n".join([json.dumps(agent, indent=2) for agent in top3_agents]) + "\n]"
-    # prompt = prompt.replace("[TOP_3_AGENTS_FROM_MAP]", top3_str)
+    prompt = prompt.replace("[MAP_ELITES]",json.dumps(map_str))
 
     # Use the api_label (if provided) to generate rules.
     rules = RULES(api_label if api_label is not None else "few API calls")
