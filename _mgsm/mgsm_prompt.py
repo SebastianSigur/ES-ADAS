@@ -25,66 +25,6 @@ CODE_MUTATOR_PROMPTS = [
     'Revamp the current Python code to create a complex structured solution that has never been seen before.'
 ]
 
-# Test 10-
-# CODE_MUTATOR_PROMPTS = [
-#     'Modify the Python code to improve its performance.',
-#     'Change the code to solve the problem in a completely DIFFERENT approach.',
-#     'How would an experience programmer alter the code to make it better? Modify the code like he would.',
-#     'Come up with another creative way to solve the problem.',
-#     'Just change this code to make it more fun, think WELL outside the box.',
-#     'Embrace unconventional ideas and mutate the code in a way that surprises and inspires unique variations. Think outside the box and develop a mutated code that encourages unconventional approaches and fresh perspectives.',
-#     'Step into the realm of imagination and create a mutated task prompt that transcends limitations and encourages innovative mutations. Break through the ordinary and think outside the box to generate a mutated task prompt that unlocks new possibilities and unconventional paths.',
-#     'Improve the code so that it ALWAYS arrives at the correct answer.',
-#     'Revamp the current Python code to create a complex structured solution that has never been seen before.'
-# ]
-
-# TASK_MUTATOR_PROMPTS = [
-#     'Make a variant of the prompt.',
-#     'Modify the following instruction creatively, giving some advice on how to solve it.',
-#     'Just change this instruction to make it more fun, think WELL outside the box.',
-#     'How would you help an LLM to follow the instruction?',
-#     'Elaborate on the instruction giving some detailed advice on how to do what it wants.',
-#     'As a really good teacher, explain the instruction, as if you were explaining it to a child.',
-#     'Imagine you need to follow this instruction. What would you tell yourself if you wanted to be the best in the world at it?',
-#     "Do not think about the instruction at all, but let it inspire you to do something related. Talk about what that might be.",
-#     'Rephrase the instruction without using any of the same words. Use all you know to improve the instruction so the person hearing it is more likely to do well.',
-#     'Here is how an expert researcher in Large Language Models (LLMs) would detail the instructions to an LLM.'
-# ]
-
-
-# TASK_MUTATOR_PROMPTS = [
-#     'Make a variant of the prompt.',
-#     'Modify the following instruction creatively, giving some advice on how to solve it.',
-#     'Promote breaking down problems: Instead of asking the user to solve the problem as a whole, prompt them to break it down into smaller, more manageable parts.',
-#     'Break free from conventional constraints and generate a mutated task prompt that takes the task prompt to uncharted territories. Challenge the norm and create a mutated task prompt that pushes the boundaries of traditional interpretations.',
-#     "Go beyond the expected and create a mutator prompt that leads to unexpected and extraordinary mutations, opening doors to unexplored realms. Increase Specificity: If the original prompt is too general, like 'Tell me about X,' the modified version could be,'Discuss the history, impact, and current status of X.'",
-#     'Embrace unconventional ideas and mutate the task prompt in a way that surprises and inspires unique variations. Think outside the box and develop a mutated task prompt that encourages unconventional approaches and fresh perspectives.',
-#     'Step into the realm of imagination and create a mutated task prompt that transcends limitations and encourages innovative mutations. Break through the ordinary and think outside the box to generate a mutated task prompt that unlocks new possibilities and unconventional paths.',
-#     'Embrace the power of unconventional thinking and create a mutated task prompt that sparks unconventional mutations and imaginative outcomes. Challenge traditional assumptions and break the mold with a mutated task prompt that encourages revolutionary and out-of-the-box variations.'
-# ]
-
-# TASK_MUTATOR_PROMPTS = [
-#     'Make a variant of the instruction.',
-#     'Modify the following instruction creatively, giving some advice on how to solve it.',
-#     'Promote breaking down problems: Instead of asking the user to solve the problem as a whole, prompt them to break it down into smaller, more manageable parts.',
-#     'Break free from conventional constraints and generate a new instruction that takes the instruction to uncharted territories. Challenge the norm and create a new instruction that pushes the boundaries of traditional interpretations.',
-#     "Go beyond the expected and create a new instruction that leads to unexpected and extraordinary variations, opening doors to unexplored realms. Increase Specificity: If the original instruction is too general, like 'Tell me about X,' the modified version could be,'Discuss the history, impact, and current status of X.'",
-#     'Embrace unconventional ideas and rewrite the instruction in a way that surprises and inspires unique variations. Think outside the box and develop an instruction that encourages unconventional approaches and fresh perspectives.',
-#     'Step into the realm of imagination and create a rewritten instruction that transcends limitations and encourages innovative solutions. Break through the ordinary and think outside the box to generate a new instruction that unlocks new possibilities and unconventional paths.',
-#     'Embrace the power of unconventional thinking and create an instruction that sparks unconventional variations and imaginative outcomes. Challenge traditional assumptions and break the mold with a rewritten instruction that encourages revolutionary and out-of-the-box variations.'
-# ]
-
-# TASK_MUTATOR_PROMPTS = [
-#     'Make a variant of the instruction.',
-#     'Modify the following instruction creatively, giving some advice on how to solve it.',
-#     'Promote breaking down problems: Instead of asking the user to solve the problem as a whole, prompt them to break it down into smaller, more manageable parts.',
-#     'Break free from conventional constraints and generate a new instruction that takes the instruction to uncharted territories. Challenge the norm and create a new instruction that pushes the boundaries of traditional interpretations.',
-#     "Go beyond the expected and create a new instruction that leads to unexpected and extraordinary variations, opening doors to unexplored realms. Increase Specificity: If the original instruction is too general, like 'Tell me about X,' the modified version could be,'Discuss the history, impact, and current status of X.'",
-#     'Embrace unconventional ideas and rewrite the instruction in a way that surprises and inspires unique variations. Think outside the box and develop an instruction that encourages unconventional approaches and fresh perspectives.',
-#     'Step into the realm of imagination and create a rewritten instruction that transcends limitations and encourages innovative solutions. Break through the ordinary and think outside the box to generate a new instruction that unlocks new possibilities and unconventional paths.',
-#     'Embrace the power of unconventional thinking and create an instruction that sparks unconventional variations and imaginative outcomes. Challenge traditional assumptions and break the mold with a rewritten instruction that encourages revolutionary and out-of-the-box variations.'
-# ]
-
 TASK_MUTATOR_PROMPTS = [
     'Make a variant of the prompt.',
     'Modify the following instruction creatively, giving some advice on how to solve it.',
@@ -966,3 +906,20 @@ def get_prompt_mutated(current_archive, task_mutator_instruction, adaptive=False
     prompt += task_mutator_instruction
 
     return system_prompt, prompt
+
+def get_initial_task_mutators(n_mutators=10, inspiration_task_mutators=TASK_MUTATOR_PROMPTS):
+    system_prompt = '''You are a helpful assistant. You are a helpful assistant. Make sure to return in a WELL-FORMED JSON object.'''
+    
+    # Candidate 1
+    # base_prompt = f'''Generate more instructions like these ones:\n\n{inspiration_task_mutators}\n\n# CONTEXT:\nTake into account that the instructions are for mathematical and logic based problems.\n\n# YOUR TASK\nYou need to create {n_mutators} NEW instructions, and return them as a LIST on the key "instruction". ONLY return the instruction and make sure to generate {n_mutators}.'''
+    
+    # Candidate 2
+    base_prompt = f'''An INSTRUCTION MUTATOR helps rewrite instructions. You are helping to create NEW instruction mutators.\n\n# CONTEXT:\nThe instructions that your mutators will rewrite will guide a user to use Large Language Model Agents to solve mathematical and logic tasks using a Python program. You can use the instruction mutators written so far as inspiration for your own instruction mutators. REMEMBER: You do not need to write instructions, just potential mutators for the instructions.\n\n# Here is a list of instruction mutators that have been used in the past to help rewrite instructions:\n\n{inspiration_task_mutators}\n\n# YOUR TASK\nYou need to create {n_mutators} NEW instructions similar to the previous ones, and return them as a LIST on the key "instruction_mutators". ONLY return the instruction mutator and make sure to generate {n_mutators}.'''
+    
+    # \n\n# CONTEXT\nPlease take into account that the instructions ask the user to write a Python program that leverages Large Language Models (LLMs). Use this context in your instruction mutators, so that the instruction mutators direct the user to write a Python program.
+    # Prompts I tried but with bad results:
+    # base_prompt = f'''You are helping to generate instruction mutators that will rewrite an instruction. You will NOT rewrite any instruction yourself, you will propose ways in which you can change some instructions. You can use the instruction mutators written so far as inspiration for your own instruction mutators. REMEMBER: You do not need to write instructions, just potential mutators for the instructions.\n\n# Here is a list of instruction mutators that have been used in the past to help rewrite instructions:\n\n{inspiration_task_mutators}\n\n# CONTEXT\nPlease take into account that the instructions ask the user to write a Python program that leverages Large Language Models (LLMs). Use this context in your instruction mutators, so that the instruction mutators direct the user to write a Python program.\n\n# YOUR TASK\nYou need to create NEW {n_mutators} instruction mutators, and return them as a LIST on the key "instruction_mutators". ONLY return the instruction mutators and make sure to generate {n_mutators}.'''
+    # possible clarification: 'Consider that the user will follow the instruction to solve a proble using a Python program.
+    # base_prompt = f'''You are helping to generate instruction mutators using prompts that help mutate a given instruction. You can use the instruction mutators written so far as inspiration.\n\n# Here is a list of instruction mutators so far:\n\n{inspiration_task_mutators}\n\n# CONTEXT\nPlease take into account that the instructions ask the user to write a Python program that leverages Large Language Models (LLMs). Use this context in your instruction mutators, so that the instruction mutators direct the user to write a Python program.\n\n# YOUR TASK\nYou need to create NEW {n_mutators} instruction mutators, and return them as a LIST on the key "instruction_mutators". ONLY return the instruction mutators and make sure to generate {n_mutators}.'''
+    
+    return system_prompt, base_prompt

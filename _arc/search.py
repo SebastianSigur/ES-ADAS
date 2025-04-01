@@ -3,18 +3,33 @@ import copy
 import json
 import os
 import pickle
-from collections import namedtuple
+from collections import namedtuple,OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 import re
-
+import scipy as sp
 import backoff
 import numpy as np
 import openai
 from tqdm import tqdm
 from google import genai
 from google.genai import types
+import random
 
-from arc_prompt import get_init_archive, get_prompt, get_reflexion_prompt
+from arc_prompt import get_init_archive, get_prompt, get_reflexion_prompt, get_task_mutated_instruction, get_prompt_mutated, TASK_MUTATOR_PROMPTS, get_initial_task_mutators
+
+# Generator of Task Mutators Hyperparams
+GENERATE_TASK_MUTATORS = True
+N_TASK_MUTATORS = 10
+
+# Task Performance Performance Sampling Hyperparams
+TASK_MUTATORS_PERFORMANCE_SAMPLING = True
+SAMPLING_TEMP = 0.3
+PERFORMANCE_METRIC = 'mean'
+
+
+# Set the global seeds per run
+random.seed(42)
+np.random.seed(42)
 
 openai_client = openai.OpenAI()
 gemini_client = genai.Client(api_key=os.getenv('GOOGLE_AI_API_KEY'))
@@ -88,6 +103,29 @@ def get_json_response_from_gpt_reflect(
     assert not json_dict is None
     return json_dict
 
+# Generates Task Mutators if flag is ON
+if GENERATE_TASK_MUTATORS:
+    # If resuming from a previous session the mutators will be re-generated
+    sys_prompt_task_generator, prompt_task_generator=  get_initial_task_mutators(N_TASK_MUTATORS, TASK_MUTATOR_PROMPTS)
+
+    msg_list_task_generator = [
+                {"role": "system", "content": sys_prompt_task_generator},
+                {"role": "user", "content": prompt_task_generator},
+            ]
+    task_mutators_generated = get_json_response_from_gpt_reflect(msg_list_task_generator)
+    # Each candidate returns the task mutators with different keys
+    if 'instruction' in task_mutators_generated:
+        assert type(task_mutators_generated['instruction'])==list, 'Invalid output from Task Mutator Generator'
+        assert len(task_mutators_generated['instruction'])>=10, 'Invalid length from Task Mutator Generator'
+        TASK_MUTATOR_PROMPTS = task_mutators_generated['instruction'][:N_TASK_MUTATORS]
+    else:
+        assert type(task_mutators_generated['instruction_mutators'])==list, 'Invalid output from Task Mutator Generator'
+        assert len(task_mutators_generated['instruction_mutators'])>=10, 'Invalid length from Task Mutator Generator'
+        TASK_MUTATOR_PROMPTS = task_mutators_generated['instruction_mutators'][:N_TASK_MUTATORS]
+    print('-'*30)
+    print('Task Mutators Generated:')
+    for i,mut_task_prompt in enumerate(TASK_MUTATOR_PROMPTS): print(i+1,mut_task_prompt)
+    print('-'*30)
 
 class LLMAgentBase():
     """
@@ -289,9 +327,86 @@ def search(args):
         with open(file_path, 'w') as json_file:
             json.dump(archive, json_file, indent=4)
 
+    # Creating OrderedDict to keep track of Task Mutators
+    if TASK_MUTATORS_PERFORMANCE_SAMPLING:
+        # Getting the Avg. Fitness of Initial archive
+        median_initial_accs = []
+        for sol in archive:
+            if 'initial' == sol['generation']:
+                initial_acc = get_median_fitness(sol['fitness']) / 100
+                median_initial_accs.append(initial_acc)
+        if PERFORMANCE_METRIC=='median':
+            initial_avg_acc = np.median(np.array(median_initial_accs)).item()
+        else:
+            initial_avg_acc = np.mean(np.array(median_initial_accs)).item()
+        print('Initial Avg/Median Performance:',initial_avg_acc)
+
+        # Initializing Mutators avg accuracy w the avg of the initial archive
+        task_mutators_dict = OrderedDict()
+        for i in range(len(TASK_MUTATOR_PROMPTS)):
+            task_mutators_dict[i] = {
+                'task_mutator' : TASK_MUTATOR_PROMPTS[i],
+                'n' : 0,
+                'results' : [],
+                'generation': [],
+                'avg_accuracy' : initial_avg_acc
+            }
+        
+        # If there is already runs, the results, and avg. accuracies need to be updated
+        # Iterating through the archive, and if a generation exists, then we add its fitness
+        for sol in archive:
+            if 'initial' != sol['generation']:
+                acc = get_median_fitness(sol['fitness']) / 100
+                mut_id = TASK_MUTATOR_PROMPTS.index(sol['task_mutator'])
+                task_mutators_dict[mut_id]['results'].append(acc)
+        # Re-iterating through the dict to update the avg. accuracies
+        for i in range(len(TASK_MUTATOR_PROMPTS)):
+            if len(task_mutators_dict[i]['results'])>0:
+                if PERFORMANCE_METRIC=='median':
+                    new_mutator_avg = np.median(np.array(task_mutators_dict[i]['results'])).item()
+                else:
+                    new_mutator_avg = np.mean(np.array(task_mutators_dict[i]['results'])).item()
+                task_mutators_dict[i]['avg_accuracy'] = new_mutator_avg
+
     for n in range(start, args.n_generation):
         print(f"============Generation {n + 1}=================")
-        system_prompt, prompt = get_prompt(archive)
+        archive_for_prompt = copy.deepcopy(archive)
+        for sol in archive_for_prompt:
+            # Removing the Code Mutator description so that it does not influence future runs
+            if 'code_mutator' in sol:
+                del sol['code_mutator']
+            # Removing the Task Mutator description so that it does not influence future runs
+            if 'task_mutator' in sol:
+                del sol['task_mutator']
+            # Removing the Task Mutated Instruction so that it does not influence future runs
+            if 'mutated_instruction' in sol:
+                del sol['mutated_instruction']
+        # Removing agents that have 0% accuracy (only from the archive given as context, not from the saved archive)
+        archive_for_prompt_tmp = []        
+        for sol in archive_for_prompt:
+            if 'fitness' in sol:
+                if get_upper_bound(sol['fitness']) == 0.:
+                    continue
+            archive_for_prompt_tmp.append(sol)
+        archive_for_prompt = archive_for_prompt_tmp
+
+        # If Performance Sampling is on for Task mutators it calculates de probs using Softmax
+        if TASK_MUTATORS_PERFORMANCE_SAMPLING:
+            # Get Performances and use Softmax to get p
+            mutators_accuracies = [task_mutators_dict[k]['avg_accuracy'] for k in task_mutators_dict.keys()]
+            p = sp.special.softmax(np.array(mutators_accuracies) / SAMPLING_TEMP)
+        else:
+            p = np.ones(len(TASK_MUTATOR_PROMPTS)) / len(TASK_MUTATOR_PROMPTS)
+        # Task mutator only applied to new agents, not to initial ones
+        system_prompt_task, task_mutator_prompt, task_mutator_id, task_mutator = get_task_mutated_instruction(TASK_MUTATOR_PROMPTS, p)
+        msg_list_task_mut_query = [
+            {"role": "system", "content": system_prompt_task},
+            {"role": "user", "content": task_mutator_prompt},
+        ]
+        task_mutator_instruction = get_json_response_from_gpt_reflect(msg_list_task_mut_query)
+        task_mutator_instruction = task_mutator_instruction['instruction']
+
+        system_prompt, prompt = get_prompt_mutated(archive_for_prompt, task_mutator_instruction)
         msg_list = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompt},
@@ -299,7 +414,7 @@ def search(args):
         try:
             next_solution = get_json_response_from_gpt_reflect(msg_list)
 
-            Reflexion_prompt_1, Reflexion_prompt_2 = get_reflexion_prompt(archive[-1] if n > 0 else None)
+            Reflexion_prompt_1, Reflexion_prompt_2 = get_reflexion_prompt(archive_for_prompt[-1] if n > 0 else None)
             # Reflexion 1
             msg_list.append({"role": "assistant", "content": str(next_solution)})
             msg_list.append({"role": "user", "content": Reflexion_prompt_1})
@@ -339,6 +454,28 @@ def search(args):
         next_solution['fitness'] = fitness_str
         next_solution['generation'] = n + 1
 
+        # Adding the Task Mutator Instruction:
+        next_solution['task_mutator'] = task_mutator
+        next_solution['mutated_instruction'] = task_mutator_instruction
+
+        # Updating Task Mutator Dict (if available)
+        if TASK_MUTATORS_PERFORMANCE_SAMPLING:
+            task_mutators_dict[task_mutator_id]['n'] += 1
+            task_mutators_dict[task_mutator_id]['generation'].append(n+1)
+            task_mutators_dict[task_mutator_id]['results'].append(get_median_fitness(next_solution['fitness'])/100)
+            if PERFORMANCE_METRIC=='median':
+                new_mutator_avg = np.median(np.array(task_mutators_dict[task_mutator_id]['results'])).item()
+            else:
+                new_mutator_avg = np.mean(np.array(task_mutators_dict[task_mutator_id]['results'])).item()
+            task_mutators_dict[task_mutator_id]['avg_accuracy'] = new_mutator_avg
+
+        # Reporting Sampling Dist. at the end of each generation
+        if TASK_MUTATORS_PERFORMANCE_SAMPLING:
+            # Get Performances and use Softmax to get p
+            mutators_accuracies = [task_mutators_dict[k]['avg_accuracy'] for k in task_mutators_dict.keys()]
+            p = sp.special.softmax(np.array(mutators_accuracies) / SAMPLING_TEMP)
+            print(p)
+
         if 'debug_thought' in next_solution:
             del next_solution['debug_thought']
         if 'reflection' in next_solution:
@@ -356,7 +493,13 @@ def get_upper_bound(upper_bound_string):
         return float(match.group(2))
     else:
         return 0.0
-    
+
+def get_median_fitness(fitness_string):
+    match = re.search(r'Median:\s*([\d.]+)%$', fitness_string)
+    if match:
+        return float(match.group(1))
+    else:
+        return 0.0
 
 def evaluate(args):
     file_path = os.path.join(args.save_dir, f"{args.expr_name}_run_archive.json")

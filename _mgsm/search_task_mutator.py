@@ -14,13 +14,16 @@ from google import genai
 from google.genai import types
 import scipy as sp
 
-from mgsm_prompt import get_init_archive, get_prompt, get_reflexion_prompt, get_code_mutator_prompt, get_task_mutated_instruction, get_prompt_mutated, TASK_MUTATOR_PROMPTS
+from mgsm_prompt import get_init_archive, get_prompt, get_reflexion_prompt, get_code_mutator_prompt, get_task_mutated_instruction, get_prompt_mutated, TASK_MUTATOR_PROMPTS, get_initial_task_mutators
 
-GENERATE_TASK_MUTATORS = False
+# Generator of Task Mutators Hyperparams
+GENERATE_TASK_MUTATORS = True
+N_TASK_MUTATORS = 10
+
+# Task Performance Performance Sampling Hyperparams
 TASK_MUTATORS_PERFORMANCE_SAMPLING = False
-
-if GENERATE_TASK_MUTATORS:
-    pass # if True we will generate a list of task mutators and overwrite `TASK_MUTATOR_PROMPTS`
+SAMPLING_TEMP = 0.3
+PERFORMANCE_METRIC = 'mean'
 
 
 # Set the global seeds per run
@@ -39,7 +42,7 @@ ROLE_DESC = lambda role: f"You are a {role}."
 SYSTEM_MSG = ""
 
 PRINT_LLM_DEBUG = False
-SEARCHING_MODE = True
+SEARCHING_MODE = False
 
 
 @backoff.on_exception(backoff.expo, openai.RateLimitError)
@@ -101,6 +104,29 @@ def get_json_response_from_gpt_reflect(
     assert not json_dict is None
     return json_dict
 
+# Generates Task Mutators if flag is ON
+if GENERATE_TASK_MUTATORS:
+    # If resuming from a previous session the mutators will be re-generated
+    sys_prompt_task_generator, prompt_task_generator=  get_initial_task_mutators(N_TASK_MUTATORS, TASK_MUTATOR_PROMPTS)
+
+    msg_list_task_generator = [
+                {"role": "system", "content": sys_prompt_task_generator},
+                {"role": "user", "content": prompt_task_generator},
+            ]
+    task_mutators_generated = get_json_response_from_gpt_reflect(msg_list_task_generator)
+    # Each candidate returns the task mutators with different keys
+    if 'instruction' in task_mutators_generated:
+        assert type(task_mutators_generated['instruction'])==list, 'Invalid output from Task Mutator Generator'
+        assert len(task_mutators_generated['instruction'])>=10, 'Invalid length from Task Mutator Generator'
+        TASK_MUTATOR_PROMPTS = task_mutators_generated['instruction'][:N_TASK_MUTATORS]
+    else:
+        assert type(task_mutators_generated['instruction_mutators'])==list, 'Invalid output from Task Mutator Generator'
+        assert len(task_mutators_generated['instruction_mutators'])>=10, 'Invalid length from Task Mutator Generator'
+        TASK_MUTATOR_PROMPTS = task_mutators_generated['instruction_mutators'][:N_TASK_MUTATORS]
+    print('-'*30)
+    print('Task Mutators Generated:')
+    for i,mut_task_prompt in enumerate(TASK_MUTATOR_PROMPTS): print(i+1,mut_task_prompt)
+    print('-'*30)
 
 class LLMAgentBase():
     """
@@ -217,9 +243,13 @@ def search(args):
         median_initial_accs = []
         for sol in archive:
             if 'initial' == sol['generation']:
-                initial_acc = get_median_fitness(sol['fitness'])
+                initial_acc = get_median_fitness(sol['fitness']) / 100
                 median_initial_accs.append(initial_acc)
-        initial_avg_acc = np.median(np.array(median_initial_accs)).item()
+        if PERFORMANCE_METRIC=='median':
+            initial_avg_acc = np.median(np.array(median_initial_accs)).item()
+        else:
+            initial_avg_acc = np.mean(np.array(median_initial_accs)).item()
+        print('Initial Avg/Median Performance:',initial_avg_acc)
 
         # Initializing Mutators avg accuracy w the avg of the initial archive
         task_mutators_dict = OrderedDict()
@@ -236,13 +266,17 @@ def search(args):
         # Iterating through the archive, and if a generation exists, then we add its fitness
         for sol in archive:
             if 'initial' != sol['generation']:
-                acc = get_median_fitness(sol['fitness'])
+                acc = get_median_fitness(sol['fitness']) / 100
                 mut_id = TASK_MUTATOR_PROMPTS.index(sol['task_mutator'])
                 task_mutators_dict[mut_id]['results'].append(acc)
         # Re-iterating through the dict to update the avg. accuracies
         for i in range(len(TASK_MUTATOR_PROMPTS)):
-            new_mutator_avg = np.median(np.array(task_mutators_dict[i]['results'])).item()
-            task_mutators_dict[i]['avg_accuracy'] = new_mutator_avg
+            if len(task_mutators_dict[i]['results'])>0:
+                if PERFORMANCE_METRIC=='median':
+                    new_mutator_avg = np.median(np.array(task_mutators_dict[i]['results'])).item()
+                else:
+                    new_mutator_avg = np.mean(np.array(task_mutators_dict[i]['results'])).item()
+                task_mutators_dict[i]['avg_accuracy'] = new_mutator_avg
 
 
     for n in range(start, args.n_generation):
@@ -271,7 +305,7 @@ def search(args):
         if TASK_MUTATORS_PERFORMANCE_SAMPLING:
             # Get Performances and use Softmax to get p
             mutators_accuracies = [task_mutators_dict[k]['avg_accuracy'] for k in task_mutators_dict.keys()]
-            p = sp.special.softmax(np.array(mutators_accuracies))
+            p = sp.special.softmax(np.array(mutators_accuracies) / SAMPLING_TEMP)
         else:
             p = np.ones(len(TASK_MUTATOR_PROMPTS)) / len(TASK_MUTATOR_PROMPTS)
         # Task mutator only applied to new agents, not to initial ones
@@ -291,7 +325,8 @@ def search(args):
         try:
             next_solution = get_json_response_from_gpt_reflect(msg_list)
 
-            Reflexion_prompt_1, Reflexion_prompt_2 = get_reflexion_prompt(archive[-1] if n > 0 else None)
+            # or [next_solution] archive_for_prompt[-1]
+            Reflexion_prompt_1, Reflexion_prompt_2 = get_reflexion_prompt(archive_for_prompt[-1] if n > 0 else None)
             # Reflexion 1
             msg_list.append({"role": "assistant", "content": str(next_solution)})
             msg_list.append({"role": "user", "content": Reflexion_prompt_1})
@@ -345,10 +380,19 @@ def search(args):
         if TASK_MUTATORS_PERFORMANCE_SAMPLING:
             task_mutators_dict[task_mutator_id]['n'] += 1
             task_mutators_dict[task_mutator_id]['generation'].append(n+1)
-            task_mutators_dict[task_mutator_id]['results'].append(get_median_fitness(next_solution['fitness']))
-            new_mutator_avg = np.median(np.array(task_mutators_dict[task_mutator_id]['results'])).item()
+            task_mutators_dict[task_mutator_id]['results'].append(get_median_fitness(next_solution['fitness'])/100)
+            if PERFORMANCE_METRIC=='median':
+                new_mutator_avg = np.median(np.array(task_mutators_dict[task_mutator_id]['results'])).item()
+            else:
+                new_mutator_avg = np.mean(np.array(task_mutators_dict[task_mutator_id]['results'])).item()
             task_mutators_dict[task_mutator_id]['avg_accuracy'] = new_mutator_avg
 
+        # Reporting Sampling Dist. at the end of each generation
+        if TASK_MUTATORS_PERFORMANCE_SAMPLING:
+            # Get Performances and use Softmax to get p
+            mutators_accuracies = [task_mutators_dict[k]['avg_accuracy'] for k in task_mutators_dict.keys()]
+            p = sp.special.softmax(np.array(mutators_accuracies) / SAMPLING_TEMP)
+            print(p)
 
         if 'debug_thought' in next_solution:
             del next_solution['debug_thought']
@@ -496,10 +540,10 @@ if __name__ == "__main__":
     parser.add_argument('--shuffle_seed', type=int, default=0)
     parser.add_argument('--n_repreat', type=int, default=1)
     parser.add_argument('--multiprocessing', action='store_true', default=True)
-    parser.add_argument('--max_workers', type=int, default=32)
+    parser.add_argument('--max_workers', type=int, default=48)
     parser.add_argument('--debug', action='store_true', default=True)
     parser.add_argument('--save_dir', type=str, default='results/')
-    parser.add_argument('--expr_name', type=str, default="task_mutator_test22_mgsm_openai_gemini_results")
+    parser.add_argument('--expr_name', type=str, default="task_mutator_test35_mgsm_openai_gemini_results")
     parser.add_argument('--n_generation', type=int, default=30)
     parser.add_argument('--debug_max', type=int, default=3)
     parser.add_argument('--max_agents', type=int, default=5)
