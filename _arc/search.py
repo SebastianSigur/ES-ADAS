@@ -26,6 +26,10 @@ TASK_MUTATORS_PERFORMANCE_SAMPLING = True
 SAMPLING_TEMP = 0.3
 PERFORMANCE_METRIC = 'mean'
 
+# MIN ARCHIVE PERFORMANCE
+MIN_PERFORMANCE_FLAG = True
+MIN_PERCENTILE_ARCHIVE = 0.25
+
 
 # Set the global seeds per run
 random.seed(42)
@@ -381,14 +385,41 @@ def search(args):
             # Removing the Task Mutated Instruction so that it does not influence future runs
             if 'mutated_instruction' in sol:
                 del sol['mutated_instruction']
+
+        if MIN_PERFORMANCE_FLAG:
+            # Getting results of proposed agents (valid results, so no 0%)
+            n_valid_agents = 0
+            agents_results = []
+            for sol in archive_for_prompt:
+                n_valid_agents += 1 #???
+                agent_performance = get_median_fitness(sol['fitness']) # MEDIAN FUNC !!!
+                # should I include 0 agents?, I'd say best if I don't...
+                if agent_performance>0:
+                    agents_results.append(agent_performance)
+            if n_valid_agents>=2:
+                agents_results = np.array(agents_results)
+                min_perf = np.percentile(agents_results, MIN_PERCENTILE_ARCHIVE*100).item()/100
+            else: 
+                min_perf = 0.0
+            print('Min Performance for Archive:', round(min_perf,4)) 
+
         # Removing agents that have 0% accuracy (only from the archive given as context, not from the saved archive)
         archive_for_prompt_tmp = []        
         for sol in archive_for_prompt:
             if 'fitness' in sol:
                 if get_upper_bound(sol['fitness']) == 0.:
                     continue
+                if MIN_PERFORMANCE_FLAG:
+                    if (get_median_fitness(sol['fitness'])/100)<=min_perf:
+                        continue
             archive_for_prompt_tmp.append(sol)
         archive_for_prompt = archive_for_prompt_tmp
+        # Removing mutator info from the archive for prompt
+        for sol in archive_for_prompt:
+            if 'mutated_instruction' in sol:
+                del sol['mutated_instruction']
+            if 'task_mutator' in sol:
+                del sol['task_mutator']
 
         # If Performance Sampling is on for Task mutators it calculates de probs using Softmax
         if TASK_MUTATORS_PERFORMANCE_SAMPLING:
@@ -618,7 +649,7 @@ if __name__ == "__main__":
     parser.add_argument('--max_workers', type=int, default=32)
     parser.add_argument('--debug', action='store_true', default=True)
     parser.add_argument('--save_dir', type=str, default='results/')
-    parser.add_argument('--expr_name', type=str, default='test_arc_gpt4o_min_gemini_results')
+    parser.add_argument('--expr_name', type=str, default='arc_openai_gemini_task_mutator_experiment_1_run_1_results')
     parser.add_argument('--n_generation', type=int, default=20)
     parser.add_argument('--reflect_max', type=int, default=3)
     parser.add_argument('--debug_max', type=int, default=3)
