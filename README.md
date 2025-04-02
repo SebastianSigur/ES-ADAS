@@ -1,41 +1,30 @@
 <h1 align="center">
-  <img src="misc/art_fig.png" width="200" /></a><br>
-  <b>Automated Design of Agentic Systems</b><br>
+  <img src="misc/ESADAS.png" width="400" /></a><br>
+  <b>Domain-Agnostic Universal Novel Agent Design through
+Autonomous, Open-Ended Evolutionary Search</b><br>
 </h1>
 
-<p align="center">
-  <a href="https://github.com/ShengranHu/ADAS/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=for-the-badge"></a>
-  <a href="https://arxiv.org/abs/2408.08435"><img src="https://img.shields.io/badge/arXiv-2408.08435-b31b1b.svg?logo=arxiv&style=for-the-badge"></a>
-  <a href="https://www.shengranhu.com/ADAS/"><img src="https://img.shields.io/badge/-Website-%238D6748?style=for-the-badge&logo=Website&logoColor=white"></a>
-  <a href="https://twitter.com/shengranhu/status/1825555341922480322"><img src="https://img.shields.io/badge/twitter-%230077B5.svg?&style=for-the-badge&logo=twitter&logoColor=white&color=00acee"></a>
-</p>
 
-<h3 align="center" style="display:inline-block; border:2px solid red; border-radius:4px; padding:4px; margin:4px 0;">
- <strong> ICLR 2025</strong><br>
-</h3>
-<h3 align="center" style="display:inline-block; border:2px solid red; border-radius:4px; padding:4px; margin:4px 0;">
-  🏆 <strong>Outstanding Paper (NeurIPS 2024 Open-World Agent Workshop)</strong> 
-  <a href="https://x.com/shengranhu/status/1868475359060226191" target="_blank" style="margin-left:8px;">[Tweet]</a>
-</h3>
+DUNE proposes an improvement to the original ADAS framework with the integration of a evolutionary search algorithms, encouraging diversity by looking at different domain features, such as structure and scale.
 
-In this work, we describe a newly forming research area **A**utomated **D**esign of **A**gentic **S**ystems (**ADAS**), which aims to *automatically create powerful agentic system designs, including inventing novel building blocks and/or combining them in new ways.*
+DUNE is open-ended, being applicable to multiple domains. Dune generates more powerful agents compared to the original ADAS in popular benchmarks such as arc, drop, gpqa, mgsm, and mmlu. Dune reduces the costof automatic agent search by a significant amount compared to ADAS, allowing more independentresearch in this field
 
-
-We present a simple yet effective ADAS algorithm named **Meta Agent Search** to demonstrate that **agents can invent novel and powerful agent designs**. In Meta Agent Search, a "meta" agent iteratively *programs* interesting new agents in code based on previous discoveries.
-
+We take alot of inspiration from the ADAS work, and recognize that our work would not be possible without the work from the ADAS team. Their paper can be found [here](https://arxiv.org/abs/2408.08435) and their repository [here](https://github.com/ShengranHu/ADAS)
 
 <p align="center">
-<img src="misc/algo.png"/></a><br>
+<img src="misc/ESADAS.drawio.png"/></a><br>
 </p>
 
 ## Setup
 ```bash
-conda create -n adas python=3.11
-conda activate adas
+python3 -m venv venv 
 pip install -r requirements.txt
 
 # provide your OpenAI API key
 export OPENAI_API_KEY="YOUR KEY HERE"
+
+# provide your GoogleAPI key
+export GOOGLE_AI_API_KEY="YOUR KEY HERE"
 ```
 
 ## Running Instructions
@@ -50,30 +39,6 @@ python {DOMAIN}/search.py
 
 Replace `{DOMAIN}` with the specific domain folder name {`_arc`, `_drop`, `_mgsm`, ...} to run the experiment for.
 
-### Customizing Meta Agent Search for New Domains
-
-You can easily adapt the code to search for new domains. To do so, follow these steps:
-
-1. Modify the `evaluate_forward_fn()` function and adjust any necessary formatting prompts (e.g. [this line](https://github.com/ShengranHu/ADAS/blob/main/_mmlu/search.py#L89)) in the `search.py` file. 
-
-2. Consider adding additional basic functions for the meta agent to utilize during the design process (similar to [this line](https://github.com/ShengranHu/ADAS/blob/main/_arc/search.py#L161)).
-
-3. Update the domain-specific information within the prompts to match the requirements of your new domain (e.g. [this line](https://github.com/ShengranHu/ADAS/blob/main/_mmlu/mmlu_prompt.py#L229)).
-
-4. Run the search and evaluation on your new domain.
-
 ### Safety Consideration
 > [!WARNING]  
 > The code in this repository involves executing untrusted model-generated code. We strongly advise users to be aware of this safety concern. While it is highly unlikely that model-generated code will perform overtly malicious actions in our current settings and with the models we use, such code may still act destructively due to limitations in model capability or alignment. By using this repository, you acknowledge and accept these risks.
-
-
-## Citing
-If you find this project useful, please consider citing:
-```
-@article{hu2024ADAS,
-title={Automated Design of Agentic Systems},
-author={Hu, Shengran and Lu, Cong and Clune, Jeff},
-journal={arXiv preprint arXiv:2408.08435},
-year={2024}
-}
-```
