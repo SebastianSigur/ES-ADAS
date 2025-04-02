@@ -166,6 +166,7 @@ class AgentSystem():
 
 
 #-------------------------------------------------------------------------------------------------------#
+# Function to create and update MAP of Elites after every generation based on archive
 def create_map_elites_structure_api(
     archive
 ):
@@ -173,19 +174,19 @@ def create_map_elites_structure_api(
     Creates a map elites grid from the candidate archive based on two dimensions:
       - Structure label: taken from each solution's "structure_label" field.
       - API calls: the number of API calls (agent['api_calls']).
-
-    Parameters:
-        archive (list): List of candidate dictionaries.
-        candidate_labels (list, optional): List of allowed structure labels. If None, they are derived from the archive.
-        bins_api (int): Number of bins for the API calls dimension (now set to 2).
-
     Returns:
         dict: A dictionary mapping cell keys (as strings, e.g. "Chain-of-Thought,0")
               to the best candidate (elite) in that cell (the one with the highest fitness).
     """
     # Set number of API call bins
     bins_api = 2
-    # Derive candidate labels from the archive if not provided.
+
+    # Extract API Call values
+    api_calls_values = [sol['api_calls'] for sol in archive if 'api_calls' in sol]
+    if not api_calls_values:
+        return {}
+    
+    # Determine structure labels
     candidate_labels = [
             "Linear Chain-of-Thought",
             "Iterative Refinement",
@@ -195,30 +196,33 @@ def create_map_elites_structure_api(
             "Abstraction to Principles Reasoning"
         ]
     
-    # Collect all API call counts.
-    api_calls_values = [sol['api_calls'] for sol in archive if 'api_calls' in sol]
-    if not api_calls_values:
-        return {}
-    
     # Initialize grid with keys as "structure_label,api_bin"
     grid = {f"{label},{i}": None for label in candidate_labels for i in range(bins_api)}
     
+    # Go through every agent in archive
     for sol in archive:
+
+        # Skip invalid agents
         if 'structure_label' not in sol or 'api_calls' not in sol or 'fitness' not in sol:
             continue
         
+        # Determine structure label
         label = sol["structure_label"]
-        # If the label is not in the candidate labels, skip this solution.
+
+        # Skip invalid labels
         if label not in candidate_labels:
             continue
         
+        # Extract API value
         api_val = sol["api_calls"]
-        # Use a simple condition: if API calls are <= 5, assign bin 0 ("few API calls"), else bin 1 ("many API calls").
+
+        # Assign API calls to bins (<= 5 for few API calls to 0; 6+ for many API calls to bin 1)
         if api_val <= 5:
             api_bin = 0
         else:
             api_bin = 1
         
+        # Allocate agents to niches
         cell_key = f"{label},{api_bin}"
         new_fitness = get_upper_bound(sol['fitness'])
         
@@ -230,17 +234,17 @@ def create_map_elites_structure_api(
             if new_fitness > current_fitness:
                 grid[cell_key] = sol
 
+    # Return final grid
     return grid
 #-------------------------------------------------------------------------------------------------------#
 
 
 #-------------------------------------------------------------------------------------------------------#
+# Create API Call label with Gemini
 def count_api_calls(forward_code):
     """
-    Uses Gemini to analyze the given code and returns the number of API calls made.
-    Each call to `LLMAgentBase(...)(...)` counts as one API call.
-    The analysis accounts for loops, multiple agents, or recursive calls.
-    Returns a JSON object with the 'api_calls' field as an integer.
+    Use Gemini to determine the API count label
+    Returns JSON object with 'api_calls' field from agent as integer
     """
     system_prompt = """You are a code analysis expert specializing in LLM agent architectures. Analyze the Python function to count API calls according to these STRICT RULES:
 
@@ -324,6 +328,7 @@ def count_api_calls(forward_code):
     Return JSON: {"api_calls": integer}"""
     user_message = f"Analyze the following code and predict the number of API calls per execution:\n\n```python\n{forward_code}\n```"
     
+    # Use Gemini to classify API count
     try:
         response = gemini_client.models.generate_content(
             model='gemini-1.5-flash-8b',
@@ -346,9 +351,9 @@ def count_api_calls(forward_code):
 
 
 #-------------------------------------------------------------------------------------------------------#
-# Defines a function that takes the solution thought and name as details as input, and outputs a label for the structure.
-# The label is created via using a BERT model and gemini
-def recheck_label_with_gemini(agent_name, agent_thought, agent_code, candidate_labels):
+# Create structure label with Gemini (unnecessary complex as relict from earlier version with included an
+# initial check with a BERT model before then passing it to Gemini)
+def recheck_label_with_gemini(agent_name, agent_code, candidate_labels):
     system_prompt = (
         "You are a specialist in LLM agent architecture analysis. Your task is to classify agents by their fundamental reasoning structure through rigorous code examination. "
         "Follow this analytical process:\n\n"
@@ -517,6 +522,7 @@ def recheck_label_with_gemini(agent_name, agent_thought, agent_code, candidate_l
         "Focus exclusively on the code's architectural patterns, NOT the problem domain or description."
     )
     
+    # Use Gemini to determine the structure label
     try:
         response = gemini_client.models.generate_content(
             model='gemini-1.5-flash-8b',
@@ -534,7 +540,8 @@ def recheck_label_with_gemini(agent_name, agent_thought, agent_code, candidate_l
         print("Error during Gemini reclassification:", e)
         return None
 
-
+# Create structure label with Gemini (unnecessary complex as relict from earlier version with included an
+# initial check with a BERT model before then passing it to Gemini)
 def get_structure_label(solution):
     """
     Uses Gemini via recheck_label_with_gemini().
@@ -542,7 +549,7 @@ def get_structure_label(solution):
     Returns:
         A string representing the structure label.
     """
-    # Define the candidate labels for structure classification.
+    # Define structure labels
     candidate_labels = [
         "Linear Chain-of-Thought",
         "Iterative Refinement",
@@ -552,21 +559,22 @@ def get_structure_label(solution):
         "Abstraction to Principles Reasoning"
     ]
     
-    thought_text = solution.get("thought", "")
-    if not thought_text:
-        return None
-    
+    # Extract code text
     code_text = solution.get("code", "")
     if not code_text:
         return None
         
-    # Use .get() to safely retrieve "name", providing a default if missing.
+    # Extract agent name
     agent_name = solution.get("name", "Unknown Agent")
-    new_label = recheck_label_with_gemini(agent_name, thought_text, code_text, candidate_labels)
+
+    # Determine structure label
+    new_label = recheck_label_with_gemini(agent_name, code_text, candidate_labels)
+
+    # Return structure label
     return new_label
 #-------------------------------------------------------------------------------------------------------#
 
-
+# Ensure that all generated agent have the correct formatting (would otherwise constantly break code)
 def validate_agent(agent: dict) -> bool:
     """Ensure agent has all required fields and valid structure label"""
     required_fields = {
@@ -574,7 +582,7 @@ def validate_agent(agent: dict) -> bool:
         'name': str,
         'code': str,
         'fitness': (int,str),
-        'generation': (int, str),  # Allow "initial" or int
+        'generation': (int, str),
         'api_calls': (int, str),
         'structure_label': str
     }
@@ -615,7 +623,7 @@ def validate_agent(agent: dict) -> bool:
 
 def search(args):
 
-    ## Initializes and loads archive (uses save_dir & expr_name as locations to load and save archive )
+    ## Initializes and loads archive (uses save_dir & expr_name as locations to load and save archive)
     file_path = os.path.join(args.save_dir, f"{args.expr_name}_run_archive.json")
     if os.path.exists(file_path):
         with open(file_path, 'r') as json_file:
@@ -629,18 +637,10 @@ def search(args):
         start = 0
     
     #-------------------------------------------------------------------------------------------------------#    
-    ## Call Gemini to assess the code of each agent in the archive.
-    ## Gemini's response should include only the number of API calls made. Add that information to each.
+    # Determine API call and structure label
     for solution in archive:
         solution["api_calls"] = count_api_calls(solution["code"])
-    
-        ## Add a structure label to each solution
         solution["structure_label"] = get_structure_label(solution)
-
-    # ## Ensure each candidate has an 'api_calls' field (for map elites dimension). Default to 0 if missing.
-    # for solution in archive:
-    #     if 'api_calls' not in solution:
-    #         solution['api_calls'] = 0
     #------------------------------------------------------------------------------------------------------#
 
     ## Loops over every solution in the archive and ensures that they have a fitness score
@@ -667,7 +667,7 @@ def search(args):
             json.dump(archive, json_file, indent=4)        
 
     # ------------------------------------------------------------
-    # Compute current map elites using predefined function create_map(). Get fitness scores from above
+    # Compute initial map of elites
     map_elites = create_map_elites_structure_api(archive)
     # ------------------------------------------------------------
     
@@ -676,10 +676,11 @@ def search(args):
 
         # ------------------------------------------------------------
 
+        # Sampling of the selected agent (i.e., agent to mutate/inspiration agent)
         if args.agent_sampling == "fitness":
             
             # Fitness-based sampling of selected agent
-            while True:  # Keep searching until we find a valid agent
+            while True:
                 # Create a list of valid parent cells (cells with non-None agents)
                 valid_cells = [key for key in map_elites if map_elites[key] is not None]
                 if not valid_cells:
@@ -689,7 +690,7 @@ def search(args):
                 raw_weights = [get_upper_bound(map_elites[key]['fitness']) for key in valid_cells]
                 
                 # Apply softmax transformation using numpy
-                temperature = 1.0  # Adjust as needed
+                temperature = 1.0
                 exp_weights = np.exp(np.array(raw_weights) / temperature)
                 total_exp = np.sum(exp_weights)
                 softmax_weights = exp_weights / total_exp
@@ -704,7 +705,7 @@ def search(args):
                 
                 selected_agent = map_elites[parent_cell]
                 
-                # First fallback: try same structure agents if the selected cell is empty
+                # If cell empty, use agent from same structure label with different API label
                 if selected_agent is None:
                     same_structure_agents = [
                         agent for key, agent in map_elites.items()
@@ -713,12 +714,13 @@ def search(args):
                     if same_structure_agents:
                         selected_agent = max(same_structure_agents, key=lambda x: get_upper_bound(x['fitness']))
                 
+                # If no agent in either cell for this structure, sampling process is restarted
                 if selected_agent is not None:
                     break
         
         else:
             # Uniform sampling of selected agent
-            while True:  # Keep searching until we find a valid agent
+            while True:
                 parent_keys = list(map_elites.keys())
                 parent_random_index = random.randint(0, len(parent_keys) - 1)
                 parent_cell = parent_keys[parent_random_index]
@@ -730,7 +732,7 @@ def search(args):
                 
                 selected_agent = map_elites[parent_cell]
             
-                # First fallback: try same structure agents
+                # If cell empty, use agent from same structure label with different API label
                 if selected_agent is None:
                     same_structure_agents = [agent for key, agent in map_elites.items() 
                                             if key.startswith(f"{parent_structure_label},") 
@@ -739,29 +741,29 @@ def search(args):
                         selected_agent = max(same_structure_agents, 
                                         key=lambda x: get_upper_bound(x['fitness']))
                 
-                # Second fallback: if still None, search entire archive
-                # Second fallback: if still None, search entire archive
+                # If no agent in either cell for this structure, sampling process is restarted
                 if selected_agent is None:
                     non_empty_agents = [agent for agent in map_elites.values() if agent is not None]
                     if non_empty_agents:
                         selected_agent = random.choice(non_empty_agents)
                 
-                # If we found a valid agent, break the loop
+                # If selected agent is found
                 if selected_agent is not None:
                     break
-
+        
+        # Sampling of the mutation direction
         if args.direction_sampling == "fitness":
-            # Second sampling: select target structure and API labels,
-            # weighted by inverted fitness (cells with lower fitness get higher probability),
-            # and include cells with a null agent by assigning them the minimum raw fitness.
+
+            # Fitness-based: weighted by inverted fitness (cells with lower fitness get higher probability)
+            # Note: cells with a null agent included by assigning minimum raw fitness
 
             all_keys = list(map_elites.keys())
 
             # Compute raw fitness values for non-null cells
             non_null_raws = [get_upper_bound(map_elites[k]['fitness']) for k in all_keys if map_elites[k] is not None]
-            min_raw = min(non_null_raws) if non_null_raws else 1  # fallback to 1 if all cells are null
+            min_raw = min(non_null_raws) if non_null_raws else 1
 
-            # Compute raw weights for all cells: if cell is null, assign min_raw
+            # Compute raw weights for all cells
             raw_weights_target = []
             for key in all_keys:
                 if map_elites[key] is not None:
@@ -769,13 +771,13 @@ def search(args):
                 else:
                     raw_weights_target.append(min_raw)
 
-            # Apply softmax transformation on inverted raw weights using numpy
-            temperature = 1.0  # Adjust as needed
+            # Transformation into probability distribution via softmax
+            temperature = 1.0
             inverted_weights = np.exp(-np.array(raw_weights_target) / temperature)
             total_inverted = np.sum(inverted_weights)
-            softmax_inv = inverted_weights / total_inverted  # NumPy array of probabilities
+            softmax_inv = inverted_weights / total_inverted
 
-            # Sample one target cell weighted by the inverted softmax probabilities
+            # Sample one target cell
             target_cell = random.choices(all_keys, weights=softmax_inv.tolist(), k=1)[0]
             target_parts = target_cell.split(',')
             target_structure_label = target_parts[0]
@@ -794,10 +796,10 @@ def search(args):
 
         # # ------------------------------------------------
 
-        ## Uses pre-defined system prompt to generate new solution
-        ## Performs two relfexions to improve quality of new solution
+        ## Generation of new agents
         print(f"============Generation {n + 1}=================")
 
+        # Print statements for tracking of generations
         print(f"Parent Cell: {parent_cell} (Structure: {parent_structure_label}, API: {parent_api_bin})")
         print(f"Mutation Target: Structure {target_structure_label}, API {target_api_label}")  
         
@@ -859,18 +861,15 @@ def search(args):
         next_solution['fitness'] = fitness_str
         next_solution['generation'] = n + 1
 
+
+
         # ------------------------------------------------------------
-        ## Call Gemini again similar to before to assess the number of API calls made and add it to next_solution
+        ## Determine API count and structure label
         if "code" in next_solution:
             next_solution["api_calls"] = count_api_calls(next_solution["code"])
-        else:
-            print("Warning: next_solution is missing the 'code' field, skipping API call count.")
-        # ------------------------------------------------------------
-        ## Give Structure label to newly generated solution
+
         if "thought" in next_solution:
             next_solution["structure_label"] = get_structure_label(next_solution)
-        else:
-            print("Warning: next_solution is missing the 'thought' field, skipping structure label assignment.")
         # ------------------------------------------------------------
 
 
@@ -879,12 +878,13 @@ def search(args):
         if 'reflection' in next_solution:
             del next_solution['reflection']
         
-        # Add validation before adding to archive
+        # Validation if agent complete
         if not validate_agent(next_solution):
             print(f"Skipping invalid agent from generation {n+1}")
-            continue  # Skip this agent
+            continue
 
-        # Check if the new agent is at least as good as the worst in the archive
+
+        # Check if agent is misproduced
         current_upper_bounds = [get_upper_bound(agent['fitness']) for agent in archive]
         min_current_upper = min(current_upper_bounds) if current_upper_bounds else 0.0
         new_upper = get_upper_bound(next_solution['fitness'])
@@ -905,9 +905,11 @@ def search(args):
             map_file_path = os.path.join(args.save_dir, f"{args.expr_name}_map_elites_gen{n+1}.json")
             with open(map_file_path, 'w') as f:
                 json.dump(map_elites, f, indent=4)
+        
+        # Skip misproduced agents
         else:
             print(f"New agent with fitness {next_solution['fitness']} not added; below archive minimum of {min_current_upper}.")
-            continue  # Skip this agent and proceed to next generation
+            continue  
         # ------------------------------------------------------------
 
 
@@ -933,7 +935,7 @@ def evaluate(args):
 
     ## Iterative evaluation of candidate agents
     ## Note: Selects candidate agents for evaluation (only include initial + max_agents top performing agents)
-    evaluation_candidates = [] # only choosing top agents to evaluate
+    evaluation_candidates = []
     print(f"len(archive): {len(archive)}")
     current_idx = 0
     while (current_idx < len(archive)):
@@ -1073,7 +1075,7 @@ if __name__ == "__main__":
     # Arguments for configuration
     parser.add_argument('--agent_sampling', type=str, default='fitness', help="Fitness or uniform sampling of selected agent")
     parser.add_argument('--direction_sampling', type=str, default='fitness', help="Fitness or uniform sampling of mutation direction")
-    parser.add_argument('--past_agents', type=str, default='MAP', help="Inclusion of past agents into system prompt. Values are either MAP, Archive, Agent)
+    parser.add_argument('--past_agents', type=str, default='MAP', help="Inclusion of past agents into system prompt. Values are either MAP, Archive, Agent)")
 
     
     # Arguments for multiple runs to test variance

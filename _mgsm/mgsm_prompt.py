@@ -717,12 +717,11 @@ Below is the architecture of the selected agent:
 [SELECTED_AGENT]"""
         prompt = prompt.replace("[PAST_AGENTS]", template_str)
 
-    # Rest of the function remains unchanged
-    # Use the api_label (if provided) to generate rules.
+    # Generate rules for API calls
     rules = RULES(api_label if api_label is not None else "few API calls")
     prompt = prompt.replace("[RULES]", rules)
     
-    # Replace the new placeholders for structure and API labels.
+    # Add in mutation direction
     if structure_label is not None:
         prompt = prompt.replace("[STRUCTURE_LABEL]", structure_label)
     else:
@@ -733,7 +732,7 @@ Below is the architecture of the selected agent:
     else:
         prompt = prompt.replace("[API_LABEL]", "")
     
-    # Replace [LABEL DESCRIPTION] with the corresponding description based on structure_label.
+    # Replace [LABEL DESCRIPTION] with corresponding description based on structure_label
     label_descriptions = {
         "Linear Chain-of-Thought": "The agent produces its final answer in a single, linear chain-of-thought without any iterative self-refinement or use of multiple agents.",
         "Iterative Refinement": "The agent continually repcrosses its chain-of-thought, revising, re-evaluating, and self-assessing its intermediate steps - to progressively converge on a robust final answer.",
@@ -746,7 +745,7 @@ Below is the architecture of the selected agent:
     label_description = label_descriptions.get(structure_label, "")
     prompt = prompt.replace("[LABEL DESCRIPTION]", label_description)
     
-    # For the selected agent, if provided, we convert it to a JSON string
+    # Add in selected agent
     if selected_agent is not None:
         prompt = prompt.replace("[SELECTED_AGENT]", json.dumps(selected_agent))
     else:
@@ -760,7 +759,8 @@ def get_reflexion_prompt(prev_example, structure_label=None, api_label=None):
     prev_example_str = "Here is the previous agent you tried:\n" + json.dumps(prev_example) + "\n\n"
     r1 = (Reflexion_prompt_1.replace("[EXAMPLE]", prev_example_str)
           if prev_example else Reflexion_prompt_1.replace("[EXAMPLE]", ""))
-    # Generate rules using the provided api_label directly (or an empty string if not provided)
+    
+    # Generate rules
     rules = RULES(api_label if api_label is not None else "")
     r1 = r1.replace("[RULES]", rules)
     
