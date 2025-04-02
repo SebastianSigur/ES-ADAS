@@ -792,7 +792,7 @@ def search(args):
         else:
             # Uniform sampling of mutation direction
             possible_structure_labels = list(set([cell.split(',')[0] for cell in map_elites.keys()]))
-            possible_api_bins = list(range(args.bins_dim2))  # 0 to bins_dim2-1
+            possible_api_bins = list(range(2))
             target_structure_label = random.choice(possible_structure_labels)
             target_api_bin = random.choice(possible_api_bins)
             api_calls_mapping = {0: "few API calls", 1: "many API calls"}
@@ -1055,8 +1055,6 @@ def evaluate_forward_fn(args, forward_str):
                 predicted_idx = 3
             else:
                 print(f"error in q {q_idx}: {res}, {task_queue}, {results}")
-                import sys
-                sys.exit(1)
                 acc_list.append(0)
                 continue
         except Exception as e:
@@ -1095,7 +1093,7 @@ if __name__ == "__main__":
     
     # Arguments for multiple runs to test variance
     parser.add_argument('--num_runs', type=int, default=3, help="Number of runs to execute (default: 3)")
-    parser.add_argument('--base_seeds', nargs='+', type=int, default=[42, 45, 47], help="List of seeds for each run. Length must match num_runs")
+    parser.add_argument('--base_seeds', nargs='+', type=int, default=[42,45,47], help="List of seeds for each run. Length must match num_runs")
 
     args = parser.parse_args()
 

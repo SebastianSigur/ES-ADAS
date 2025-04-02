@@ -709,7 +709,7 @@ Below are the discovered architectures:
  
 [MAP_ELITES]"""
         prompt = prompt.replace("[PAST_AGENTS]", template_str)
-        prompt = prompt.replace("[MAP_ELITES]", json.dumps(map_str))
+        prompt = prompt.replace("[MAP_ELITES]", map_str)
     
     elif past_agent_parameter == "Archive":
         template_str = """# Discovered Architectures 
@@ -717,7 +717,7 @@ Below are the discovered architectures:
  
 [ARCHIVE]"""
         prompt = prompt.replace("[PAST_AGENTS]", template_str)
-        prompt = prompt.replace("[ARCHIVE]", json.dumps(archive_str))
+        prompt = prompt.replace("[ARCHIVE]", archive_str)
     
     else:
         template_str = """# Selected Agent

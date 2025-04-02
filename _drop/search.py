@@ -627,6 +627,8 @@ def validate_agent(agent: dict) -> bool:
 
 
 def search(args):
+
+    ## Initializes and loads archive (uses save_dir & expr_name as locations to load and save archive)
     file_path = os.path.join(args.save_dir, f"{args.expr_name}_run_archive.json")
     if os.path.exists(file_path):
         with open(file_path, 'r') as json_file:
@@ -646,6 +648,8 @@ def search(args):
         solution["structure_label"] = get_structure_label(solution)
     #------------------------------------------------------------------------------------------------------#
 
+    ## Loops over every solution in the archive and ensures that they have a fitness score
+    ## Note: Computes fitness using evaluate_forward_fn() and bootstrap_confidence_interval()
     for solution in archive:
         if 'fitness' in solution:
             continue
@@ -665,15 +669,16 @@ def search(args):
         # save results
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         with open(file_path, 'w') as json_file:
-            json.dump(archive, json_file, indent=4)
+            json.dump(archive, json_file, indent=4)        
 
     # ------------------------------------------------------------
     # Compute initial map of elites
     map_elites = create_map_elites_structure_api(archive)
     # ------------------------------------------------------------
-
-    for n in range(start, args.n_generation):
     
+    ## Generates n new solutions (n_generation parameter)
+    for n in range(start, args.n_generation):
+
         # ------------------------------------------------------------
 
         # Sampling of the selected agent (i.e., agent to mutate/inspiration agent)
@@ -788,7 +793,7 @@ def search(args):
         else:
             # Uniform sampling of mutation direction
             possible_structure_labels = list(set([cell.split(',')[0] for cell in map_elites.keys()]))
-            possible_api_bins = list(range(args.bins_dim2))  # 0 to bins_dim2-1
+            possible_api_bins = list(range(2))
             target_structure_label = random.choice(possible_structure_labels)
             target_api_bin = random.choice(possible_api_bins)
             api_calls_mapping = {0: "few API calls", 1: "many API calls"}
@@ -796,13 +801,13 @@ def search(args):
 
         # # ------------------------------------------------
 
-
+        ## Generation of new agents
         print(f"============Generation {n + 1}=================")
 
-       # Print statements for tracking of generations
+        # Print statements for tracking of generations
         print(f"Parent Cell: {parent_cell} (Structure: {parent_structure_label}, API: {parent_api_bin})")
         print(f"Mutation Target: Structure {target_structure_label}, API {target_api_label}")  
-
+        
         if selected_agent is None or selected_agent == "Take inspiration from an agent with similar architecture in the archive":
             print(f"Selected Agent: {selected_agent}")
         else:
@@ -814,6 +819,7 @@ def search(args):
             {"role": "user", "content": prompt},
         ]
         try:
+
             next_solution = get_json_response_from_gpt_reflect(msg_list)
 
             Reflexion_prompt_1, Reflexion_prompt_2 = get_reflexion_prompt(archive[-1] if n > 0 else None, target_structure_label, target_api_label)
@@ -830,7 +836,8 @@ def search(args):
             print(e)
             n -= 1
             continue
-
+        
+        ## Re-evaluation of new solution (debug_max number of re-evaluations)
         acc_list = []
         for _ in range(args.debug_max):
             try:
@@ -853,10 +860,13 @@ def search(args):
         if not acc_list:
             n -= 1
             continue
-
+        
+        ## Fitness computation & adding to archive (if evaluation is passed, fitness score is computed) 
         fitness_str = bootstrap_confidence_interval(acc_list)
         next_solution['fitness'] = fitness_str
         next_solution['generation'] = n + 1
+
+
 
         # ------------------------------------------------------------
         ## Determine API count and structure label
@@ -872,8 +882,7 @@ def search(args):
             del next_solution['debug_thought']
         if 'reflection' in next_solution:
             del next_solution['reflection']
-        archive.append(next_solution)
-
+        
         # Validation if agent complete
         if not validate_agent(next_solution):
             print(f"Skipping invalid agent from generation {n+1}")
@@ -1039,7 +1048,7 @@ if __name__ == "__main__":
     parser.add_argument('--debug', action='store_true', default=True)
     parser.add_argument('--save_dir', type=str, default='results/')
     parser.add_argument('--expr_name', type=str, default="drop_gpt3.5_results")
-    parser.add_argument('--n_generation', type=int, default=30)
+    parser.add_argument('--n_generation', type=int, default=50)
     parser.add_argument('--debug_max', type=int, default=3)
     parser.add_argument('--max_agents', type=int, default=5)
 
@@ -1050,8 +1059,8 @@ if __name__ == "__main__":
 
     
     # Arguments for multiple runs to test variance
-    parser.add_argument('--num_runs', type=int, default=3, help="Number of runs to execute (default: 3)")
-    parser.add_argument('--base_seeds', nargs='+', type=int, default=[42, 45, 47], help="List of seeds for each run. Length must match num_runs")
+    parser.add_argument('--num_runs', type=int, default=1, help="Number of runs to execute (default: 3)")
+    parser.add_argument('--base_seeds', nargs='+', type=int, default=[47], help="List of seeds for each run. Length must match num_runs")
 
     args = parser.parse_args()
 

@@ -785,7 +785,7 @@ def search(args):
         else:
             # Uniform sampling of mutation direction
             possible_structure_labels = list(set([cell.split(',')[0] for cell in map_elites.keys()]))
-            possible_api_bins = list(range(args.bins_dim2))  # 0 to bins_dim2-1
+            possible_api_bins = list(range(2))
             target_structure_label = random.choice(possible_structure_labels)
             target_api_bin = random.choice(possible_api_bins)
             api_calls_mapping = {0: "few API calls", 1: "many API calls"}
