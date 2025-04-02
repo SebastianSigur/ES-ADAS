@@ -3,6 +3,7 @@ import copy
 import json
 import os
 import random
+import re
 from collections import namedtuple
 from concurrent.futures import ThreadPoolExecutor
 
@@ -11,10 +12,13 @@ import numpy as np
 import openai
 import pandas
 from tqdm import tqdm
+from google import genai
+from google.genai import types
 
 from mmlu_prompt import get_init_archive, get_prompt, get_reflexion_prompt
 
-client = openai.OpenAI()
+openai_client = openai.OpenAI()
+gemini_client = genai.Client(api_key=os.getenv('GOOGLE_AI_API_KEY'))
 
 from utils import format_multichoice_question, random_id, bootstrap_confidence_interval
 
@@ -31,21 +35,43 @@ SEARCHING_MODE = True
 @backoff.on_exception(backoff.expo, openai.RateLimitError)
 def get_json_response_from_gpt(
         msg,
-        model,
         system_message,
         temperature=0.5
 ):
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": system_message},
-            {"role": "user", "content": msg},
-        ],
-        temperature=temperature, max_tokens=4096, stop=None, response_format={"type": "json_object"}
-    )
-    content = response.choices[0].message.content
+    messages = [
+        {"role": "system", "content": system_message},
+        {"role": "user", "content": msg},
+    ]
+    
+    combined_prompt = ""
+
+    for msg in messages:
+        role = msg["role"]
+        content = msg["content"]
+        if role == "system":
+            combined_prompt += f"System: {content}\n\n"
+        elif role == "user":
+            combined_prompt += f"User: {content}\n\n"
+        elif role == "assistant":
+            combined_prompt += f"Assistant: {content}\n\n"
+    try:
+        response = gemini_client.models.generate_content(
+            model='gemini-1.5-flash-8b',
+            contents=combined_prompt,
+            config=types.GenerateContentConfig(
+                temperature=temperature,
+                max_output_tokens=1024,
+                stop_sequences=None,
+                response_mime_type='application/json'
+                
+            )
+        )
+    except Exception as e:
+        print(e)
+        raise e
+    
+    content = response.text
     json_dict = json.loads(content)
-    # cost = response.usage.completion_tokens / 1000000 * 15 + response.usage.prompt_tokens / 1000000 * 5
     assert not json_dict is None
     return json_dict
 
@@ -53,11 +79,11 @@ def get_json_response_from_gpt(
 @backoff.on_exception(backoff.expo, openai.RateLimitError)
 def get_json_response_from_gpt_reflect(
         msg_list,
-        model,
         temperature=0.8
 ):
-    response = client.chat.completions.create(
-        model=model,
+    print('Calling GPT-4o')
+    response = openai.chat.completions.create(
+        model='gpt-4o-mini-2024-07-18',
         messages=msg_list,
         temperature=temperature, max_tokens=4096, stop=None, response_format={"type": "json_object"}
     )
@@ -73,12 +99,11 @@ class LLMAgentBase():
     """
 
     def __init__(self, output_fields: list, agent_name: str,
-                 role='helpful assistant', model='gpt-3.5-turbo-0125', temperature=0.5) -> None:
+                 role='helpful assistant', temperature=0.5) -> None:
         self.output_fields = output_fields
         self.agent_name = agent_name
 
         self.role = role
-        self.model = model
         self.temperature = temperature
 
         # give each instance a unique id
@@ -112,7 +137,7 @@ class LLMAgentBase():
         system_prompt, prompt = self.generate_prompt(input_infos, instruction)
         try:
             response_json = {}
-            response_json = get_json_response_from_gpt(prompt, self.model, system_prompt, self.temperature)
+            response_json = get_json_response_from_gpt(prompt, system_prompt, self.temperature)
             assert len(response_json) == len(self.output_fields), "not returning enough fields"
         except Exception as e:
             # print(e)
@@ -155,9 +180,10 @@ def search(args):
     else:
         archive = get_init_archive()
         start = 0
-
+    achive_fitnesses = []
     for solution in archive:
         if 'fitness' in solution:
+            achive_fitnesses.append(get_upper_bound(solution['fitness']))
             continue
 
         solution['generation'] = "initial"
@@ -168,9 +194,9 @@ def search(args):
             print("During evaluating initial archive:")
             print(e)
             continue
-
         fitness_str = bootstrap_confidence_interval(acc_list)
         solution['fitness'] = fitness_str
+        achive_fitnesses.append(get_upper_bound(fitness_str))
 
         # save results
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
@@ -185,17 +211,17 @@ def search(args):
             {"role": "user", "content": prompt},
         ]
         try:
-            next_solution = get_json_response_from_gpt_reflect(msg_list, args.model)
+            next_solution = get_json_response_from_gpt_reflect(msg_list)
 
             Reflexion_prompt_1, Reflexion_prompt_2 = get_reflexion_prompt(archive[-1] if n > 0 else None)
             # Reflexion 1
             msg_list.append({"role": "assistant", "content": str(next_solution)})
             msg_list.append({"role": "user", "content": Reflexion_prompt_1})
-            next_solution = get_json_response_from_gpt_reflect(msg_list, args.model)
+            next_solution = get_json_response_from_gpt_reflect(msg_list)
             # Reflexion 2
             msg_list.append({"role": "assistant", "content": str(next_solution)})
             msg_list.append({"role": "user", "content": Reflexion_prompt_2})
-            next_solution = get_json_response_from_gpt_reflect(msg_list, args.model)
+            next_solution = get_json_response_from_gpt_reflect(msg_list)
         except Exception as e:
             print("During LLM generate new solution:")
             print(e)
@@ -215,7 +241,7 @@ def search(args):
                 msg_list.append({"role": "assistant", "content": str(next_solution)})
                 msg_list.append({"role": "user", "content": f"Error during evaluation:\n{e}\nCarefully consider where you went wrong in your latest implementation. Using insights from previous attempts, try to debug the current code to implement the same thought. Repeat your previous thought in 'thought', and put your thinking for debugging in 'debug_thought'"})
                 try:
-                    next_solution = get_json_response_from_gpt_reflect(msg_list, args.model)
+                    next_solution = get_json_response_from_gpt_reflect(msg_list)
                 except Exception as e:
                     print("During LLM generate new solution:")
                     print(e)
@@ -224,8 +250,13 @@ def search(args):
         if not acc_list:
             n -= 1
             continue
-
+        
         fitness_str = bootstrap_confidence_interval(acc_list)
+        if get_upper_bound(fitness_str) < min(achive_fitnesses):
+            print(f"Skipping agent because it has a lower fitness than the minimum fitness in the archive")
+            n -= 1
+            continue
+        
         next_solution['fitness'] = fitness_str
         next_solution['generation'] = n + 1
 
@@ -240,6 +271,22 @@ def search(args):
         with open(file_path, 'w') as json_file:
             json.dump(archive, json_file, indent=4)
 
+def print_list_dict(list_dict):
+    new_list_dict = []
+    for d in list_dict:
+        d['thought'] = 'thought'
+        d['code'] = 'code'
+        new_list_dict.append(d)
+    print(new_list_dict)
+    
+    
+def get_upper_bound(upper_bound_string):
+    match = re.search(r'\(([\d.]+)%,\s*([\d.]+)%\)', upper_bound_string)
+    if match:
+        return float(match.group(2))
+    else:
+        return 0.0
+    
 
 def evaluate(args):
     file_path = os.path.join(args.save_dir, f"{args.expr_name}_run_archive.json")
@@ -251,14 +298,34 @@ def evaluate(args):
         with open(eval_file_path, 'r') as json_file:
             eval_archive = json.load(json_file)
 
+   
     current_idx = 0
     while (current_idx < len(archive)):
         with open(file_path, 'r') as json_file:
             archive = json.load(json_file)
+        sorted_archive = sorted(archive, key=lambda x: get_upper_bound(x['fitness']), reverse=True)
+        
+        count = 0
+        max_agents = args.max_agents
+        evaluation_candidates = [] # only choosing top agents to evaluate
+        for archived_agent in archive:
+            if archived_agent['generation'] == "initial":
+                evaluation_candidates.append(archived_agent)
+        for archived_agent in sorted_archive:
+            if archived_agent['generation'] == "initial":
+                continue
+            if count >= max_agents:
+                break
+            evaluation_candidates.append(archived_agent)
+            count += 1
+
         if current_idx < len(eval_archive):
             current_idx += 1
             continue
-        sol = archive[current_idx]
+        
+        if current_idx >= len(evaluation_candidates):
+            break
+        sol = evaluation_candidates[current_idx]
         print(f"current_gen: {sol['generation']}, current_idx: {current_idx}")
         current_idx += 1
         try:
@@ -317,7 +384,6 @@ def evaluate_forward_fn(args, forward_str):
     acc_list = []
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         results = list(tqdm(executor.map(agentSystem.forward, task_queue), total=len(task_queue)))
-
     for q_idx, res in enumerate(results):
         try:
             if isinstance(res, str) and res in LETTER_TO_INDEX:
@@ -344,7 +410,7 @@ def evaluate_forward_fn(args, forward_str):
             elif 'D)' in res.content:
                 predicted_idx = 3
             else:
-                print(f"error in q {q_idx}")
+                print(f"error in q {q_idx}: {res}")
                 acc_list.append(0)
                 continue
         except Exception as e:
@@ -372,12 +438,10 @@ if __name__ == "__main__":
     parser.add_argument('--save_dir', type=str, default='results/')
     parser.add_argument('--expr_name', type=str, default="mmlu_gpt3.5_results")
     parser.add_argument('--n_generation', type=int, default=30)
-    parser.add_argument('--debug_max', type=int, default=3)
-    parser.add_argument('--model',
-                        type=str,
-                        default='gpt-4o-2024-05-13',
-                        choices=['gpt-4-turbo-2024-04-09', 'gpt-3.5-turbo-0125', 'gpt-4o-2024-05-13'])
+    parser.add_argument('--debug_max', type=int, default=1)
+    parser.add_argument('--max_agents', type=int, default=5)
 
+    print('no bad agent')
     args = parser.parse_args()
     # search
     SEARCHING_MODE = True

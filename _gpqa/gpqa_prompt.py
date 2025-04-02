@@ -268,13 +268,12 @@ FORMAT_INST = lambda request_keys: f"Reply EXACTLY with the following JSON forma
 ROLE_DESC = lambda role: f"You are a {role}."
 
 @backoff.on_exception(backoff.expo, openai.RateLimitError)
-def get_json_response_from_gpt(msg, model, system_message, temperature=0.5):
+def get_json_response_from_gpt(msg, system_message, temperature=0.5):
     \"""
     Function to get JSON response from GPT model.
     
     Args:
     - msg (str): The user message.
-    - model (str): The model to use.
     - system_message (str): The system message.
     - temperature (float): Sampling temperature.
     
@@ -282,7 +281,6 @@ def get_json_response_from_gpt(msg, model, system_message, temperature=0.5):
     - dict: The JSON response.
     \"""
     response = client.chat.completions.create(
-        model=model,
         messages=[
             {"role": "system", "content": system_message},
             {"role": "user", "content": msg},
@@ -304,16 +302,14 @@ class LLMAgentBase:
     - output_fields (list): Fields expected in the output.
     - agent_name (str): Name of the agent.
     - role (str): Role description for the agent.
-    - model (str): Model to be used. (option. Keep it default.)
     - temperature (float): Sampling temperature.
     - id (str): Unique identifier for the agent instance.
     \"""
 
-    def __init__(self, output_fields: list, agent_name: str, role='helpful assistant', model='gpt-3.5-turbo-0125', temperature=0.5) -> None:
+    def __init__(self, output_fields: list, agent_name: str, role='helpful assistant', temperature=0.5) -> None:
         self.output_fields = output_fields
         self.agent_name = agent_name
         self.role = role
-        self.model = model
         self.temperature = temperature
         self.id = random_id()
     
@@ -386,7 +382,7 @@ class LLMAgentBase:
         - output_infos (list[Info]): Output information.
         \"""
         system_prompt, prompt = self.generate_prompt(input_infos, instruction)
-        response_json = get_json_response_from_gpt(prompt, self.model, system_prompt, self.temperature)
+        response_json = get_json_response_from_gpt(prompt, system_prompt, self.temperature)
 
         output_infos = []
         for key, value in response_json.items():

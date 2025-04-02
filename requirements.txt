@@ -5,3 +5,5 @@ openai
 backoff
 scipy
 blobfile
+google-genai
+matplotlib

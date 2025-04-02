@@ -255,32 +255,42 @@ def ROLE_DESC(role):
 CODE_INST = \"""You should write a function called `transform` which takes a single argument, the input grid as `list[list[int]]`, and returns the transformed grid (also as `list[list[int]]`). You should ensure that you implement a version of the transformation that works for both example and test inputs.\"""
 
 @backoff.on_exception(backoff.expo, openai.RateLimitError)
-def get_json_response_from_gpt(msg, model, system_message, temperature=0.5):
-    \"""
-    Function to get JSON response from GPT model.
+def get_json_response_from_gpt(
+        msg,
+        system_message,
+        temperature=0.5
+):
+    messages = [
+        {"role": "system", "content": system_message},
+        {"role": "user", "content": msg},
+    ]
+    
+    combined_prompt = ""
 
-    Args:
-    - msg (str): The user message.
-    - model (str): The model to use.
-    - system_message (str): The system message.
-    - temperature (float): Sampling temperature.
+    for msg in messages:
+        role = msg["role"]
+        content = msg["content"]
+        if role == "system":
+            combined_prompt += f"System: {content}\n\n"
+        elif role == "user":
+            combined_prompt += f"User: {content}\n\n"
+        elif role == "assistant":
+            combined_prompt += f"Assistant: {content}\n\n"
 
-    Returns:
-    - dict: The JSON response.
-    \"""
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": system_message},
-            {"role": "user", "content": msg},
-        ],
-        temperature=temperature,
-        max_tokens=1024,
-        stop=None,
-        response_format={"type": "json_object"}
+    response = gemini_client.models.generate_content(
+        model='gemini-1.5-flash-8b',
+        contents=combined_prompt,
+        config=types.GenerateContentConfig(
+            temperature=temperature,
+            max_output_tokens=1024,
+            stop_sequences=None,
+            response_mime_type='application/json'
+            
+        )
     )
-    content = response.choices[0].message['content']
+    content = response.text
     json_dict = json.loads(content)
+    assert not json_dict is None
     return json_dict
 
 class LLMAgentBase:
@@ -291,16 +301,14 @@ class LLMAgentBase:
     - output_fields (list): Fields expected in the output.
     - agent_name (str): Name of the agent.
     - role (str): Role description for the agent.
-    - model (str): Model to be used.
     - temperature (float): Sampling temperature.
     - id (str): Unique identifier for the agent instance.
     \"""
 
-    def __init__(self, output_fields: list, agent_name: str, role='helpful assistant', model='gpt-3.5-turbo-0125', temperature=0.5) -> None:
+    def __init__(self, output_fields: list, agent_name: str, role='helpful assistant', temperature=0.5) -> None:
         self.output_fields = output_fields
         self.agent_name = agent_name
         self.role = role
-        self.model = model
         self.temperature = temperature
         self.id = random_id()
     
@@ -380,7 +388,7 @@ class LLMAgentBase:
         - output_infos (list[Info]): Output information.
         \"""
         system_prompt, prompt = self.generate_prompt(input_infos, instruction)
-        response_json = get_json_response_from_gpt(prompt, self.model, system_prompt, self.temperature)
+        response_json = get_json_response_from_gpt(prompt, system_prompt, self.temperature)
 
         output_infos = []
         for key, value in response_json.items():
