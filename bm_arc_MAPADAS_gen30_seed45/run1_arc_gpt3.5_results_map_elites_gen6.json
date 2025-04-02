@@ -1,0 +1,46 @@
+{
+    "Linear Chain-of-Thought,0": {
+        "thought": "**Insights:**\nTo refine the architecture further, I propose utilizing a single agent to generate diverse outputs through a varied instruction format without using multiple agents. This will maintain a linear structure and adhere to the API call restrictions while still encouraging diverse reasoning.\n\n**Overall Idea:**\nThe new design will utilize a single `LLMAgentBase` instance, allowing it to generate multiple reasoning outputs in one execution context, making it more efficient. By adjusting the temperature and varying the instruction sets within the single call, the architecture can explore diverse reasoning while maintaining a clean structure.\n\n**Implementation:**\n1. Utilize a single instance of `LLMAgentBase` to generate a wider array of responses by combining multiple instruction prompts into one query.\n2. Collect the output and directly determine the best response based on inherent evaluation without additional processing functions.\n3. Ensure that the design is simple and avoids unnecessary complexity while still producing diverse outputs.",
+        "name": "Single Agent Diverse Reasoning",
+        "code": "def forward(self, taskInfo):\n    # Instruction for generating diverse reasoning outputs in a single call\n    instructions = [\n        \"Please analyze the grid pattern comprehensively.\",\n        \"Focus on the symmetry and colors in the grid.\"\n    ]\n    combined_instruction = ' '.join(instructions)\n    \n    # Single agent with higher temperature for varied reasoning\n    agent = LLMAgentBase(['thinking', 'code'], 'Diverse Reasoning Agent', temperature=0.7)\n    \n    # Generate a rich output in one execution\n    thinking, code = agent([taskInfo], combined_instruction)  # 1 API call\n    \n    # Directly evaluate the generated output to determine the best one\n    # For this example, we can assume there's a way to validate or choose the best output based on conditions\n    answer = self.get_test_output_from_code(code)  # Execute the generated code on the test input\n    return answer",
+        "fitness": "95% Bootstrap Confidence Interval: (3.0%, 14.0%), Median: 8.0%",
+        "generation": 5,
+        "api_calls": 1,
+        "structure_label": "Linear Chain-of-Thought"
+    },
+    "Linear Chain-of-Thought,1": null,
+    "Iterative Refinement,0": {
+        "thought": "To enhance its performance, an LLM can iteratively improve its answer based on feedback. After each answer, testing on the examples to provide feedback, and the LLM uses insights from previous attempts and feedback to refine its answer. It is very good practice to use `self.run_examples_and_get_feedback` to get feedback. One should consider trying to use this feedback in future agent design.",
+        "name": "Self-Refine (Reflexion)",
+        "code": "def forward(self, taskInfo):\n    # Instruction for initial reasoning and code generation\n    cot_initial_instruction = \"Please think step by step and then solve the task by writing the code.\"\n    \n    # Instruction for reflecting on previous attempts and feedback to improve\n    cot_reflect_instruction = \"Given previous attempts and feedback, carefully consider where you went wrong in your latest attempt. Using insights from previous attempts, try to solve the task better.\"\n    \n    # Instantiate a Chain-of-Thought (CoT) agent\n    cot_agent = LLMAgentBase(['thinking', 'code'], 'Chain-of-Thought Agent')\n    \n    N_max = 3  # Maximum number of attempts\n    \n    # Initial attempt\n    thinking, code = cot_agent([taskInfo], cot_initial_instruction, 0)\n    \n    # Iteratively refine the answer based on feedback\n    for i in range(N_max):\n        # Get feedback by testing the code on examples\n        feedback, correct_examples, wrong_examples = self.run_examples_and_get_feedback(code)  \n        \n        # Add feedback to the inputs for the next iteration\n        attempt = [thinking, code, feedback]\n\n        # Reflect on previous attempts and refine the answer\n        # Only consider the latest attempts to control context length. You can try to increase the N_max.\n        # The input to LLMAgentBase should be a list of Info.\n        thinking, code = cot_agent([taskInfo] + attempt, cot_reflect_instruction, i + 1)  \n\n    # Get the final answer after refinement\n    answer = self.get_test_output_from_code(code)\n    return answer\n    ",
+        "api_calls": 4,
+        "structure_label": "Iterative Refinement",
+        "generation": "initial",
+        "fitness": "95% Bootstrap Confidence Interval: (2.0%, 12.0%), Median: 7.0%"
+    },
+    "Iterative Refinement,1": null,
+    "Tree-of-Thought,0": null,
+    "Tree-of-Thought,1": null,
+    "Decompositional Reasoning,0": null,
+    "Decompositional Reasoning,1": null,
+    "Multi-Agent Reasoning,0": {
+        "thought": "**Insights:**\nTo enhance the proposed architecture, I suggest adopting a multi-agent approach that enables branching reasoning paths based on provided examples. This design will explore various transformations and allow for a more robust aggregation of outputs, increasing the likelihood of achieving higher performance. \n\n**Overall Idea:**\nThe new design intends to utilize multiple instances of `LLMAgentBase`, each tasked with generating outputs based on their unique instruction sets. This will facilitate diverse reasoning and provide a variety of solutions from which to select the best.\n\n**Implementation:**\n1. Instantiate multiple `LLMAgentBase` agents to generate diverse outputs from different reasoning paths.\n2. Collect the outputs from each agent and evaluate them against the examples for validation.\n3. Aggregate the best outputs based on their performance and utilize this aggregation to produce the final answer.",
+        "name": "Multi-Agent Reasoning with Output Aggregation",
+        "code": "def forward(self, taskInfo):\n    # Instruction for generating diverse reasoning outputs\n    instructions = [\n        \"Analyze the grid transformation comprehensively.\",\n        \"Consider symmetry and color distribution.\"\n    ]\n    combined_instruction = ' '.join(instructions)\n    \n    # Use a single agent with higher temperature for varied reasoning\n    agent = LLMAgentBase(['thinking', 'code'], 'Diverse Reasoning Agent', temperature=0.7)\n    \n    # Generate a rich output in one execution\n    thinking, code = agent([taskInfo], combined_instruction)  # 1 API call\n    \n    # Validate output against examples and gather feedback\n    feedback, correct_examples, wrong_examples = self.run_examples_and_get_feedback(code)\n    \n    # Select final decision based on feedback, focusing on correct outputs\n    if len(correct_examples) > 0:\n        answer = self.get_test_output_from_code(code)  # Execute final code on the test input\n    else:\n        answer = None  # Handle the case where no correct output is found\n    \n    return answer",
+        "fitness": "95% Bootstrap Confidence Interval: (2.0%, 12.0%), Median: 7.0%",
+        "generation": 6,
+        "api_calls": 1,
+        "structure_label": "Multi-Agent Reasoning"
+    },
+    "Multi-Agent Reasoning,1": {
+        "thought": "While an LLM can arrive at the correct answer, its reasoning may vary. By repeatedly asking the same question with high temperature settings, we can generate different reasoning paths. We then combine multiple answers from these Chain-of-Thought (CoT) agents to produce a more accurate final answer through ensembling. Note that we need to collect only the ones that pass the examples, preventing the context length from becoming too long.",
+        "name": "Self-Consistency with Chain-of-Thought",
+        "code": "def forward(self, taskInfo):\n    # Instruction for step-by-step reasoning and code generation\n    cot_instruction = \"Please think step by step and then solve the task by writing the code.\"\n    N = 5  # Number of CoT agents\n    \n    # Initialize multiple CoT agents with a higher temperature for varied reasoning\n    cot_agents = [LLMAgentBase(['thinking', 'code'], 'Chain-of-Thought Agent', temperature=0.7) for _ in range(N)]\n\n    # Instruction for final decision-making based on collected reasoning and answers\n    final_decision_instruction = \"Given all the above solutions, reason over them carefully and provide a final answer by writing the code.\"\n    final_decision_agent = LLMAgentBase(['thinking', 'code'], 'Final Decision Agent', temperature=0.1)\n    \n    possible_answers = []\n    \n    # Collect reasoning and answers from each CoT agent\n    for i in range(N):\n        thinking, code = cot_agents[i]([taskInfo], cot_instruction)\n        possible_answers.extend([thinking, code])\n    \n    # Make a final decision based on all collected reasoning and answers\n    thinking, code = final_decision_agent([taskInfo] + possible_answers, final_decision_instruction)\n    answer = self.get_test_output_from_code(code)\n    \n    return answer\n    ",
+        "api_calls": 11,
+        "structure_label": "Multi-Agent Reasoning",
+        "generation": "initial",
+        "fitness": "95% Bootstrap Confidence Interval: (5.0%, 17.0%), Median: 11.0%"
+    },
+    "Abstraction to Principles Reasoning,0": null,
+    "Abstraction to Principles Reasoning,1": null
+}

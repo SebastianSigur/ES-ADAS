@@ -405,11 +405,7 @@ class AgentArchitecture:
         \"""
         pass
 ```
-# Selected Agent
- 
-Below is the architecture of the selected agent:
- 
-[SELECTED_AGENT]
+[PAST_AGENTS]
 
 # Agent's fitness value
 
@@ -674,7 +670,7 @@ Put your new reflection thinking in "reflection". Repeat the previous "thought" 
 RULES = lambda api_threshold: (
     "RULE: In the forward() function, every single occurrence of LLMAgentBase(...)(...) counts as one usage. "
     "This means that if you call an LLMAgentBase instance more than once—even if it's the same instance—each call is counted separately. "
-    f"The total number of such calls must be lower thannot exceed {api_threshold}. "
+    f"The total number of such calls must not exceed {api_threshold}. "
     "This includes calls made inside loops, conditionals, or any nested structures. "
     "No exceptions: every call is counted individually. "
     "Strict adherence to this rule is mandatory."
@@ -685,7 +681,7 @@ def get_init_archive():
     return [COT, COT_SC, Reflexion, LLM_debate, Take_a_step_back, QD, Role_Assignment]
 
 
-def get_prompt(current_archive, current_map, top3_agents, selected_agent=None, structure_label=None, api_label=None, adaptive=False):
+def get_prompt(current_archive, past_agent_parameter, selected_agent=None, structure_label=None, api_label=None, adaptive=False):
     # Convert the archive to a JSON string
     archive_str = ",\n".join([json.dumps(sol) for sol in current_archive])
     archive_str = f"[{archive_str}]"
@@ -694,16 +690,34 @@ def get_prompt(current_archive, current_map, top3_agents, selected_agent=None, s
     map_str = ",\n".join([json.dumps(sol) for sol in current_map])
     map_str = f"[{map_str}]"
 
-    # Replace [ARCHIVE] and [EXAMPLE] as before
-    # prompt = base.replace("[ARCHIVE]", archive_str)
-    # prompt = prompt.replace("[EXAMPLE]", json.dumps(EXAMPLE))
+    # Replace [EXAMPLE]
     prompt = base.replace("[EXAMPLE]", json.dumps(EXAMPLE))
-    #prompt = prompt.replace("[MAP_ELITES]",json.dumps(map_str))
 
-    # # Format the top 3 agents as a JSON list (without their keys)
-    # top3_str = "[\n" + ",\n".join([json.dumps(agent, indent=2) for agent in top3_agents]) + "\n]"
-    # prompt = prompt.replace("[TOP_3_AGENTS_FROM_MAP]", top3_str)
+    # Include past agents based on past_agent_parameter
+    if past_agent_parameter == "MAP":
+        template_str = """# Discovered Architectures 
+Below are the discovered architectures:
+ 
+[MAP_ELITES]"""
+        prompt = prompt.replace("[PAST_AGENTS]", template_str)
+        prompt = prompt.replace("[MAP_ELITES]", json.dumps(map_str))
+    
+    elif past_agent_parameter == "Archive":
+        template_str = """# Discovered Architectures 
+Below are the discovered architectures:
+ 
+[ARCHIVE]"""
+        prompt = prompt.replace("[PAST_AGENTS]", template_str)
+        prompt = prompt.replace("[ARCHIVE]", json.dumps(archive_str))
+    
+    else:
+        template_str = """# Selected Agent
+Below is the architecture of the selected agent:
+ 
+[SELECTED_AGENT]"""
+        prompt = prompt.replace("[PAST_AGENTS]", template_str)
 
+    # Rest of the function remains unchanged
     # Use the api_label (if provided) to generate rules.
     rules = RULES(api_label if api_label is not None else "few API calls")
     prompt = prompt.replace("[RULES]", rules)

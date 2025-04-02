@@ -167,11 +167,7 @@ class AgentSystem():
 
 #-------------------------------------------------------------------------------------------------------#
 def create_map_elites_structure_api(
-    archive,
-    candidate_labels=None,
-    bins_api=2,
-    min_api=None,
-    max_api=None
+    archive
 ):
     """
     Creates a map elites grid from the candidate archive based on two dimensions:
@@ -182,16 +178,15 @@ def create_map_elites_structure_api(
         archive (list): List of candidate dictionaries.
         candidate_labels (list, optional): List of allowed structure labels. If None, they are derived from the archive.
         bins_api (int): Number of bins for the API calls dimension (now set to 2).
-        min_api (int, optional): Minimum API calls value. If None, computed from the archive.
-        max_api (int, optional): Maximum API calls value. If None, computed from the archive.
 
     Returns:
         dict: A dictionary mapping cell keys (as strings, e.g. "Chain-of-Thought,0")
               to the best candidate (elite) in that cell (the one with the highest fitness).
     """
+    # Set number of API call bins
+    bins_api = 2
     # Derive candidate labels from the archive if not provided.
-    if candidate_labels is None:
-        candidate_labels = [
+    candidate_labels = [
             "Linear Chain-of-Thought",
             "Iterative Refinement",
             "Tree-of-Thought",
@@ -204,10 +199,6 @@ def create_map_elites_structure_api(
     api_calls_values = [sol['api_calls'] for sol in archive if 'api_calls' in sol]
     if not api_calls_values:
         return {}
-    if min_api is None:
-        min_api = min(api_calls_values)
-    if max_api is None:
-        max_api = max(api_calls_values)
     
     # Initialize grid with keys as "structure_label,api_bin"
     grid = {f"{label},{i}": None for label in candidate_labels for i in range(bins_api)}
@@ -512,7 +503,7 @@ def recheck_label_with_gemini(agent_name, agent_thought, agent_code, candidate_l
         "   Structural Analysis:\n"
         "   - Abstraction Markers: Explicit principle identification in instruction\n"
         "   - Control Flow: Single call with integrated phases\n"
-            "   - Key Pattern: Abstraction guides solution in one step\n"
+        "   - Key Pattern: Abstraction guides solution in one step\n"
         "   Rationale: Combined process still emphasizes principle-guided solving as core paradigm.\n"
         "   Correct Label: Abstraction to Principles Reasoning\n\n"  
         "6. Output Format: Output only the final label prediction (which must exactly match one of the provided candidate labels) with no additional explanation or text."        
@@ -546,9 +537,7 @@ def recheck_label_with_gemini(agent_name, agent_thought, agent_code, candidate_l
 
 def get_structure_label(solution):
     """
-    Determines the structure label for a candidate solution based on its 'thought' field.
-    Uses a zero-shot classification pipeline with a set of candidate labels.
-    If the classifier confidence is low (≤ 0.9), it rechecks using Gemini via recheck_label_with_gemini().
+    Uses Gemini via recheck_label_with_gemini().
     
     Returns:
         A string representing the structure label.
@@ -563,13 +552,6 @@ def get_structure_label(solution):
         "Abstraction to Principles Reasoning"
     ]
     
-    # Initialize the zero-shot classification pipeline.
-    # This uses the MoritzLaurer/mDeBERTa-v3-base-mnli-xnli model.
-    from transformers import pipeline
-    classifier = pipeline(
-        "zero-shot-classification", 
-        model="MoritzLaurer/mDeBERTa-v3-base-mnli-xnli")
-    
     thought_text = solution.get("thought", "")
     if not thought_text:
         return None
@@ -577,20 +559,11 @@ def get_structure_label(solution):
     code_text = solution.get("code", "")
     if not code_text:
         return None
-    
-    # Get the classification result.
-    output = classifier(thought_text, candidate_labels, multi_label=False)
-    predicted_label = output['labels'][0]
-    score = output['scores'][0]
-    
-    # If the confidence is low (≤ 0.9), recheck using Gemini.
-    if score <= 0.9:
-        # Use .get() to safely retrieve "name", providing a default if missing.
-        agent_name = solution.get("name", "Unknown Agent")
-        new_label = recheck_label_with_gemini(agent_name, thought_text, code_text, candidate_labels)
-        return new_label if new_label is not None else predicted_label
-    else:
-        return predicted_label
+        
+    # Use .get() to safely retrieve "name", providing a default if missing.
+    agent_name = solution.get("name", "Unknown Agent")
+    new_label = recheck_label_with_gemini(agent_name, thought_text, code_text, candidate_labels)
+    return new_label
 #-------------------------------------------------------------------------------------------------------#
 
 
@@ -695,127 +668,130 @@ def search(args):
 
     # ------------------------------------------------------------
     # Compute current map elites using predefined function create_map(). Get fitness scores from above
-    map_elites = create_map_elites_structure_api(archive,
-                                                 candidate_labels=None,  # Derived from archive if None
-                                                 bins_api=args.bins_dim2,
-                                                 min_api=args.min_dim2, max_api=args.max_dim2)
+    map_elites = create_map_elites_structure_api(archive)
     # ------------------------------------------------------------
     
     ## Generates n new solutions (n_generation parameter)
     for n in range(start, args.n_generation):
 
         # ------------------------------------------------------------
-        # First sampling: select parent cell for agent
-        while True:  # Keep searching until we find a valid agent
-            parent_keys = list(map_elites.keys())
-            parent_random_index = random.randint(0, len(parent_keys) - 1)
-            parent_cell = parent_keys[parent_random_index]
-            parent_parts = parent_cell.split(',')
-            parent_structure_label = parent_parts[0]
-            parent_api_bin = int(parent_parts[1])
-            parent_api_calls_mapping = {0: "few API calls", 1: "many API calls"}
-            parent_api_label = parent_api_calls_mapping.get(parent_api_bin, "few API calls")
-            
-            selected_agent = map_elites[parent_cell]
-          
-            # First fallback: try same structure agents
-            if selected_agent is None:
-                same_structure_agents = [agent for key, agent in map_elites.items() 
-                                        if key.startswith(f"{parent_structure_label},") 
-                                        and agent is not None]
-                if same_structure_agents:
-                    selected_agent = max(same_structure_agents, 
-                                    key=lambda x: get_upper_bound(x['fitness']))
-            
-            # Second fallback: if still None, search entire archive
-             # Second fallback: if still None, search entire archive
-            if selected_agent is None:
-                non_empty_agents = [agent for agent in map_elites.values() if agent is not None]
-                if non_empty_agents:
-                    selected_agent = random.choice(non_empty_agents)
-            
-            # If we found a valid agent, break the loop
-            if selected_agent is not None:
-                break
 
-        # # First sampling: select parent cell for agent
-        # while True:  # Keep searching until we find a valid agent
-        #     # Create a list of valid parent cells (cells with non-None agents)
-        #     valid_cells = [key for key in map_elites if map_elites[key] is not None]
-        #     if not valid_cells:
-        #         raise RuntimeError("No valid agent found in map_elites")
+        if args.agent_sampling == "fitness":
             
-        #     # Compute raw weights from each agent's fitness using get_upper_bound
-        #     raw_weights = [get_upper_bound(map_elites[key]['fitness']) for key in valid_cells]
+            # Fitness-based sampling of selected agent
+            while True:  # Keep searching until we find a valid agent
+                # Create a list of valid parent cells (cells with non-None agents)
+                valid_cells = [key for key in map_elites if map_elites[key] is not None]
+                if not valid_cells:
+                    raise RuntimeError("No valid agent found in map_elites")
+                
+                # Compute raw weights from each agent's fitness using get_upper_bound
+                raw_weights = [get_upper_bound(map_elites[key]['fitness']) for key in valid_cells]
+                
+                # Apply softmax transformation using numpy
+                temperature = 1.0  # Adjust as needed
+                exp_weights = np.exp(np.array(raw_weights) / temperature)
+                total_exp = np.sum(exp_weights)
+                softmax_weights = exp_weights / total_exp
+                
+                # Sample one parent cell weighted by the softmax probabilities
+                parent_cell = random.choices(valid_cells, weights=softmax_weights.tolist(), k=1)[0]
+                parent_parts = parent_cell.split(',')
+                parent_structure_label = parent_parts[0]
+                parent_api_bin = int(parent_parts[1])
+                parent_api_calls_mapping = {0: "few API calls", 1: "many API calls"}
+                parent_api_label = parent_api_calls_mapping.get(parent_api_bin, "few API calls")
+                
+                selected_agent = map_elites[parent_cell]
+                
+                # First fallback: try same structure agents if the selected cell is empty
+                if selected_agent is None:
+                    same_structure_agents = [
+                        agent for key, agent in map_elites.items()
+                        if key.startswith(f"{parent_structure_label},") and agent is not None
+                    ]
+                    if same_structure_agents:
+                        selected_agent = max(same_structure_agents, key=lambda x: get_upper_bound(x['fitness']))
+                
+                if selected_agent is not None:
+                    break
+        
+        else:
+            # Uniform sampling of selected agent
+            while True:  # Keep searching until we find a valid agent
+                parent_keys = list(map_elites.keys())
+                parent_random_index = random.randint(0, len(parent_keys) - 1)
+                parent_cell = parent_keys[parent_random_index]
+                parent_parts = parent_cell.split(',')
+                parent_structure_label = parent_parts[0]
+                parent_api_bin = int(parent_parts[1])
+                parent_api_calls_mapping = {0: "few API calls", 1: "many API calls"}
+                parent_api_label = parent_api_calls_mapping.get(parent_api_bin, "few API calls")
+                
+                selected_agent = map_elites[parent_cell]
             
-        #     # Apply softmax transformation using numpy
-        #     temperature = 1.0  # Adjust as needed
-        #     exp_weights = np.exp(np.array(raw_weights) / temperature)
-        #     total_exp = np.sum(exp_weights)
-        #     softmax_weights = exp_weights / total_exp
-            
-        #     # Sample one parent cell weighted by the softmax probabilities
-        #     parent_cell = random.choices(valid_cells, weights=softmax_weights.tolist(), k=1)[0]
-        #     parent_parts = parent_cell.split(',')
-        #     parent_structure_label = parent_parts[0]
-        #     parent_api_bin = int(parent_parts[1])
-        #     parent_api_calls_mapping = {0: "few API calls", 1: "many API calls"}
-        #     parent_api_label = parent_api_calls_mapping.get(parent_api_bin, "few API calls")
-            
-        #     selected_agent = map_elites[parent_cell]
-            
-        #     # First fallback: try same structure agents if the selected cell is empty
-        #     if selected_agent is None:
-        #         same_structure_agents = [
-        #             agent for key, agent in map_elites.items()
-        #             if key.startswith(f"{parent_structure_label},") and agent is not None
-        #         ]
-        #         if same_structure_agents:
-        #             selected_agent = max(same_structure_agents, key=lambda x: get_upper_bound(x['fitness']))
-            
-        #     if selected_agent is not None:
-        #         break
+                # First fallback: try same structure agents
+                if selected_agent is None:
+                    same_structure_agents = [agent for key, agent in map_elites.items() 
+                                            if key.startswith(f"{parent_structure_label},") 
+                                            and agent is not None]
+                    if same_structure_agents:
+                        selected_agent = max(same_structure_agents, 
+                                        key=lambda x: get_upper_bound(x['fitness']))
+                
+                # Second fallback: if still None, search entire archive
+                # Second fallback: if still None, search entire archive
+                if selected_agent is None:
+                    non_empty_agents = [agent for agent in map_elites.values() if agent is not None]
+                    if non_empty_agents:
+                        selected_agent = random.choice(non_empty_agents)
+                
+                # If we found a valid agent, break the loop
+                if selected_agent is not None:
+                    break
 
+        if args.direction_sampling == "fitness":
+            # Second sampling: select target structure and API labels,
+            # weighted by inverted fitness (cells with lower fitness get higher probability),
+            # and include cells with a null agent by assigning them the minimum raw fitness.
 
-        # Second sampling: select target structure and API labels
-        possible_structure_labels = list(set([cell.split(',')[0] for cell in map_elites.keys()]))
-        possible_api_bins = list(range(args.bins_dim2))  # 0 to bins_dim2-1
-        target_structure_label = random.choice(possible_structure_labels)
-        target_api_bin = random.choice(possible_api_bins)
-        api_calls_mapping = {0: "few API calls", 1: "many API calls"}
-        target_api_label = api_calls_mapping.get(target_api_bin, "few API calls")
+            all_keys = list(map_elites.keys())
 
-        # # Second sampling: select target structure and API labels,
-        # # weighted by inverted fitness (cells with lower fitness get higher probability),
-        # # and include cells with a null agent by assigning them the minimum raw fitness.
+            # Compute raw fitness values for non-null cells
+            non_null_raws = [get_upper_bound(map_elites[k]['fitness']) for k in all_keys if map_elites[k] is not None]
+            min_raw = min(non_null_raws) if non_null_raws else 1  # fallback to 1 if all cells are null
 
-        # all_keys = list(map_elites.keys())
+            # Compute raw weights for all cells: if cell is null, assign min_raw
+            raw_weights_target = []
+            for key in all_keys:
+                if map_elites[key] is not None:
+                    raw_weights_target.append(get_upper_bound(map_elites[key]['fitness']))
+                else:
+                    raw_weights_target.append(min_raw)
 
-        # # Compute raw fitness values for non-null cells
-        # non_null_raws = [get_upper_bound(map_elites[k]['fitness']) for k in all_keys if map_elites[k] is not None]
-        # min_raw = min(non_null_raws) if non_null_raws else 1  # fallback to 1 if all cells are null
+            # Apply softmax transformation on inverted raw weights using numpy
+            temperature = 1.0  # Adjust as needed
+            inverted_weights = np.exp(-np.array(raw_weights_target) / temperature)
+            total_inverted = np.sum(inverted_weights)
+            softmax_inv = inverted_weights / total_inverted  # NumPy array of probabilities
 
-        # # Compute raw weights for all cells: if cell is null, assign min_raw
-        # raw_weights_target = []
-        # for key in all_keys:
-        #     if map_elites[key] is not None:
-        #         raw_weights_target.append(get_upper_bound(map_elites[key]['fitness']))
-        #     else:
-        #         raw_weights_target.append(min_raw)
+            # Sample one target cell weighted by the inverted softmax probabilities
+            target_cell = random.choices(all_keys, weights=softmax_inv.tolist(), k=1)[0]
+            target_parts = target_cell.split(',')
+            target_structure_label = target_parts[0]
+            target_api_bin = int(target_parts[1])
+            api_calls_mapping = {0: "few API calls", 1: "many API calls"}
+            target_api_label = api_calls_mapping.get(target_api_bin, "few API calls")        
 
-        # # Apply softmax transformation on inverted raw weights using numpy
-        # temperature = 1.0  # Adjust as needed
-        # inverted_weights = np.exp(-np.array(raw_weights_target) / temperature)
-        # total_inverted = np.sum(inverted_weights)
-        # softmax_inv = inverted_weights / total_inverted  # NumPy array of probabilities
+        else:
+            # Uniform sampling of mutation direction
+            possible_structure_labels = list(set([cell.split(',')[0] for cell in map_elites.keys()]))
+            possible_api_bins = list(range(args.bins_dim2))  # 0 to bins_dim2-1
+            target_structure_label = random.choice(possible_structure_labels)
+            target_api_bin = random.choice(possible_api_bins)
+            api_calls_mapping = {0: "few API calls", 1: "many API calls"}
+            target_api_label = api_calls_mapping.get(target_api_bin, "few API calls")
 
-        # # Sample one target cell weighted by the inverted softmax probabilities
-        # target_cell = random.choices(all_keys, weights=softmax_inv.tolist(), k=1)[0]
-        # target_parts = target_cell.split(',')
-        # target_structure_label = target_parts[0]
-        # target_api_bin = int(target_parts[1])
-        # api_calls_mapping = {0: "few API calls", 1: "many API calls"}
-        # target_api_label = api_calls_mapping.get(target_api_bin, "few API calls")
         # # ------------------------------------------------
 
         ## Uses pre-defined system prompt to generate new solution
@@ -830,13 +806,7 @@ def search(args):
         else:
             print(f"Selected Agent: {selected_agent.get('name', 'Unnamed Agent') if selected_agent else 'No agent found'}")
 
-        # Extract the top 3 agents
-        # Collect all agents (including those with non-null values) from the map elites
-        valid_agents = [agent for agent in map_elites.values() if agent is not None]
-        # Sort in descending order (highest fitness first) using get_upper_bound on the 'fitness' field
-        top3_agents = sorted(valid_agents, key=lambda x: get_upper_bound(x['fitness']), reverse=True)[:3]
-
-        system_prompt, prompt = get_prompt(archive, valid_agents, top3_agents, selected_agent, target_structure_label, target_api_label)
+        system_prompt, prompt = get_prompt(archive, args.past_agents, selected_agent, target_structure_label, target_api_label)
         msg_list = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompt},
@@ -845,7 +815,7 @@ def search(args):
 
             next_solution = get_json_response_from_gpt_reflect(msg_list)
 
-            Reflexion_prompt_1, Reflexion_prompt_2 = get_reflexion_prompt(archive[-1] if n > 0 else None, target_structure_label, target_api_label)
+            Reflexion_prompt_1, Reflexion_prompt_2 = get_reflexion_prompt(archive[-1] if n > 0 else None, args.past_agents, target_structure_label, target_api_label)
             # Reflexion 1
             msg_list.append({"role": "assistant", "content": str(next_solution)})
             msg_list.append({"role": "user", "content": Reflexion_prompt_1})
@@ -929,10 +899,7 @@ def search(args):
                 json.dump(archive, json_file, indent=4)
             
             # Update map of elites
-            map_elites = create_map_elites_structure_api(archive,
-                                                        bins_api=args.bins_dim2,
-                                                        candidate_labels=None,
-                                                        min_api=args.min_dim2, max_api=args.max_dim2)
+            map_elites = create_map_elites_structure_api(archive)
             
             # Store the map of elites after every generation as a new file
             map_file_path = os.path.join(args.save_dir, f"{args.expr_name}_map_elites_gen{n+1}.json")
@@ -1103,74 +1070,43 @@ if __name__ == "__main__":
     parser.add_argument('--debug_max', type=int, default=3)
     parser.add_argument('--max_agents', type=int, default=5)
 
-    # ------------------------------------------------------------
-    # Map elites arguments:
-    parser.add_argument('--bins_dim1', type=int, default=3, help="Number of bins for performance dimension (default 3)")
-    parser.add_argument('--bins_dim2', type=int, default=2, help="Number of bins for API calls dimension (default 2)")
-    parser.add_argument('--min_dim1', type=float, default=None, help="Minimum performance value (if not provided, computed from archive)")
-    parser.add_argument('--max_dim1', type=float, default=None, help="Maximum performance value (if not provided, computed from archive)")
-    parser.add_argument('--min_dim2', type=int, default=None, help="Minimum api_calls value (if not provided, computed from archive)")
-    parser.add_argument('--max_dim2', type=int, default=None, help="Maximum api_calls value (if not provided, computed from archive)")
-    # ------------------------------------------------------------
-
-    # Arguments for multiple runs to test variance
-    parser.add_argument('--num_runs', type=int, default=1, help="Number of runs to execute")
-    parser.add_argument('--base_seed', type=int, default=47, help="Base seed value for the first run")
-
     # Arguments for configuration
     parser.add_argument('--agent_sampling', type=str, default='fitness', help="Fitness or uniform sampling of selected agent")
     parser.add_argument('--direction_sampling', type=str, default='fitness', help="Fitness or uniform sampling of mutation direction")
-    parser.add_argument('--past_agents', type=str, default='MAP', help="Inclusion of past agents into system prompt")
+    parser.add_argument('--past_agents', type=str, default='MAP', help="Inclusion of past agents into system prompt. Values are either MAP, Archive, Agent)
+
+    
+    # Arguments for multiple runs to test variance
+    parser.add_argument('--num_runs', type=int, default=3, help="Number of runs to execute (default: 3)")
+    parser.add_argument('--base_seeds', nargs='+', type=int, default=[42, 45, 47], help="List of seeds for each run. Length must match num_runs")
 
     args = parser.parse_args()
 
-    # # Store the original expr_name for later prefixing.
-    # original_expr_name = args.expr_name
+    # Validate seed configuration
+    if len(args.base_seeds) != args.num_runs:
+        raise ValueError(f"Number of seeds ({len(args.base_seeds)}) must match num_runs ({args.num_runs})")
 
-    # for run in range(args.num_runs):
-    #     # Update the seed for each run (for example, add the run number to the base_seed)
-    #     run_seed = args.base_seed + run
-        
-    #     # Set the global seeds per run
-    #     random.seed(run_seed)
-    #     np.random.seed(run_seed)
-
-
-    #     # Modify expr_name to include the run prefix (run1_, run2_, etc.)
-    #     args.expr_name = f"run{run+1}_{original_expr_name}"
-    #     print(f"Starting run {run+1} with seed {run_seed} and expr_name {args.expr_name}")
-        
-    #     # Run the search phase with SEARCHING_MODE turned on.
-    #     SEARCHING_MODE = True
-    #     search(args)
-        
-    #     # Then perform the evaluation phase.
-    #     SEARCHING_MODE = False
-    #     evaluate(args)
-
-    # Original original_expr_name remains unchanged
     original_expr_name = args.expr_name
 
-    # Run exactly three runs with custom seeds and save directories.
-    for run, (seed, folder) in enumerate(zip([42,45,47], ["rerun_just_sampling_uniform_uniform_gen100_seed42","rerun_just_sampling_uniform_uniform_gen100_seed45","rerun_just_sampling_uniform_uniform_gen100_seed47"])):
+    for run_idx, seed in enumerate(args.base_seeds):
+        # Generate consistent folder name based on parameters
+        args.save_dir = f"run_{args.past_agents}_{args.agent_sampling}_{args.direction_sampling}_gen{args.n_generation}_seed{seed}"
+        os.makedirs(args.save_dir, exist_ok=True)
         
-        # --- Critical Fix: Create directory BEFORE any file operations ---
-        args.save_dir = folder
-        os.makedirs(args.save_dir, exist_ok=True)  # Force create directory
+        # Set seeds
+        random.seed(seed)
+        np.random.seed(seed)
         
-        # Set the seed for this run
-        run_seed = seed
-        random.seed(run_seed)
-        np.random.seed(run_seed)
+        # Update experiment name
+        args.expr_name = f"run{run_idx+1}_{original_expr_name}"
         
-        # Modify expr_name to include the run prefix (run1_, run2_, etc.)
-        args.expr_name = f"run{run+1}_{original_expr_name}"
-        print(f"Starting run {run+1} with seed {run_seed}, expr_name {args.expr_name}, and save_dir {args.save_dir}")
-        
-        # Run the search phase with SEARCHING_MODE turned on.
+        print(f"Starting run {run_idx+1}/{args.num_runs} with seed {seed}")
+        print(f"Save directory: {args.save_dir}")
+        print(f"Experiment name: {args.expr_name}\n")
+
+        # Run search and evaluation
         SEARCHING_MODE = True
         search(args)
         
-        # Then perform the evaluation phase.
         SEARCHING_MODE = False
         evaluate(args)
