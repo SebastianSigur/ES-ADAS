@@ -1,0 +1,12 @@
+[
+    {
+        "thought": "Directly formatting the output can be challenging. A good practice is to allow the LLM to write the transformation code and then evaluate it to generate the output. This ensures that the output is derived from executable code, improving reliability.",
+        "name": "Chain-of-Thought",
+        "code": "def forward(self, taskInfo):\n    # Instruction for the Chain-of-Thought (CoT) approach with code generation\n    cot_instruction = \"Please think step by step and then solve the task by writing the code.\"\n    \n    # Instantiate a new LLM agent specifically for CoT with code output\n    # To allow LLM thinking before answering, we need to set an additional output field 'thinking'.\n    cot_agent = LLMAgentBase(['thinking', 'code'], 'Chain-of-Thought Agent')\n    \n    # Get the CoT agent's response, which includes both thinking steps and code\n    thinking, code = cot_agent([taskInfo], cot_instruction)\n    \n    # Evaluate the generated code to get the output\n    answer = self.get_test_output_from_code(code)\n    \n    # Return the final output derived from the code execution\n    return answer\n    ",
+        "api_calls": 1,
+        "structure_label": "Linear Chain-of-Thought",
+        "generation": "initial",
+        "fitness": "95% Bootstrap Confidence Interval: (3.0%, 12.0%), Median: 7.0%",
+        "test_fitness": "95% Bootstrap Confidence Interval: (5.3%, 11.7%), Median: 8.3%"
+    }
+]
