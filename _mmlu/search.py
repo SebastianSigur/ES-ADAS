@@ -6,7 +6,7 @@ import random
 import re
 from collections import namedtuple
 from concurrent.futures import ThreadPoolExecutor
-
+import random
 import backoff
 import numpy as np
 import openai
@@ -168,7 +168,466 @@ class AgentSystem():
         pass
 
 
+#-------------------------------------------------------------------------------------------------------#
+# Function to create and update MAP of Elites after every generation based on archive
+def create_map_elites_structure_api(
+    archive
+):
+    """
+    Creates a map elites grid from the candidate archive based on two dimensions:
+      - Structure label: taken from each solution's "structure_label" field.
+      - API calls: the number of API calls (agent['api_calls']).
+    Returns:
+        dict: A dictionary mapping cell keys (as strings, e.g. "Chain-of-Thought,0")
+              to the best candidate (elite) in that cell (the one with the highest fitness).
+    """
+    # Set number of API call bins
+    bins_api = 2
+
+    # Extract API Call values
+    api_calls_values = [sol['api_calls'] for sol in archive if 'api_calls' in sol]
+    if not api_calls_values:
+        return {}
+    
+    # Determine structure labels
+    candidate_labels = [
+            "Linear Chain-of-Thought",
+            "Iterative Refinement",
+            "Tree-of-Thought",
+            "Decompositional Reasoning",
+            "Multi-Agent Reasoning",
+            "Abstraction to Principles Reasoning"
+        ]
+    
+    # Initialize grid with keys as "structure_label,api_bin"
+    grid = {f"{label},{i}": None for label in candidate_labels for i in range(bins_api)}
+    
+    # Go through every agent in archive
+    for sol in archive:
+
+        # Skip invalid agents
+        if 'structure_label' not in sol or 'api_calls' not in sol or 'fitness' not in sol:
+            continue
+        
+        # Determine structure label
+        label = sol["structure_label"]
+
+        # Skip invalid labels
+        if label not in candidate_labels:
+            continue
+        
+        # Extract API value
+        api_val = sol["api_calls"]
+
+        # Assign API calls to bins (<= 5 for few API calls to 0; 6+ for many API calls to bin 1)
+        if api_val <= 5:
+            api_bin = 0
+        else:
+            api_bin = 1
+        
+        # Allocate agents to niches
+        cell_key = f"{label},{api_bin}"
+        new_fitness = get_upper_bound(sol['fitness'])
+        
+        if grid[cell_key] is None:
+            grid[cell_key] = sol
+        else:
+            current_sol = grid[cell_key]
+            current_fitness = get_upper_bound(current_sol['fitness'])
+            if new_fitness > current_fitness:
+                grid[cell_key] = sol
+
+    # Return final grid
+    return grid
+#-------------------------------------------------------------------------------------------------------#
+
+
+#-------------------------------------------------------------------------------------------------------#
+# Create API Call label with Gemini
+def count_api_calls(forward_code):
+    """
+    Use Gemini to determine the API count label
+    Returns JSON object with 'api_calls' field from agent as integer
+    """
+    system_prompt = """You are a code analysis expert specializing in LLM agent architectures. Analyze the Python function to count API calls according to these STRICT RULES:
+
+    1. Counting Principles:
+    - ONLY count AGENT METHOD CALLS (agent())
+    - DO NOT count LLMAgentBase instantiations
+    - Count ALL calls regardless of nesting or scope
+
+    2. Loop Handling:
+    - FOR/WHILE loops: Multiply counts by iterations
+    - List comprehensions: Treat as implicit loops
+    - Nested loops: Multiply counts at all levels
+
+    3. Special Cases:
+    - Recursive calls: Count each stack frame
+    - Conditional calls: Count ALL possible paths
+    - Reused agents: Count each execution separately
+
+    4. Calculation Steps:
+    1. Find all agent() method calls
+    2. Analyze loop structures
+    3. Multiply counts by loop iterations
+    4. Sum all execution counts
+
+    5. REVISION STEP - CHECK FOR COMMON MISTAKES:
+    BEFORE FINALIZING, VERIFY:
+    1. LOOP ITERATIONS: Multiply nested loops (rounds×agents)
+    2. CONDITIONAL PATHS: Take MAX branch
+    3. REUSED AGENTS: Count per execution
+    4. SHADOWED AGENTS: Catch loop-redefines
+    5. ROUTING LOGIC: Only executed agents
+    6. GENERATORS: Treat as implicit loops
+    7. PHASE SEPARATION: No init counts
+
+    EXAMPLES:
+
+    === Complex Loop (Original) ===
+    for _ in range(3):
+        agent(); helper() → 6 calls
+
+    === Variable-Length Loop (New) ===
+    N = 3  # Dynamic iterations
+    for _ in range(N): agent() → 3 calls
+
+    === Hybrid Agent Pattern (New) ===
+    base = LLMAgentBase()
+    for _ in range(2):
+        base()          # 2
+        LLMAgentBase()() # 2 → Total 4
+
+    === Multi-Branch Conditional (New) ===
+    if X: a() 
+    elif Y: a(); a() 
+    else: pass → Count 2
+
+    === Variable Shadowing (New) ===
+    for _ in range(2):
+        agent = LLMAgentBase()  # New each iter
+        agent() → 2 calls
+
+    === Generator Pattern (New) ===
+    agents = (LLMAgentBase() for _ in range(3))
+    sum(agent() for agent in agents) → 3
+
+    === Routing Logic (Original) ===
+    router(); experts[choice]() → 2
+
+    === Nested Debate (Original) ===
+    2 rounds × 2 agents = 4
+
+    === Collaborative Refinement (Original) ===
+    3 agents × 2 phases = 6
+
+    === Phase Separation (Original) ===
+    agent1 = LLMAgentBase() → 0
+    agent1() → 1
+
+    === Recursive Pattern (Original) ===
+    run(2) → 3 calls
+
+    Return JSON: {"api_calls": integer}"""
+    user_message = f"Analyze the following code and predict the number of API calls per execution:\n\n```python\n{forward_code}\n```"
+    
+    # Use Gemini to classify API count
+    try:
+        response = gemini_client.models.generate_content(
+            model='gemini-1.5-flash-8b',
+            contents=system_prompt + user_message,
+            config=types.GenerateContentConfig(
+                temperature=0.0,
+                max_output_tokens=256,
+                stop_sequences=None,
+                response_mime_type='application/json'
+            )
+        )
+        content = response.text
+        api_json = json.loads(content)
+        return int(float(api_json.get("api_calls", 0)))
+    except Exception as e:
+        print("Error assessing API calls:", e)
+        return 0
+#-------------------------------------------------------------------------------------------------------#
+
+
+
+#-------------------------------------------------------------------------------------------------------#
+# Create structure label with Gemini (unnecessary complex as relict from earlier version with included an
+# initial check with a BERT model before then passing it to Gemini)
+def recheck_label_with_gemini(agent_name, agent_code, candidate_labels):
+    system_prompt = (
+        "You are a specialist in LLM agent architecture analysis. Your task is to classify agents by their fundamental reasoning structure through rigorous code examination. "
+        "Follow this analytical process:\n\n"
+        "1. STRUCTURAL ANALYSIS: Identify key architectural patterns in the code related to:\n"
+        "  - Control Flow:\n"
+        "       * Linear: No loops/conditionals altering reasoning path\n"
+        "       * Iterative: Look for FOR/WHILE loops with:\n"
+        "           - Feedback incorporation (previous answers/feedback as input)\n"
+        "           - Same LLMAgentBase instance reused\n"
+        "       * Branching: IF/ELSE or SWITCH that create distinct reasoning paths\n"
+        "   - Agent Count:\n"
+        "       * Count ALL LLMAgentBase() instantiations\n"
+        "       * When counting LLMAgentBase instances, only consider unique instantiations; if a single instance is reused within a loop, this does not count as multiple agents but is a sign for Iterative Refinement."
+        "       * Multi-Agent = 2+ unique instances (not reused in loops)\n"
+        "   - Coordination Mechanisms:\n"
+        "       * Voting/Consensus: Aggregation of multiple agent outputs\n"
+        "       * Debate: Agents directly reference each other's outputs\n"
+        "       * Parallel Execution: Simultaneous agent calls (list comprehensions)\n"
+        "   - Abstraction Markers:\n"
+        "       * Explicit principle extraction (e.g., 'principle_agent')\n"
+        "       * Problem decomposition into sub-tasks\n"
+        "   - Self-Reflection:\n"
+        "       * Critique/feedback loops modifying inputs\n"
+        "       * Explicit correctness checking\n\n"
+        "2. LABEL MAPPING: Match patterns to these EXCLUSIVE categories:\n"
+        "   1. Linear Chain-of-Thought: The agent produces its final answer in a single, linear chain-of-thought without any iterative self-refinement or use of multiple agents.\n"
+        "   2. Iterative Refinement: The agent continually repcrosses its chain-of-thought, revising, re-evaluating, and self-assessing its intermediate steps - to progressively converge on a robust final answer.\n"
+        "       - REQUIRED: Single LLMAgentBase instance reused in loop\n"
+        "       - REQUIRED: Modified inputs between iterations (feedback/previous answers)\n"
+        "       - Even if generating diverse answers, STILL Iterative if single agent\n"
+        "       - Common misclassification trap: Voting over single-agent outputs ≠ Multi-Agent\n\n"
+        "   3. Tree-of-Thought: The agent creates a tree-of-thought by dynamically branches out at key decision points, exploring multiple reasoning paths and selectively following the most promising branch to arrive at the final answer.\n"
+        "   4. Decompositional Reasoning: The agent breaks down a complex problem into independent sub-problems, solves each one separately, and then integrates these solutions into a cohesive final answer.\n"
+        "   5. Multi-Agent Reasoning: The agent concurrently creates several LLM instances that interact with one another and create different reasoning trajectories. The agent aggreates the outcome from the different LLM instances - such as through voting or consensus - to produce the final decision. Common mistake: A single agent generating multiple responses  is NOT multi-agent reasoning. Multi-agent reasoning requires multiple LLMAgentBase instances with coordination.\n"
+        "       - MUST HAVE ALL:\n"
+        "        * 2+ unique LLMAgentBase instances (NOT reused in loops)\n"
+        "        * Explicit coordination between agents\n"
+        "        * Parallel execution (not sequential)\n" 
+        "      - FORBIDDEN: Any agent instance reuse\n"
+        "   6. Abstraction to Principles Reasoning: First abstracts the problem’s details into high-level principles, then uses these abstractions to guide the solution.\n"
+        "3. Check for common classification mistakes:\n"
+        "   - Do not misclassify a single LLMAgentBase instance used in a loop as Multi-Agent Reasoning—this pattern should be identified as Iterative Refinement.\n"
+        "   - Do not classify agents that loop over a single, reused LLMAgentBase instance as Multi-Agent Reasoning. Multi-Agent Reasoning requires multiple unique LLMAgentBase instances with inter-agent coordination.\n"
+        "   - If principle extraction is present, even in a single API call, the agent must be labeled as Abstraction to Principles Reasoning.\n\n"
+        "4. DECISION RULES:\n"
+        "   - Prioritize structural implementation over described intent\n"
+        "   - If multiple patterns exist, choose the DOMINANT structural paradigm\n"
+        "   - Reject any hybrid categories - force into the single best fit\n"
+        "   - Check your decision for the common mistakes above\n"
+        "5. Examples of correct classification:\n"
+        "   === Example 1 ===\n"
+        "   Agent Name: Quality-Diversity\n"
+        "   Agent's Code Structure:\n```python\n"
+        "   def forward(self, taskInfo):\n"
+        "       cot_agent = LLMAgentBase(['thinking', 'answer'], 'Chain-of-Thought Agent')\n"
+        "       for i in range(3):\n"
+        "           thinking, answer = cot_agent(...)  # Same instance reused\n"
+        "       return final_decision_agent(answers)\n"
+        "   ```\n"
+        "   Structural Analysis:\n"
+        "   - Control Flow: Iterates over a list of unique agent instances to generate diverse outputs\n"
+        "   - Agent Count: 3 unique LLMAgentBase instances for answer generation plus 1 separate final decision agent\n"
+        "   - Coordination: Independent outputs are aggregated via a final decision agent using a consensus mechanism\n"
+        "   - Key Pattern: Multiple independent agents generate diverse answers that are coordinated to produce the final decision\n"
+        "   Rationale: This architecture instantiates multiple unique agents with explicit coordination, which meets all the criteria for Multi-Agent Reasoning.\n"
+        "   Correct Label: Multi-Agent Reasoning\n\n"
+
+        "   === Example 2 ===\n"
+        "   Agent Name: Self-Refine (Reflexion)\n"
+        "   Agent's Code Structure:\n```python\n"
+        "   def forward(self, taskInfo):\n"
+        "       cot_agent = LLMAgentBase(...)\n"
+        "       critic_agent = LLMAgentBase(...)\n"
+        "       for i in range(5):\n"
+        "           feedback = critic_agent(...)\n"
+        "           thinking, answer = cot_agent(...)  # Sequential refinement\n"
+        "   ```\n"
+        "   Structural Analysis:\n"
+        "   - Control Flow: Explicit feedback loop with 5 iterations\n"
+        "   - Agent Count: 2 agents but ONLY cot_agent refined\n"
+        "   - Key Pattern: Iterative input modification (cot_inputs.extend())\n"
+        "   Rationale: Main refinement loop focuses on cot_agent with growing input context, making Iterative Refinement the dominant pattern despite critic presence.\n"
+        "   Correct Label: Iterative Refinement\n\n"
+
+        "   === Example 3 ===\n"
+        "   Agent Name: Dynamic Assignment of Roles\n"
+        "   Agent's Code Structure:\n```python\n"
+        "   def forward(self, taskInfo):\n"
+        "       expert_agents = [LLMAgentBase(...) for role in roles]\n"
+        "       choice = routing_agent(...)\n"
+        "       return expert_agents[choice](taskInfo)\n"
+        "   ```\n"
+        "   Structural Analysis:\n"
+        "   - Control Flow: Sequential execution with routing\n"
+        "   - Agent Count: Multiple agents but only ONE used\n"
+        "   - Key Pattern: Problem decomposition into selection + execution\n"
+        "   Rationale: Agents work independently - no coordination between experts, pure decomposition into sub-tasks.\n"
+        "   Correct Label: Decompositional Reasoning\n\n"
+
+        "   === Example 4 ===\n"
+        "   Agent Name: LLM Debate\n"
+        "   Agent's Code Structure:\n```python\n"
+        "   def forward(self, taskInfo):\n"
+        "       debate_agents = [LLMAgentBase(...), LLMAgentBase(...), LLMAgentBase(...)]\n"
+        "       answers = [agent(taskInfo) for agent in debate_agents]\n"
+        "       return consensus(answers)\n"
+        "   ```\n"
+        "   Structural Analysis:\n"
+        "   - Agent Count: 3 unique instances\n"
+        "   - Coordination: Parallel execution + consensus\n"
+        "   - Key Pattern: No instance reuse, true parallelism\n"
+        "   Rationale: Multiple independent agents with aggregated output fulfills all Multi-Agent requirements.\n"
+        "   Correct Label: Multi-Agent Reasoning\n\n"
+
+        "   === Example 5 ===\n"
+        "   Agent Name: Step-back Abstraction\n"
+        "   Agent's Code Structure:\n```python\n"
+        "   def forward(self, taskInfo):\n"
+        "       principle_agent = LLMAgentBase(...)\n"
+        "       principle = principle_agent(...)\n"
+        "       answer = solver_agent([principle])\n"
+        "   ```\n"
+        "   Structural Analysis:\n"
+        "   - Abstraction Markers: Explicit principle extraction\n"
+        "   - Control Flow: Two-stage process (principles → solution)\n"
+        "   - Key Pattern: Principle output directly guides solver\n"
+        "   Rationale: Clear separation of abstraction and application phases, even with multiple agents.\n"
+        "   Correct Label: Abstraction to Principles Reasoning\n\n"
+
+        "   === Example 6 ===\n"
+        "   Agent Name: Chain-of-Thought\n"
+        "   Agent's Code Structure:\n```python\n"
+        "   def forward(self, taskInfo):\n"
+        "       cot_agent = LLMAgentBase(...)\n"
+        "       thinking, answer = cot_agent(taskInfo)\n"
+        "   ```\n"
+        "   Structural Analysis:\n"
+        "   - Control Flow: Single pass, no loops\n"
+        "   - Agent Count: 1 instance\n"
+        "   - Key Pattern: Straight-line execution\n"
+        "   Rationale: No iteration, branching, or coordination - pure linear processing.\n"
+        "   Correct Label: Linear Chain-of-Thought\n\n"
+
+        "   === Example 7 ===\n"
+        "   Agent Name: Principle Evaluation and Solution Agent\n"
+        "   Agent's Code Structure:\n```python\n"
+        "   def forward(self, taskInfo):\n"
+        "       combined_agent = LLMAgentBase(...)\n"
+        "       output = combined_agent([taskInfo], instruction)\n"
+        "       return output[3]\n"
+        "   ```\n"
+        "   Structural Analysis:\n"
+        "   - Abstraction Markers: Explicit principle identification in instruction\n"
+        "   - Control Flow: Single call with integrated phases\n"
+        "   - Key Pattern: Abstraction guides solution in one step\n"
+        "   Rationale: Combined process still emphasizes principle-guided solving as core paradigm.\n"
+        "   Correct Label: Abstraction to Principles Reasoning\n\n"  
+        "6. Output Format: Output only the final label prediction (which must exactly match one of the provided candidate labels) with no additional explanation or text."        
+    )
+    
+    user_prompt = (
+        f"AGENT ANALYSIS REQUEST\n"
+        f"Agent Name: {agent_name}\n"
+        f"Agent's Code Structure:\n```python\n{agent_code}\n```\n\n"
+        f"Required Classification: Select SOLELY from these structural categories - {', '.join(candidate_labels)}\n\n"
+        "Focus exclusively on the code's architectural patterns, NOT the problem domain or description."
+    )
+    
+    # Use Gemini to determine the structure label
+    try:
+        response = gemini_client.models.generate_content(
+            model='gemini-1.5-flash-8b',
+            contents=system_prompt + "\n\n" + user_prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.0,
+                max_output_tokens=256,
+                stop_sequences=None,
+                response_mime_type='text/plain'
+            )
+        )
+        final_label = response.text.strip()
+        return final_label
+    except Exception as e:
+        print("Error during Gemini reclassification:", e)
+        return None
+
+# Create structure label with Gemini (unnecessary complex as relict from earlier version with included an
+# initial check with a BERT model before then passing it to Gemini)
+def get_structure_label(solution):
+    """
+    Uses Gemini via recheck_label_with_gemini().
+    
+    Returns:
+        A string representing the structure label.
+    """
+    # Define structure labels
+    candidate_labels = [
+        "Linear Chain-of-Thought",
+        "Iterative Refinement",
+        "Tree-of-Thought",
+        "Decompositional Reasoning",
+        "Multi-Agent Reasoning",
+        "Abstraction to Principles Reasoning"
+    ]
+    
+    # Extract code text
+    code_text = solution.get("code", "")
+    if not code_text:
+        return None
+        
+    # Extract agent name
+    agent_name = solution.get("name", "Unknown Agent")
+
+    # Determine structure label
+    new_label = recheck_label_with_gemini(agent_name, code_text, candidate_labels)
+
+    # Return structure label
+    return new_label
+#-------------------------------------------------------------------------------------------------------#
+
+# Ensure that all generated agent have the correct formatting (would otherwise constantly break code)
+def validate_agent(agent: dict) -> bool:
+    """Ensure agent has all required fields and valid structure label"""
+    required_fields = {
+        'thought': str,
+        'name': str,
+        'code': str,
+        'fitness': (int,str),
+        'generation': (int, str),
+        'api_calls': (int, str),
+        'structure_label': str
+    }
+    
+    valid_structure_labels = [
+        "Linear Chain-of-Thought",
+        "Iterative Refinement",
+        "Tree-of-Thought",
+        "Decompositional Reasoning",
+        "Multi-Agent Reasoning",
+        "Abstraction to Principles Reasoning"
+    ]
+
+    # Check required fields
+    for field, field_type in required_fields.items():
+        if field not in agent:
+            print(f"Agent missing required field: {field}")
+            return False
+            
+        if not isinstance(agent[field], field_type):
+            print(f"Invalid type for {field}: {type(agent[field])}")
+            return False
+
+    # Validate structure label
+    if agent['structure_label'] not in valid_structure_labels:
+        print(f"Invalid structure label: {agent['structure_label']}")
+        return False
+
+    # Validate code content
+    if not agent['code'].strip().startswith('def forward('):
+        print("Invalid code format - missing forward function")
+        return False
+
+    return True
+
+#-------------------------------------------------------------------------------------------------------#
+
+
+
 def search(args):
+
+    ## Initializes and loads archive (uses save_dir & expr_name as locations to load and save archive)
     file_path = os.path.join(args.save_dir, f"{args.expr_name}_run_archive.json")
     if os.path.exists(file_path):
         with open(file_path, 'r') as json_file:
@@ -180,7 +639,16 @@ def search(args):
     else:
         archive = get_init_archive()
         start = 0
+    
+    #-------------------------------------------------------------------------------------------------------#    
+    # Determine API call and structure label
+    for solution in archive:
+        solution["api_calls"] = count_api_calls(solution["code"])
+        solution["structure_label"] = get_structure_label(solution)
+    #------------------------------------------------------------------------------------------------------#
 
+    ## Loops over every solution in the archive and ensures that they have a fitness score
+    ## Note: Computes fitness using evaluate_forward_fn() and bootstrap_confidence_interval()
     for solution in archive:
         if 'fitness' in solution:
             continue
@@ -200,19 +668,160 @@ def search(args):
         # save results
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         with open(file_path, 'w') as json_file:
-            json.dump(archive, json_file, indent=4)
+            json.dump(archive, json_file, indent=4)        
 
+    # ------------------------------------------------------------
+    # Compute initial map of elites
+    map_elites = create_map_elites_structure_api(archive)
+    # ------------------------------------------------------------
+    
+    ## Generates n new solutions (n_generation parameter)
     for n in range(start, args.n_generation):
+
+        # ------------------------------------------------------------
+
+        # Sampling of the selected agent (i.e., agent to mutate/inspiration agent)
+        if args.agent_sampling == "fitness":
+            
+            # Fitness-based sampling of selected agent
+            while True:
+                # Create a list of valid parent cells (cells with non-None agents)
+                valid_cells = [key for key in map_elites if map_elites[key] is not None]
+                if not valid_cells:
+                    raise RuntimeError("No valid agent found in map_elites")
+                
+                # Compute raw weights from each agent's fitness using get_upper_bound
+                raw_weights = [get_upper_bound(map_elites[key]['fitness']) for key in valid_cells]
+                
+                # Apply softmax transformation using numpy
+                temperature = 1.0
+                exp_weights = np.exp(np.array(raw_weights) / temperature)
+                total_exp = np.sum(exp_weights)
+                softmax_weights = exp_weights / total_exp
+                
+                # Sample one parent cell weighted by the softmax probabilities
+                parent_cell = random.choices(valid_cells, weights=softmax_weights.tolist(), k=1)[0]
+                parent_parts = parent_cell.split(',')
+                parent_structure_label = parent_parts[0]
+                parent_api_bin = int(parent_parts[1])
+                parent_api_calls_mapping = {0: "few API calls", 1: "many API calls"}
+                parent_api_label = parent_api_calls_mapping.get(parent_api_bin, "few API calls")
+                
+                selected_agent = map_elites[parent_cell]
+                
+                # If cell empty, use agent from same structure label with different API label
+                if selected_agent is None:
+                    same_structure_agents = [
+                        agent for key, agent in map_elites.items()
+                        if key.startswith(f"{parent_structure_label},") and agent is not None
+                    ]
+                    if same_structure_agents:
+                        selected_agent = max(same_structure_agents, key=lambda x: get_upper_bound(x['fitness']))
+                
+                # If no agent in either cell for this structure, sampling process is restarted
+                if selected_agent is not None:
+                    break
+        
+        else:
+            # Uniform sampling of selected agent
+            while True:
+                parent_keys = list(map_elites.keys())
+                parent_random_index = random.randint(0, len(parent_keys) - 1)
+                parent_cell = parent_keys[parent_random_index]
+                parent_parts = parent_cell.split(',')
+                parent_structure_label = parent_parts[0]
+                parent_api_bin = int(parent_parts[1])
+                parent_api_calls_mapping = {0: "few API calls", 1: "many API calls"}
+                parent_api_label = parent_api_calls_mapping.get(parent_api_bin, "few API calls")
+                
+                selected_agent = map_elites[parent_cell]
+            
+                # If cell empty, use agent from same structure label with different API label
+                if selected_agent is None:
+                    same_structure_agents = [agent for key, agent in map_elites.items() 
+                                            if key.startswith(f"{parent_structure_label},") 
+                                            and agent is not None]
+                    if same_structure_agents:
+                        selected_agent = max(same_structure_agents, 
+                                        key=lambda x: get_upper_bound(x['fitness']))
+                
+                # If no agent in either cell for this structure, sampling process is restarted
+                if selected_agent is None:
+                    non_empty_agents = [agent for agent in map_elites.values() if agent is not None]
+                    if non_empty_agents:
+                        selected_agent = random.choice(non_empty_agents)
+                
+                # If selected agent is found
+                if selected_agent is not None:
+                    break
+        
+        # Sampling of the mutation direction
+        if args.direction_sampling == "fitness":
+
+            # Fitness-based: weighted by inverted fitness (cells with lower fitness get higher probability)
+            # Note: cells with a null agent included by assigning minimum raw fitness
+
+            all_keys = list(map_elites.keys())
+
+            # Compute raw fitness values for non-null cells
+            non_null_raws = [get_upper_bound(map_elites[k]['fitness']) for k in all_keys if map_elites[k] is not None]
+            min_raw = min(non_null_raws) if non_null_raws else 1
+
+            # Compute raw weights for all cells
+            raw_weights_target = []
+            for key in all_keys:
+                if map_elites[key] is not None:
+                    raw_weights_target.append(get_upper_bound(map_elites[key]['fitness']))
+                else:
+                    raw_weights_target.append(min_raw)
+
+            # Transformation into probability distribution via softmax
+            temperature = 1.0
+            inverted_weights = np.exp(-np.array(raw_weights_target) / temperature)
+            total_inverted = np.sum(inverted_weights)
+            softmax_inv = inverted_weights / total_inverted
+
+            # Sample one target cell
+            target_cell = random.choices(all_keys, weights=softmax_inv.tolist(), k=1)[0]
+            target_parts = target_cell.split(',')
+            target_structure_label = target_parts[0]
+            target_api_bin = int(target_parts[1])
+            api_calls_mapping = {0: "few API calls", 1: "many API calls"}
+            target_api_label = api_calls_mapping.get(target_api_bin, "few API calls")        
+
+        else:
+            # Uniform sampling of mutation direction
+            possible_structure_labels = list(set([cell.split(',')[0] for cell in map_elites.keys()]))
+            possible_api_bins = list(range(args.bins_dim2))  # 0 to bins_dim2-1
+            target_structure_label = random.choice(possible_structure_labels)
+            target_api_bin = random.choice(possible_api_bins)
+            api_calls_mapping = {0: "few API calls", 1: "many API calls"}
+            target_api_label = api_calls_mapping.get(target_api_bin, "few API calls")
+
+        # # ------------------------------------------------
+
+        ## Generation of new agents
         print(f"============Generation {n + 1}=================")
-        system_prompt, prompt = get_prompt(archive)
+
+        # Print statements for tracking of generations
+        print(f"Parent Cell: {parent_cell} (Structure: {parent_structure_label}, API: {parent_api_bin})")
+        print(f"Mutation Target: Structure {target_structure_label}, API {target_api_label}")  
+        
+        if selected_agent is None or selected_agent == "Take inspiration from an agent with similar architecture in the archive":
+            print(f"Selected Agent: {selected_agent}")
+        else:
+            print(f"Selected Agent: {selected_agent.get('name', 'Unnamed Agent') if selected_agent else 'No agent found'}")
+
+        system_prompt, prompt = get_prompt(archive, map_elites, args.past_agents, selected_agent, target_structure_label, target_api_label)
         msg_list = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompt},
         ]
         try:
+
             next_solution = get_json_response_from_gpt_reflect(msg_list)
 
-            Reflexion_prompt_1, Reflexion_prompt_2 = get_reflexion_prompt(archive[-1] if n > 0 else None)
+            Reflexion_prompt_1, Reflexion_prompt_2 = get_reflexion_prompt(archive[-1] if n > 0 else None, target_structure_label, target_api_label)
             # Reflexion 1
             msg_list.append({"role": "assistant", "content": str(next_solution)})
             msg_list.append({"role": "user", "content": Reflexion_prompt_1})
@@ -226,7 +835,8 @@ def search(args):
             print(e)
             n -= 1
             continue
-
+        
+        ## Re-evaluation of new solution (debug_max number of re-evaluations)
         acc_list = []
         for _ in range(args.debug_max):
             try:
@@ -249,21 +859,63 @@ def search(args):
         if not acc_list:
             n -= 1
             continue
-
+        
+        ## Fitness computation & adding to archive (if evaluation is passed, fitness score is computed) 
         fitness_str = bootstrap_confidence_interval(acc_list)
         next_solution['fitness'] = fitness_str
         next_solution['generation'] = n + 1
+
+
+
+        # ------------------------------------------------------------
+        ## Determine API count and structure label
+        if "code" in next_solution:
+            next_solution["api_calls"] = count_api_calls(next_solution["code"])
+
+        if "thought" in next_solution:
+            next_solution["structure_label"] = get_structure_label(next_solution)
+        # ------------------------------------------------------------
+
 
         if 'debug_thought' in next_solution:
             del next_solution['debug_thought']
         if 'reflection' in next_solution:
             del next_solution['reflection']
-        archive.append(next_solution)
+        
+        # Validation if agent complete
+        if not validate_agent(next_solution):
+            print(f"Skipping invalid agent from generation {n+1}")
+            continue
 
-        # save results
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        with open(file_path, 'w') as json_file:
-            json.dump(archive, json_file, indent=4)
+
+        # Check if agent is misproduced
+        current_upper_bounds = [get_upper_bound(agent['fitness']) for agent in archive]
+        min_current_upper = min(current_upper_bounds) if current_upper_bounds else 0.0
+        new_upper = get_upper_bound(next_solution['fitness'])
+
+        if new_upper >= min_current_upper:
+            archive.append(next_solution)
+            print(f"Added new agent with fitness {next_solution['fitness']} to archive.")
+
+            # Save results
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            with open(file_path, 'w') as json_file:
+                json.dump(archive, json_file, indent=4)
+            
+            # Update map of elites
+            map_elites = create_map_elites_structure_api(archive)
+            
+            # Store the map of elites after every generation as a new file
+            map_file_path = os.path.join(args.save_dir, f"{args.expr_name}_map_elites_gen{n+1}.json")
+            with open(map_file_path, 'w') as f:
+                json.dump(map_elites, f, indent=4)
+        
+        # Skip misproduced agents
+        else:
+            print(f"New agent with fitness {next_solution['fitness']} not added; below archive minimum of {min_current_upper}.")
+            continue  
+        # ------------------------------------------------------------
+
 
 def print_list_dict(list_dict):
     new_list_dict = []
@@ -431,15 +1083,47 @@ if __name__ == "__main__":
     parser.add_argument('--debug', action='store_true', default=True)
     parser.add_argument('--save_dir', type=str, default='results/')
     parser.add_argument('--expr_name', type=str, default="mmlu_gpt3.5_results")
-    parser.add_argument('--n_generation', type=int, default=20)
+    parser.add_argument('--n_generation', type=int, default=30)
     parser.add_argument('--debug_max', type=int, default=3)
     parser.add_argument('--max_agents', type=int, default=5)
 
-    args = parser.parse_args()
-    # search
-    SEARCHING_MODE = True
-    search(args)
+    # Arguments for configuration
+    parser.add_argument('--agent_sampling', type=str, default='fitness', help="Fitness or uniform sampling of selected agent")
+    parser.add_argument('--direction_sampling', type=str, default='fitness', help="Fitness or uniform sampling of mutation direction")
+    parser.add_argument('--past_agents', type=str, default='MAP', help="Inclusion of past agents into system prompt. Values are either MAP, Archive, Agent)")
 
-    # evaluate
-    SEARCHING_MODE = False
-    evaluate(args)
+    
+    # Arguments for multiple runs to test variance
+    parser.add_argument('--num_runs', type=int, default=3, help="Number of runs to execute (default: 3)")
+    parser.add_argument('--base_seeds', nargs='+', type=int, default=[42, 45, 47], help="List of seeds for each run. Length must match num_runs")
+
+    args = parser.parse_args()
+
+    # Validate seed configuration
+    if len(args.base_seeds) != args.num_runs:
+        raise ValueError(f"Number of seeds ({len(args.base_seeds)}) must match num_runs ({args.num_runs})")
+
+    original_expr_name = args.expr_name
+
+    for run_idx, seed in enumerate(args.base_seeds):
+        # Generate consistent folder name based on parameters
+        args.save_dir = f"mmlu_run_{args.past_agents}_{args.agent_sampling}_{args.direction_sampling}_gen{args.n_generation}_seed{seed}"
+        os.makedirs(args.save_dir, exist_ok=True)
+        
+        # Set seeds
+        random.seed(seed)
+        np.random.seed(seed)
+        
+        # Update experiment name
+        args.expr_name = f"run{run_idx+1}_{original_expr_name}"
+        
+        print(f"Starting run {run_idx+1}/{args.num_runs} with seed {seed}")
+        print(f"Save directory: {args.save_dir}")
+        print(f"Experiment name: {args.expr_name}\n")
+
+        # Run search and evaluation
+        SEARCHING_MODE = True
+        search(args)
+        
+        SEARCHING_MODE = False
+        evaluate(args)

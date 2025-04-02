@@ -681,7 +681,7 @@ def get_init_archive():
     return [COT, COT_SC, Reflexion, LLM_debate, Take_a_step_back, QD, Role_Assignment]
 
 
-def get_prompt(current_archive, past_agent_parameter, selected_agent=None, structure_label=None, api_label=None, adaptive=False):
+def get_prompt(current_archive, current_map, past_agent_parameter, selected_agent=None, structure_label=None, api_label=None, adaptive=False):
     # Convert the archive to a JSON string
     archive_str = ",\n".join([json.dumps(sol) for sol in current_archive])
     archive_str = f"[{archive_str}]"

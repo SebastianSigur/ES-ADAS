@@ -486,11 +486,7 @@ class AgentArchitecture:
 
 #... Code to implement the evaluation of the agent's performance on ARC tasks
 ```
-
-# Discovered Architectures
-Below are the discovered architectures:
-
-[MAP_ELITES]
+[PAST_AGENTS]
 
 # Agent's fitness value
 The fitness value is the median and 95% Bootstrap Confidence Interval of the correct rate on a validation question set. Your GOAL is to maximize the "fitness".
@@ -817,7 +813,7 @@ RULES = lambda api_threshold: (
 def get_init_archive():
     return [COT_code, Reflexion, LLM_debate, COT_SC, QD]
 
-def get_prompt(current_archive, current_map, top3_agents, selected_agent=None, structure_label=None, api_label=None, adaptive=False):
+def get_prompt(current_archive, current_map, past_agent_parameter, selected_agent=None, structure_label=None, api_label=None, adaptive=False):
     # Convert the archive to a JSON string
     archive_str = ",\n".join([json.dumps(sol) for sol in current_archive])
     archive_str = f"[{archive_str}]"
@@ -826,17 +822,38 @@ def get_prompt(current_archive, current_map, top3_agents, selected_agent=None, s
     map_str = ",\n".join([json.dumps(sol) for sol in current_map])
     map_str = f"[{map_str}]"
 
-    # Replace [ARCHIVE] and [EXAMPLE] as before
-    # prompt = base.replace("[ARCHIVE]", archive_str)
-    # prompt = prompt.replace("[EXAMPLE]", json.dumps(EXAMPLE))
+    # Replace [EXAMPLE]
     prompt = base.replace("[EXAMPLE]", json.dumps(EXAMPLE))
-    prompt = prompt.replace("[MAP_ELITES]",json.dumps(map_str))
 
-    # Use the api_label (if provided) to generate rules.
+    # Include past agents based on past_agent_parameter
+    if past_agent_parameter == "MAP":
+        template_str = """# Discovered Architectures 
+Below are the discovered architectures:
+ 
+[MAP_ELITES]"""
+        prompt = prompt.replace("[PAST_AGENTS]", template_str)
+        prompt = prompt.replace("[MAP_ELITES]", json.dumps(map_str))
+    
+    elif past_agent_parameter == "Archive":
+        template_str = """# Discovered Architectures 
+Below are the discovered architectures:
+ 
+[ARCHIVE]"""
+        prompt = prompt.replace("[PAST_AGENTS]", template_str)
+        prompt = prompt.replace("[ARCHIVE]", json.dumps(archive_str))
+    
+    else:
+        template_str = """# Selected Agent
+Below is the architecture of the selected agent:
+ 
+[SELECTED_AGENT]"""
+        prompt = prompt.replace("[PAST_AGENTS]", template_str)
+
+    # Generate rules for API calls
     rules = RULES(api_label if api_label is not None else "few API calls")
     prompt = prompt.replace("[RULES]", rules)
     
-    # Replace the new placeholders for structure and API labels.
+    # Add in mutation direction
     if structure_label is not None:
         prompt = prompt.replace("[STRUCTURE_LABEL]", structure_label)
     else:
@@ -847,7 +864,7 @@ def get_prompt(current_archive, current_map, top3_agents, selected_agent=None, s
     else:
         prompt = prompt.replace("[API_LABEL]", "")
     
-    # Replace [LABEL DESCRIPTION] with the corresponding description based on structure_label.
+    # Replace [LABEL DESCRIPTION] with corresponding description based on structure_label
     label_descriptions = {
         "Linear Chain-of-Thought": "The agent produces its final answer in a single, linear chain-of-thought without any iterative self-refinement or use of multiple agents.",
         "Iterative Refinement": "The agent continually repcrosses its chain-of-thought, revising, re-evaluating, and self-assessing its intermediate steps - to progressively converge on a robust final answer.",
@@ -860,7 +877,7 @@ def get_prompt(current_archive, current_map, top3_agents, selected_agent=None, s
     label_description = label_descriptions.get(structure_label, "")
     prompt = prompt.replace("[LABEL DESCRIPTION]", label_description)
     
-    # For the selected agent, if provided, we convert it to a JSON string
+    # Add in selected agent
     if selected_agent is not None:
         prompt = prompt.replace("[SELECTED_AGENT]", json.dumps(selected_agent))
     else:
@@ -869,11 +886,13 @@ def get_prompt(current_archive, current_map, top3_agents, selected_agent=None, s
     return system_prompt, prompt
 
 
+
 def get_reflexion_prompt(prev_example, structure_label=None, api_label=None):
     prev_example_str = "Here is the previous agent you tried:\n" + json.dumps(prev_example) + "\n\n"
     r1 = (Reflexion_prompt_1.replace("[EXAMPLE]", prev_example_str)
           if prev_example else Reflexion_prompt_1.replace("[EXAMPLE]", ""))
-    # Generate rules using the provided api_label directly (or an empty string if not provided)
+    
+    # Generate rules
     rules = RULES(api_label if api_label is not None else "")
     r1 = r1.replace("[RULES]", rules)
     

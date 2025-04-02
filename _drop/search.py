@@ -808,7 +808,7 @@ def search(args):
         else:
             print(f"Selected Agent: {selected_agent.get('name', 'Unnamed Agent') if selected_agent else 'No agent found'}")
 
-        system_prompt, prompt = get_prompt(archive, args.past_agents, selected_agent, target_structure_label, target_api_label)
+        system_prompt, prompt = get_prompt(archive, map_elites, args.past_agents, selected_agent, target_structure_label, target_api_label)
         msg_list = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompt},
@@ -816,7 +816,7 @@ def search(args):
         try:
             next_solution = get_json_response_from_gpt_reflect(msg_list)
 
-            Reflexion_prompt_1, Reflexion_prompt_2 = get_reflexion_prompt(archive[-1] if n > 0 else None, args.past_agents, target_structure_label, target_api_label)
+            Reflexion_prompt_1, Reflexion_prompt_2 = get_reflexion_prompt(archive[-1] if n > 0 else None, target_structure_label, target_api_label)
             # Reflexion 1
             msg_list.append({"role": "assistant", "content": str(next_solution)})
             msg_list.append({"role": "user", "content": Reflexion_prompt_1})

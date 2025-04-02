@@ -664,12 +664,21 @@ Your response should be organized as follows:
 Put your new reflection thinking in "reflection". Repeat the previous "thought" and "name", and update the corrected version of the code in "code".
 """
 
+RULES = lambda api_threshold: (
+    "RULE: In the forward() function, every single occurrence of LLMAgentBase(...)(...) counts as one usage. "
+    "This means that if you call an LLMAgentBase instance more than once—even if it's the same instance—each call is counted separately. "
+    f"The total number of such calls must not exceed {api_threshold}. "
+    "This includes calls made inside loops, conditionals, or any nested structures. "
+    "No exceptions: every call is counted individually. "
+    "Strict adherence to this rule is mandatory."
+)
+
 
 def get_init_archive():
     return [COT, COT_SC, Reflexion, LLM_debate, Take_a_step_back, QD, Role_Assignment]
 
 
-def get_prompt(current_archive, past_agent_parameter, selected_agent=None, structure_label=None, api_label=None, adaptive=False):
+def get_prompt(current_archive, current_map, past_agent_parameter, selected_agent=None, structure_label=None, api_label=None, adaptive=False):
     # Convert the archive to a JSON string
     archive_str = ",\n".join([json.dumps(sol) for sol in current_archive])
     archive_str = f"[{archive_str}]"
