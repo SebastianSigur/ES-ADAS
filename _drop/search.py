@@ -1066,7 +1066,7 @@ if __name__ == "__main__":
 
     # Validate seed configuration
     if len(args.base_seeds) != args.num_runs:
-        raise ValueError(f"Number of seeds ({len(args.base_seeds)}) must match num_runs ({args.num_runs})")
+        args.base_seeds = args.base_seeds[:args.num_runs]
 
     original_expr_name = args.expr_name
 
