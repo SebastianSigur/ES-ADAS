@@ -1,26 +1,30 @@
 <h1 align="center">
-  <img src="misc/ESADAS.png" width="200" /></a><br>
+  <img src="misc/ESADAS.png" width="400" /></a><br>
   <b>Domain-Agnostic Universal Novel Agent Design through
 Autonomous, Open-Ended Evolutionary Search</b><br>
 </h1>
+
 
 DUNE proposes an improvement to the original ADAS framework with the integration of a evolutionary search algorithms, encouraging diversity by looking at different domain features, such as structure and scale.
 
 DUNE is open-ended, being applicable to multiple domains. Dune generates more powerful agents compared to the original ADAS in popular benchmarks such as arc, drop, gpqa, mgsm, and mmlu. Dune reduces the costof automatic agent search by a significant amount compared to ADAS, allowing more independentresearch in this field
 
+We take alot of inspiration from the ADAS work, and recognize that our work would not be possible without the work from the ADAS team. Their paper can be found [here](https://arxiv.org/abs/2408.08435) and their repository [here](https://github.com/ShengranHu/ADAS)
 
 <p align="center">
-<img src="misc/algo.png"/></a><br>
+<img src="misc/ESADAS.drawio.png"/></a><br>
 </p>
 
 ## Setup
 ```bash
-conda create -n adas python=3.11
-conda activate adas
+python3 -m venv venv 
 pip install -r requirements.txt
 
 # provide your OpenAI API key
 export OPENAI_API_KEY="YOUR KEY HERE"
+
+# provide your GoogleAPI key
+export GOOGLE_AI_API_KEY="YOUR KEY HERE"
 ```
 
 ## Running Instructions
