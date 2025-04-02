@@ -490,7 +490,7 @@ if __name__ == "__main__":
     parser.add_argument('--reflect_max', type=int, default=3)
     parser.add_argument('--debug_max', type=int, default=1)
     parser.add_argument('--max_agents', type=int, default=5)
-    print('No bad agents')
+
     args = parser.parse_args()
     # search
     SEARCHING_MODE = True
