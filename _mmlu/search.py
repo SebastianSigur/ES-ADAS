@@ -15,7 +15,7 @@ from tqdm import tqdm
 from google import genai
 from google.genai import types
 
-from mmlu_prompt import get_init_archive, get_prompt, get_reflexion_prompt, get_task_mutated_instruction, get_prompt_mutated, TASK_MUTATOR_PROMPTS, get_initial_task_mutators
+from mmlu_prompt import get_init_archive, get_prompt, get_reflexion_prompt, get_task_mutated_instruction, get_prompt_mutated, TASK_MUTATOR_PROMPTS as INITIAL_TASK_MUTATOR_PROMPTS, get_initial_task_mutators
 
 # Generator of Task Mutators Hyperparams
 GENERATE_TASK_MUTATORS = True
@@ -109,29 +109,6 @@ def get_json_response_from_gpt_reflect(
     assert not json_dict is None
     return json_dict
 
-# Generates Task Mutators if flag is ON
-if GENERATE_TASK_MUTATORS:
-    # If resuming from a previous session the mutators will be re-generated
-    sys_prompt_task_generator, prompt_task_generator=  get_initial_task_mutators(N_TASK_MUTATORS, TASK_MUTATOR_PROMPTS)
-
-    msg_list_task_generator = [
-                {"role": "system", "content": sys_prompt_task_generator},
-                {"role": "user", "content": prompt_task_generator},
-            ]
-    task_mutators_generated = get_json_response_from_gpt_reflect(msg_list_task_generator)
-    # Each candidate returns the task mutators with different keys
-    if 'instruction' in task_mutators_generated:
-        assert type(task_mutators_generated['instruction'])==list, 'Invalid output from Task Mutator Generator'
-        assert len(task_mutators_generated['instruction'])>=10, 'Invalid length from Task Mutator Generator'
-        TASK_MUTATOR_PROMPTS = task_mutators_generated['instruction'][:N_TASK_MUTATORS]
-    else:
-        assert type(task_mutators_generated['instruction_mutators'])==list, 'Invalid output from Task Mutator Generator'
-        assert len(task_mutators_generated['instruction_mutators'])>=10, 'Invalid length from Task Mutator Generator'
-        TASK_MUTATOR_PROMPTS = task_mutators_generated['instruction_mutators'][:N_TASK_MUTATORS]
-    print('-'*30)
-    print('Task Mutators Generated:')
-    for i,mut_task_prompt in enumerate(TASK_MUTATOR_PROMPTS): print(i+1,mut_task_prompt)
-    print('-'*30)
 
 class LLMAgentBase():
     """
@@ -209,6 +186,44 @@ class AgentSystem():
 
 
 def search(args):
+    # Generates Task Mutators if flag is ON
+    if GENERATE_TASK_MUTATORS:
+        mutators_filename = os.path.join(args.save_dir, f"{args.expr_name}_task_mutators.json")
+        # Reloading mutators of run if they already exist
+        if os.path.exists(mutators_filename):
+            with open(mutators_filename, 'r') as mut_json_file:
+                TASK_MUTATOR_PROMPTS_JSON = json.load(mut_json_file)
+                TASK_MUTATOR_PROMPTS = TASK_MUTATOR_PROMPTS_JSON['task_mutators']
+        else:
+            # Generating Mutators if they have not been created
+            sys_prompt_task_generator, prompt_task_generator=  get_initial_task_mutators(N_TASK_MUTATORS, INITIAL_TASK_MUTATOR_PROMPTS)
+
+            msg_list_task_generator = [
+                        {"role": "system", "content": sys_prompt_task_generator},
+                        {"role": "user", "content": prompt_task_generator},
+                    ]
+            task_mutators_generated = get_json_response_from_gpt_reflect(msg_list_task_generator)
+            # Each candidate returns the task mutators with different keys
+            if 'instruction' in task_mutators_generated:
+                assert type(task_mutators_generated['instruction'])==list, 'Invalid output from Task Mutator Generator'
+                assert len(task_mutators_generated['instruction'])>=N_TASK_MUTATORS, 'Invalid length from Task Mutator Generator'
+                TASK_MUTATOR_PROMPTS = task_mutators_generated['instruction'][:N_TASK_MUTATORS]
+            else:
+                assert type(task_mutators_generated['instruction_mutators'])==list, 'Invalid output from Task Mutator Generator'
+                assert len(task_mutators_generated['instruction_mutators'])>=N_TASK_MUTATORS, 'Invalid length from Task Mutator Generator'
+                TASK_MUTATOR_PROMPTS = task_mutators_generated['instruction_mutators'][:N_TASK_MUTATORS]
+
+            print('-'*30)
+            print('Task Mutators Generated:')
+            for i,mut_task_prompt in enumerate(TASK_MUTATOR_PROMPTS): print(i+1,mut_task_prompt)
+            print('-'*30)
+
+            print('Saving Generated Mutators...')
+            TASK_MUTATOR_PROMPTS_JSON = {'task_mutators' : TASK_MUTATOR_PROMPTS}
+            with open(mutators_filename, 'w') as file:
+                json.dump(TASK_MUTATOR_PROMPTS_JSON, file, indent=4)
+
+
     file_path = os.path.join(args.save_dir, f"{args.expr_name}_run_archive.json")
     if os.path.exists(file_path):
         with open(file_path, 'r') as json_file:
