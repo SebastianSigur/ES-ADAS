@@ -17,11 +17,11 @@ import scipy as sp
 from mgsm_prompt import get_init_archive, get_prompt, get_reflexion_prompt, get_code_mutator_prompt, get_task_mutated_instruction, get_prompt_mutated, TASK_MUTATOR_PROMPTS, get_initial_task_mutators
 
 # Generator of Task Mutators Hyperparams
-GENERATE_TASK_MUTATORS = True
+GENERATE_TASK_MUTATORS = False
 N_TASK_MUTATORS = 10
 
 # Task Performance Performance Sampling Hyperparams
-TASK_MUTATORS_PERFORMANCE_SAMPLING = True
+TASK_MUTATORS_PERFORMANCE_SAMPLING = False
 SAMPLING_TEMP = 0.3
 PERFORMANCE_METRIC = 'mean'
 

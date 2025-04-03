@@ -17,11 +17,11 @@ from google.genai import types
 from drop_prompt import get_init_archive, get_prompt, get_reflexion_prompt, get_task_mutated_instruction, get_prompt_mutated, TASK_MUTATOR_PROMPTS, get_initial_task_mutators
 
 # Generator of Task Mutators Hyperparams
-GENERATE_TASK_MUTATORS = True
+GENERATE_TASK_MUTATORS = False
 N_TASK_MUTATORS = 10
 
 # Task Performance Performance Sampling Hyperparams
-TASK_MUTATORS_PERFORMANCE_SAMPLING = True
+TASK_MUTATORS_PERFORMANCE_SAMPLING = False
 SAMPLING_TEMP = 0.3
 PERFORMANCE_METRIC = 'mean'
 
@@ -458,7 +458,7 @@ def evaluate(args):
             eval_archive = json.load(json_file)
             
     evaluation_candidates = [] # only choosing top agents to evaluate
-    
+    print(f'len(archive): {len(archive)}')
     current_idx = 0
     while (current_idx < len(archive)):
         with open(file_path, 'r') as json_file:
@@ -467,10 +467,11 @@ def evaluate(args):
         
         count = 0
         max_agents = args.max_agents
-
+        initial_count = 0
         for archived_agent in archive:
             if archived_agent['generation'] == "initial":
                 evaluation_candidates.append(archived_agent)
+                initial_count += 1
         for archived_agent in sorted_archive:
             if archived_agent['generation'] == "initial":
                 continue
@@ -478,7 +479,9 @@ def evaluate(args):
                 break
             evaluation_candidates.append(archived_agent)
             count += 1
-            
+        
+        if len(eval_archive) - initial_count >= args.max_agents:
+             break
         if current_idx < len(eval_archive):
             current_idx += 1
             continue
@@ -568,8 +571,8 @@ if __name__ == "__main__":
     parser.add_argument('--max_workers', type=int, default=48)
     parser.add_argument('--debug', action='store_true', default=True)
     parser.add_argument('--save_dir', type=str, default='results/')
-    parser.add_argument('--expr_name', type=str, default="drop_openai_gemini_task_mutator_experiment_1_run_1_results")
-    parser.add_argument('--n_generation', type=int, default=20)
+    parser.add_argument('--expr_name', type=str, default="drop_openai_gemini_task_mutator_experiment_1_run_2_results")
+    parser.add_argument('--n_generation', type=int, default=30)
     parser.add_argument('--debug_max', type=int, default=3)
     parser.add_argument('--max_agents', type=int, default=5)
 

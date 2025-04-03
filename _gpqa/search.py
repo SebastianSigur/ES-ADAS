@@ -45,7 +45,7 @@ ROLE_DESC = lambda role: f"You are a {role}."
 SYSTEM_MSG = ""
 
 PRINT_LLM_DEBUG = False
-SEARCHING_MODE = True
+SEARCHING_MODE = False
 
 
 @backoff.on_exception(backoff.expo, openai.RateLimitError)

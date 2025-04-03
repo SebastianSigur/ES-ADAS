@@ -17,6 +17,35 @@ import random
 
 from arc_prompt import get_init_archive, get_prompt, get_reflexion_prompt, get_task_mutated_instruction, get_prompt_mutated, TASK_MUTATOR_PROMPTS, get_initial_task_mutators
 
+# For the filename change the 'expr_name' arg at the bottom
+
+### Experiment 1 ###
+# Settings to change below:
+# GENERATE_TASK_MUTATORS = False (Create new mutators OFF)
+# TASK_MUTATORS_PERFORMANCE_SAMPLING = False (Uniform Sampling)
+# Filename for each run:
+# Filename run 1: arc_openai_gemini_task_mutator_experiment_1_run_1_results
+# Filename run 2: arc_openai_gemini_task_mutator_experiment_1_run_2_results
+# Filename run 3: arc_openai_gemini_task_mutator_experiment_1_run_3_results
+
+### Experiment 2 ###
+# Settings to change below:
+# GENERATE_TASK_MUTATORS = True (Create new mutators ON)
+# TASK_MUTATORS_PERFORMANCE_SAMPLING = False (Uniform Sampling)
+# Filename for each run:
+# Filename run 1: arc_openai_gemini_task_mutator_experiment_2_run_1_results
+# Filename run 2: arc_openai_gemini_task_mutator_experiment_2_run_2_results
+# Filename run 3: arc_openai_gemini_task_mutator_experiment_2_run_3_results
+
+### Experiment 3 ###
+# Settings to change below:
+# GENERATE_TASK_MUTATORS = True (Create new mutators ON)
+# TASK_MUTATORS_PERFORMANCE_SAMPLING = True (Performance Sampling)
+# Filename for each run:
+# Filename run 1: arc_openai_gemini_task_mutator_experiment_3_run_1_results
+# Filename run 2: arc_openai_gemini_task_mutator_experiment_3_run_2_results
+# Filename run 3: arc_openai_gemini_task_mutator_experiment_3_run_3_results
+
 # Generator of Task Mutators Hyperparams
 GENERATE_TASK_MUTATORS = True
 N_TASK_MUTATORS = 10
@@ -543,7 +572,7 @@ def evaluate(args):
             eval_archive = json.load(json_file)
 
     evaluation_candidates = [] # only choosing top agents to evaluate
-    
+    print(f'len(archive): {len(archive)}')
     current_idx = 0
     while (current_idx < len(archive)):
         with open(file_path, 'r') as json_file:
@@ -553,10 +582,11 @@ def evaluate(args):
         
         count = 0
         max_agents = args.max_agents
-
+        initial_count = 0
         for archived_agent in archive:
             if archived_agent['generation'] == "initial":
                 evaluation_candidates.append(archived_agent)
+                initial_count += 1
         for archived_agent in sorted_archive:
             if archived_agent['generation'] == "initial":
                 continue
@@ -565,7 +595,8 @@ def evaluate(args):
             evaluation_candidates.append(archived_agent)
             count += 1
             
-            
+        if len(eval_archive) - initial_count >= args.max_agents:
+             break
         if current_idx < len(eval_archive):
             current_idx += 1
             continue
