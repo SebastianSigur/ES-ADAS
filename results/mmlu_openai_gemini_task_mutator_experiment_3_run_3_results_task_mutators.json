@@ -1,0 +1,14 @@
+{
+    "task_mutators": [
+        "Reimagine the prompt by incorporating elements from different disciplines or fields, creating a multidisciplinary approach to the problem.",
+        "Transform the instruction into a question that encourages deep reflection and personal insight, allowing the user to explore their own thoughts and feelings about the topic.",
+        "Encourage the user to visualize the problem in a new light: instead of just analyzing facts, ask them to create a story or narrative around the challenge.",
+        "Invite the user to think like a mentor: how would they guide someone else through the problem? Frame the instruction as advice they would give to a friend.",
+        "Create an instruction that requires the user to adopt a different perspective: ask them to solve the problem as if they were someone from a completely different background or experience.",
+        "Encourage the user to utilize brainstorming techniques: instead of solving the problem directly, prompt them to list as many ideas or solutions as possible without judgment.",
+        "Challenge the user to design an experiment or prototype related to the problem, focusing on hands-on exploration and practical application.",
+        "Guide the user to consider the ethical implications of their solution: how might their approach affect various stakeholders involved in the problem?",
+        "Prompt the user to identify and address their assumptions about the problem, encouraging them to question what they think they know and explore alternative viewpoints.",
+        "Encourage collaborative thinking by asking the user to imagine how they would approach the problem if they were working in a team, emphasizing teamwork and shared perspectives."
+    ]
+}
