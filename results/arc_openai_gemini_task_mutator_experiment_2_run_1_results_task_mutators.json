@@ -1,0 +1,14 @@
+{
+    "task_mutators": [
+        "Transform the existing problem into a real-world scenario. For example, if the problem involves abstract numbers, relate it to a practical situation like budgeting or resource allocation.",
+        "Encourage the user to visualize the problem using diagrams or graphs. Suggest they sketch out the concepts to better understand the relationships involved.",
+        "Challenge the user to find multiple solutions or approaches to the problem. Instead of seeking a single answer, prompt them to explore various methods or strategies to arrive at different conclusions.",
+        "Introduce an element of creativity by asking the user to create a story or narrative around the problem. This could involve personifying numbers or concepts to make the problem more relatable and engaging.",
+        "Suggest the user to collaborate with peers to tackle the problem. Encourage them to discuss their thought processes and approaches, promoting a collective problem-solving mindset.",
+        "Inspire the user to rethink the parameters of the problem. Ask them to consider what would happen if certain constraints were removed or altered, fostering innovative thinking.",
+        "Encourage the user to apply a different mathematical concept or theorem to the problem. Prompt them to think about how they could leverage other areas of mathematics to gain new insights.",
+        "Guide the user to reflect on a similar problem they have solved in the past. Ask them to draw parallels and utilize lessons learned from previous experiences to inform their current approach.",
+        "Ask the user to articulate their thought process as they work through the problem. Promoting metacognition can help them identify gaps in their understanding and clarify their reasoning.",
+        "Invite the user to gamify the problem. Encourage them to treat the problem like a puzzle or challenge, where they can earn points for each step solved or explore different levels of complexity."
+    ]
+}
