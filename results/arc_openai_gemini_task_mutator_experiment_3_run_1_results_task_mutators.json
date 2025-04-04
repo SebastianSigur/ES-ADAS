@@ -1,0 +1,14 @@
+{
+    "task_mutators": [
+        "Reimagine the problem by presenting it in the context of a real-world scenario, enhancing its relevance and practicality.",
+        "Transform the existing instruction into a visual guide or diagram that illustrates the steps towards solving the problem.",
+        "Encourage collaboration by suggesting that the user discuss the problem with peers to gain multiple perspectives and insights.",
+        "Create a narrative around the problem that includes characters or a storyline, making the mathematical concepts more engaging and relatable.",
+        "Prompt the user to explore alternative methods for arriving at the solution, such as using different mathematical tools or formulas.",
+        "Challenge the user to state the problem in their own words, promoting a deeper understanding and personal connection to the material.",
+        "Introduce an element of gamification by framing the problem as a challenge or quest, motivating the user to solve it as if they were on an adventure.",
+        "Encourage the user to consider the implications of the problem on various fields or disciplines, fostering interdisciplinary thinking.",
+        "Suggest that the user create a series of related problems that gradually increase in complexity, allowing for progressive learning and mastery.",
+        "Inspire curiosity by asking the user to formulate questions that arise from the problem, sparking deeper exploration and engagement with the topic."
+    ]
+}

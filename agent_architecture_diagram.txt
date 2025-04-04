@@ -1,0 +1,5 @@
+Agent Architecture Interaction Diagram:
+Task Info -> Chain-of-Thought Agent
+Chain-of-Thought Agent -> Critic Agent
+Critic Agent -> Chain-of-Thought Agent
+Chain-of-Thought Agent -> Final Decision Agent

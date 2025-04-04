@@ -216,6 +216,8 @@ def search(args):
             TASK_MUTATOR_PROMPTS_JSON = {'task_mutators' : TASK_MUTATOR_PROMPTS}
             with open(mutators_filename, 'w') as file:
                 json.dump(TASK_MUTATOR_PROMPTS_JSON, file, indent=4)
+    else:
+        TASK_MUTATOR_PROMPTS = INITIAL_TASK_MUTATOR_PROMPTS[:]
 
 
     file_path = os.path.join(args.save_dir, f"{args.expr_name}_run_archive.json")

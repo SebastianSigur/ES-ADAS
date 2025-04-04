@@ -1,0 +1,14 @@
+{
+    "task_mutators": [
+        "Transform the problem into a visual representation, such as a diagram or graph, to aid in understanding and solving it.",
+        "Encourage the use of analogies: Relate the problem to a real-world scenario or a different field to find creative solutions.",
+        "Invite a collaborative approach: Suggest discussing the problem with a peer to gain new insights and perspectives.",
+        "Challenge the user to simplify the problem by removing unnecessary information or assumptions, focusing only on the essential elements.",
+        "Create a dialogue with the problem: Write a conversation between yourself and the problem to explore different angles and solutions.",
+        "Encourage experimentation: Suggest trying out different methods or tools to approach the problem rather than sticking to one conventional way.",
+        "Incorporate storytelling: Frame the problem as a narrative, introducing characters and a plot that illustrate the mathematical concepts involved.",
+        "Propose a role reversal: Ask the user to explain the problem to a beginner, forcing them to clarify their own understanding in simpler terms.",
+        "Invite the user to explore paradoxes related to the problem, prompting them to think critically about seemingly contradictory aspects.",
+        "Encourage a time-bound challenge: Set a timer for a quick brainstorming session to generate as many ideas as possible within a short period."
+    ]
+}

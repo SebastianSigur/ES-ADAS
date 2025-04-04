@@ -1,0 +1,14 @@
+{
+    "task_mutators": [
+        "Transform the given problem into a narrative: Write a short story that encapsulates the essence of the problem while offering a unique perspective.",
+        "Encourage visualization: Instead of solving the problem directly, prompt the user to create a mind map or diagram that illustrates the relationships and components of the problem.",
+        "Incorporate role play: Suggest that the user assume the role of a character who faces this problem and explore potential solutions from that character's perspective.",
+        "Infuse creativity: Challenge the user to reimagine the problem in a different context or setting, such as a fantasy world or futuristic scenario, and propose solutions based on that new environment.",
+        "Foster collaboration: Invite the user to share their problem with a peer or group, encouraging discussion and brainstorming of diverse solutions together.",
+        "Apply a metaphor: Ask the user to express the problem through a metaphor or analogy, exploring how this new comparison could illuminate different facets of the issue.",
+        "Utilize the inversion technique: Encourage the user to think about the opposite of the problem, asking them how they would create the worst possible scenario and what that reveals about the original issue.",
+        "Suggest iterative refinement: Instead of solving the problem in one go, prompt the user to draft an initial solution, then refine it through several iterations, seeking feedback at each stage.",
+        "Incorporate sensory exploration: Ask the user to describe the problem using sensory details (sight, sound, touch, etc.), which may lead to new insights and creative solutions.",
+        "Encourage philosophical inquiry: Prompt the user to reflect on the underlying principles and values related to the problem, exploring how these can shape innovative approaches to resolution."
+    ]
+}

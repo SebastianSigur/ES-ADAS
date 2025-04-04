@@ -1,0 +1,14 @@
+{
+    "task_mutators": [
+        "Transform the given reading comprehension prompt into a dialogue format, allowing two characters to discuss the text and its themes.",
+        "Encourage the reader to visualize a scene from the text by creating a descriptive image in their mind, enhancing their understanding through imagination.",
+        "Invite the reader to formulate questions they would ask the author about the text, promoting critical thinking and deeper analysis.",
+        "Challenge the reader to identify and summarize the main idea of each paragraph, fostering a structured approach to comprehension.",
+        "Ask the reader to create a mind map of the key concepts and characters in the text, visually organizing their thoughts for better retention.",
+        "Instruct the reader to rewrite a passage from the text from a different character's perspective, exploring alternative viewpoints and interpretations.",
+        "Prompt the reader to connect the themes of the text to current events or personal experiences, making the material more relatable and engaging.",
+        "Encourage the reader to write a brief review of the text, highlighting what they found most interesting and areas for improvement.",
+        "Invite the reader to select a quote from the text that resonates with them and explain its significance, promoting personal connection and reflection.",
+        "Challenge the reader to predict what might happen next in the story, using clues from the text to justify their predictions and enhancing engagement."
+    ]
+}
