@@ -1158,7 +1158,7 @@ if __name__ == "__main__":
 
     for run_idx, seed in enumerate(args.base_seeds):
         # Generate consistent folder name based on parameters
-        args.save_dir = f"run_{args.past_agents}_{args.agent_sampling}_{args.direction_sampling}_gen{args.n_generation}_seed{seed}"
+        args.save_dir = f"arc_{args.past_agents}_{args.agent_sampling}_{args.direction_sampling}_gen{args.n_generation}_seed{seed}"
         os.makedirs(args.save_dir, exist_ok=True)
         
         # Set seeds

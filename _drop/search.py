@@ -1048,7 +1048,7 @@ if __name__ == "__main__":
     parser.add_argument('--debug', action='store_true', default=True)
     parser.add_argument('--save_dir', type=str, default='results/')
     parser.add_argument('--expr_name', type=str, default="drop_gpt3.5_results")
-    parser.add_argument('--n_generation', type=int, default=50)
+    parser.add_argument('--n_generation', type=int, default=30)
     parser.add_argument('--debug_max', type=int, default=3)
     parser.add_argument('--max_agents', type=int, default=5)
 
@@ -1060,7 +1060,7 @@ if __name__ == "__main__":
     
     # Arguments for multiple runs to test variance
     parser.add_argument('--num_runs', type=int, default=1, help="Number of runs to execute (default: 3)")
-    parser.add_argument('--base_seeds', nargs='+', type=int, default=[47], help="List of seeds for each run. Length must match num_runs")
+    parser.add_argument('--base_seeds', nargs='+', type=int, default=[45], help="List of seeds for each run. Length must match num_runs")
 
     args = parser.parse_args()
 
