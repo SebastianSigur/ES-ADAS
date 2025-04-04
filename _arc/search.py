@@ -51,7 +51,7 @@ GENERATE_TASK_MUTATORS = True
 N_TASK_MUTATORS = 10
 
 # Task Performance Performance Sampling Hyperparams
-TASK_MUTATORS_PERFORMANCE_SAMPLING = True
+TASK_MUTATORS_PERFORMANCE_SAMPLING = False
 SAMPLING_TEMP = 0.3
 PERFORMANCE_METRIC = 'mean'
 
@@ -340,6 +340,9 @@ def search(args):
             TASK_MUTATOR_PROMPTS_JSON = {'task_mutators' : TASK_MUTATOR_PROMPTS}
             with open(mutators_filename, 'w') as file:
                 json.dump(TASK_MUTATOR_PROMPTS_JSON, file, indent=4)
+    
+    else:
+        TASK_MUTATOR_PROMPTS = INITIAL_TASK_MUTATOR_PROMPTS[:]
 
 
     file_path = os.path.join(args.save_dir, f"{args.expr_name}_run_archive.json")
@@ -695,7 +698,7 @@ if __name__ == "__main__":
     parser.add_argument('--max_workers', type=int, default=32)
     parser.add_argument('--debug', action='store_true', default=True)
     parser.add_argument('--save_dir', type=str, default='results/')
-    parser.add_argument('--expr_name', type=str, default='arc_openai_gemini_task_mutator_experiment_1_run_1_results')
+    parser.add_argument('--expr_name', type=str, default='arc_openai_gemini_task_mutator_experiment_2_run_1_results')
     parser.add_argument('--n_generation', type=int, default=20)
     parser.add_argument('--reflect_max', type=int, default=3)
     parser.add_argument('--debug_max', type=int, default=3)
