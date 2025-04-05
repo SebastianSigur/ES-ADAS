@@ -1,0 +1,14 @@
+{
+    "task_mutators": [
+        "Transform the original problem into a story format, using characters and scenarios to illustrate the mathematical or logical concepts involved.",
+        "Encourage the user to visualize the problem using diagrams or charts; suggest ways to represent the data graphically to enhance understanding.",
+        "Challenge the user to find multiple solutions to the problem, fostering exploration of different methods or approaches to arrive at varied answers.",
+        "Incorporate real-world applications: Modify the instruction to include practical situations where the mathematical concept can be applied, enhancing relatability.",
+        "Prompt the user to create an analogy that relates the problem to a familiar concept, making abstract ideas more accessible through comparative thinking.",
+        "Encourage collaborative thought by suggesting the user discuss the problem with a peer, aiming to combine perspectives and generate new insights.",
+        "Suggest the user analyze the problem from various angles; prompt them to consider how changing one parameter might influence the outcome.",
+        "Propose an exploration of the historical context of the mathematical concept, encouraging the user to research how it has evolved over time and impacted society.",
+        "Invite the user to formulate their own version of the problem, altering key variables or constraints to create a new challenge inspired by the original.",
+        "Encourage the user to teach the problem to someone else; suggest they explain the concepts in their own words, reinforcing their understanding through teaching."
+    ]
+}
