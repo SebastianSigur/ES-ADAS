@@ -1,0 +1,14 @@
+{
+    "task_mutators": [
+        "Reimagine the reading comprehension task: Instead of focusing solely on summarizing the text, ask the user to create a dialogue between two characters within the text that highlights key themes.",
+        "Transform the instruction into a creative writing challenge: Encourage the user to rewrite the ending of the story based on their understanding and interpretation of the text.",
+        "Encourage deeper analysis by prompting the user to identify and explain the author's purpose in writing the text. What message are they trying to convey?",
+        "Shift the focus from mere comprehension to personal reflection: Ask the user to relate the themes of the text to their own life experiences and share their insights.",
+        "Challenge the user to visualize the text: have them create a mind map that connects the main ideas and supporting details in a visual format.",
+        "Invite the user to step into the author\u2019s shoes: Ask them to write a brief biography of the author based on the themes and ideas presented in the text.",
+        "Encourage critical thinking by prompting the user to identify any biases or assumptions present in the text and discuss how these may affect interpretation.",
+        "Turn comprehension into a collaborative effort: Suggest the user pair up with a peer to discuss the text and compare their understandings and interpretations.",
+        "Emphasize connections to the real world: Prompt the user to research a current event that relates to the themes of the text and summarize their findings.",
+        "Challenge the user to create an alternative perspective: Ask them to write a brief essay from the viewpoint of a secondary character in the text, exploring their thoughts and feelings."
+    ]
+}
