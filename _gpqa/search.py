@@ -603,11 +603,7 @@ if __name__ == "__main__":
     parser.add_argument('--max_workers', type=int, default=36)
     parser.add_argument('--debug', action='store_true', default=True)
     parser.add_argument('--save_dir', type=str, default='results/')
-<<<<<<< HEAD
     parser.add_argument('--expr_name', type=str, default="gpqa_openai_gemini_task_mutator_experiment_3_run_4_results")
-=======
-    parser.add_argument('--expr_name', type=str, default="gpqa_openai_gemini_task_mutator_experiment_3_run_3_results")
->>>>>>> e48b7d59c5e73381ba488a9d642acaa89038e33d
     parser.add_argument('--n_generation', type=int, default=30)
     parser.add_argument('--debug_max', type=int, default=3)
     parser.add_argument('--max_agents', type=int, default=5)
