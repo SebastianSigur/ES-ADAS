@@ -1,0 +1,14 @@
+{
+    "task_mutators": [
+        "Reimagine the problem by incorporating a completely different perspective or context, inviting creative solutions from that angle.",
+        "Encourage the user to visualize the problem as a narrative or story, prompting them to explore character motivations and conflicts to uncover solutions.",
+        "Transform the original instruction into a question that requires the user to think critically about the underlying assumptions and explore alternative viewpoints.",
+        "Challenge the user to use metaphors or analogies to relate the problem to an unrelated field, fostering innovative connections and insights.",
+        "Prompt the user to role-play as a different persona, such as a historical figure or a fictional character, and approach the problem as that individual would.",
+        "Invite the user to create a mind map of the problem, illustrating connections and branching out into various potential solutions or pathways.",
+        "Encourage the exploration of 'what if' scenarios, asking the user to consider extreme or unlikely variations of the problem and their implications.",
+        "Ask the user to consider the problem from multiple stakeholder perspectives, encouraging empathy and a broader understanding of the issue.",
+        "Introduce a random constraint or limitation to the problem, prompting the user to adapt their thinking and find creative solutions within those boundaries.",
+        "Suggest that the user collaborate with someone else to brainstorm solutions, leveraging diverse ideas and approaches to tackle the problem together."
+    ]
+}
