@@ -17,7 +17,7 @@ import scipy as sp
 from mgsm_prompt import get_init_archive, get_prompt, get_reflexion_prompt, get_code_mutator_prompt, get_task_mutated_instruction, get_prompt_mutated, TASK_MUTATOR_PROMPTS as INITIAL_TASK_MUTATOR_PROMPTS, get_initial_task_mutators
 
 # Generator of Task Mutators Hyperparams
-GENERATE_TASK_MUTATORS = False
+GENERATE_TASK_MUTATORS = True
 N_TASK_MUTATORS = 10
 
 # Task Performance Performance Sampling Hyperparams
@@ -587,10 +587,10 @@ if __name__ == "__main__":
     parser.add_argument('--shuffle_seed', type=int, default=0)
     parser.add_argument('--n_repreat', type=int, default=1)
     parser.add_argument('--multiprocessing', action='store_true', default=True)
-    parser.add_argument('--max_workers', type=int, default=48)
+    parser.add_argument('--max_workers', type=int, default=18)
     parser.add_argument('--debug', action='store_true', default=True)
     parser.add_argument('--save_dir', type=str, default='results/')
-    parser.add_argument('--expr_name', type=str, default="task_mutator_test37_mgsm_openai_gemini_results")
+    parser.add_argument('--expr_name', type=str, default="mgsm_openai_gemini_task_mutator_experiment_2_run_4_results")
     parser.add_argument('--n_generation', type=int, default=30)
     parser.add_argument('--debug_max', type=int, default=3)
     parser.add_argument('--max_agents', type=int, default=5)

@@ -1,0 +1,14 @@
+{
+    "task_mutators": [
+        "Transform the original problem into a visual representation, such as a graph or diagram, to enhance understanding and facilitate problem-solving.",
+        "Encourage collaboration: Ask the user to discuss their approach with a peer or a mentor, as this can lead to new insights and breakthroughs in solving the problem.",
+        "Incorporate real-world applications: Challenge the user to relate the mathematical problem to a real-life situation, making it more relevant and engaging.",
+        "Reframe the problem: Suggest the user to express the problem in a different context or perspective that might reveal new solutions or methods.",
+        "Introduce a time constraint: Encourage the user to solve the problem within a set time limit to boost focus and creativity in their approach.",
+        "Add a layer of complexity: Propose an additional constraint or variable to the problem to challenge the user to think deeper and explore alternative solutions.",
+        "Utilize analogies: Prompt the user to find and explain an analogy that relates the problem to something familiar, aiding in conceptual understanding.",
+        "Encourage reverse engineering: Instead of starting from the beginning, suggest the user to work backwards from the desired outcome to find possible solutions.",
+        "Incorporate technology: Recommend the user to use software or tools that can aid in visualizing or calculating components of the problem, enhancing their problem-solving process.",
+        "Inspire creativity: Ask the user to invent a new method or formula that could be applied to the problem, encouraging innovative thinking and exploration of mathematics."
+    ]
+}

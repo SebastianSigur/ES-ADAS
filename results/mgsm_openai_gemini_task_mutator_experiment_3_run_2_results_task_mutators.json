@@ -1,0 +1,14 @@
+{
+    "task_mutators": [
+        "Reframe the problem: Instead of asking for a solution, invite the user to explore different scenarios that could lead to various outcomes.",
+        "Encourage the user to visualize the problem: Suggest they draw a diagram or chart to represent the elements involved, facilitating a deeper understanding.",
+        "Challenge the user to find alternative methods: Instead of directly solving the equation, propose they investigate at least three different approaches to reach the solution.",
+        "Instigate a collaborative effort: Prompt the user to discuss the problem with a peer or use online forums to gain new insights on complex logic issues.",
+        "Introduce an element of storytelling: Encourage the user to describe the problem in a narrative format, incorporating characters and events that relate to the mathematical concepts in question.",
+        "Inspire curiosity by suggesting real-world applications: Ask the user to research how the problem's concepts apply to everyday life or current technologies.",
+        "Create a hypothetical twist: Change one or more parameters of the problem and ask the user to analyze how these changes would affect the outcome.",
+        "Promote a historical perspective: Encourage the user to study how mathematicians from different eras approached similar problems and what methods they employed.",
+        "Invite a philosophical discussion: Ask the user to consider the implications of the problem's solution on broader mathematical theories or concepts.",
+        "Encourage iterative thinking: Prompt the user to refine their solution through multiple iterations, documenting changes and improvements along the way."
+    ]
+}

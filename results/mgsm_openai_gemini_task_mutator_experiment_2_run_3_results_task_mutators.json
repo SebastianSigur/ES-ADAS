@@ -1,0 +1,14 @@
+{
+    "task_mutators": [
+        "Transform the instruction into a game format: Create a playful challenge that requires the user to solve the problem as if it were a level in a video game.",
+        "Encourage visualization: Instead of solving the problem numerically, ask the user to draw diagrams or graphs to represent the problem and its solution.",
+        "Introduce a narrative: Frame the instruction within a story, where the user must solve the problem to progress the plot or save a character.",
+        "Incorporate teamwork: Revise the instruction to suggest that the user discuss the problem with a peer or group, promoting collaborative problem-solving.",
+        "Add a time constraint: Modify the instruction to include a challenge where the user must solve the problem within a specific time limit, enhancing urgency and focus.",
+        "Suggest alternative methods: Encourage the user to approach the problem using different mathematical techniques or logical frameworks, promoting versatility in problem-solving.",
+        "Create a real-world application: Revise the instruction to connect the problem to a practical scenario, helping the user understand its relevance and importance.",
+        "Incorporate technology: Suggest using a specific software tool or online resource that can assist in solving the problem, encouraging users to leverage technology.",
+        "Encourage reflection: After solving the problem, prompt the user to write a brief explanation of their thought process and the strategies they used.",
+        "Invite exploration of related concepts: Modify the instruction to encourage the user to research and discuss concepts related to the problem, fostering a deeper understanding."
+    ]
+}

@@ -1,0 +1,14 @@
+{
+    "task_mutators": [
+        "Transform the original problem into a visual format, such as a mind map or diagram, to enhance understanding and facilitate problem-solving.",
+        "Reframe the instruction by asking the user to consider different perspectives or viewpoints related to the problem, promoting empathy and deeper analysis.",
+        "Encourage the user to hypothesize potential outcomes by modifying variables in the instruction, fostering creative thinking and exploration.",
+        "Incorporate storytelling elements into the instruction, inviting the user to narrate a scenario where the problem arises and strategize solutions within that narrative.",
+        "Prompt the user to relate the problem to real-world applications or personal experiences, enhancing relevance and engagement with the content.",
+        "Challenge the user to approach the problem as if they were an expert in a completely different field, encouraging interdisciplinary connections and innovative solutions.",
+        "Guide the user to devise a step-by-step plan or checklist to systematically tackle the problem, promoting organized thinking and execution.",
+        "Invite the user to collaborate with a peer and discuss the problem, facilitating a dialogue that may lead to new insights and ideas.",
+        "Encourage the user to ask 'what if' questions related to the problem, sparking curiosity and creative exploration of alternative scenarios.",
+        "Suggest that the user create a pros and cons list regarding potential solutions to the problem, fostering critical thinking and decision-making skills."
+    ]
+}

@@ -21,7 +21,7 @@ GENERATE_TASK_MUTATORS = True
 N_TASK_MUTATORS = 10
 
 # Task Performance Performance Sampling Hyperparams
-TASK_MUTATORS_PERFORMANCE_SAMPLING = False
+TASK_MUTATORS_PERFORMANCE_SAMPLING = True
 SAMPLING_TEMP = 0.3
 PERFORMANCE_METRIC = 'mean'
 
@@ -585,10 +585,10 @@ if __name__ == "__main__":
     parser.add_argument('--shuffle_seed', type=int, default=0)
     parser.add_argument('--n_repreat', type=int, default=1)
     parser.add_argument('--multiprocessing', action='store_true', default=True)
-    parser.add_argument('--max_workers', type=int, default=6) # 24
+    parser.add_argument('--max_workers', type=int, default=24) # 24
     parser.add_argument('--debug', action='store_true', default=True)
     parser.add_argument('--save_dir', type=str, default='results/')
-    parser.add_argument('--expr_name', type=str, default="drop_openai_gemini_task_mutator_experiment_2_run_2__rerun_results")
+    parser.add_argument('--expr_name', type=str, default="drop_openai_gemini_task_mutator_experiment_3_run_3__rerun_results")
     parser.add_argument('--n_generation', type=int, default=30)
     parser.add_argument('--debug_max', type=int, default=3)
     parser.add_argument('--max_agents', type=int, default=5)

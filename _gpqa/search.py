@@ -578,7 +578,7 @@ def evaluate_forward_fn(args, forward_str):
             elif 'D)' in res.content:
                 predicted_idx = 3
             else:
-                print(f"error in q {q_idx}")
+                # print(f"error in q {q_idx}")
                 acc_list.append(0)
                 continue
         except Exception as e:
@@ -600,10 +600,10 @@ if __name__ == "__main__":
     parser.add_argument('--shuffle_seed', type=int, default=0)
     parser.add_argument('--n_repreat', type=int, default=5)
     parser.add_argument('--multiprocessing', action='store_true', default=True)
-    parser.add_argument('--max_workers', type=int, default=48)
+    parser.add_argument('--max_workers', type=int, default=36)
     parser.add_argument('--debug', action='store_true', default=True)
     parser.add_argument('--save_dir', type=str, default='results/')
-    parser.add_argument('--expr_name', type=str, default="gpqa_openai_gemini_task_mutator_experiment_3_run_2_results")
+    parser.add_argument('--expr_name', type=str, default="gpqa_openai_gemini_task_mutator_experiment_3_run_4_results")
     parser.add_argument('--n_generation', type=int, default=30)
     parser.add_argument('--debug_max', type=int, default=3)
     parser.add_argument('--max_agents', type=int, default=5)

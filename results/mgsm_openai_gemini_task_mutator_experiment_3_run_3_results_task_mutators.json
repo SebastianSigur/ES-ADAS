@@ -1,0 +1,14 @@
+{
+    "task_mutators": [
+        "Transform the given mathematical problem into a visual representation, such as a graph or diagram, to enhance understanding and promote creativity in finding a solution.",
+        "Reframe the original instruction by incorporating a real-world application of the mathematical concept, encouraging practical problem-solving approaches.",
+        "Encourage the user to utilize different mathematical methods or techniques to solve the problem, prompting them to explore alternative strategies.",
+        "Create a narrative around the problem, turning it into a story that involves characters or scenarios where math plays a critical role in decision-making.",
+        "Incorporate a collaborative element by suggesting the user discuss the problem with a peer, fostering a brainstorming session that may lead to unique insights and solutions.",
+        "Challenge the user to create their own version of the problem, altering parameters or conditions, thus stimulating creative thinking and problem variation.",
+        "Encourage the user to think about the problem from multiple perspectives, asking them to identify how different assumptions could change the approach to solving it.",
+        "Introduce a hypothetical scenario that complicates the original problem, prompting the user to adapt their solution strategy to accommodate new variables.",
+        "Suggest incorporating technology tools, such as apps or software, to model the problem and visualize potential solutions, enhancing engagement with the mathematical concepts.",
+        "Invite the user to teach the problem to someone else, framing it as an educational exercise that can deepen their own understanding and uncover new ways to approach the solution."
+    ]
+}

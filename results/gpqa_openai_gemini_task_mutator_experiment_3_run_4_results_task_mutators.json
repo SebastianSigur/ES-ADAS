@@ -1,0 +1,14 @@
+{
+    "task_mutators": [
+        "Transform the prompt into an interactive challenge, inviting others to participate and contribute their own solutions.",
+        "Reimagine the task with a focus on collaboration, suggesting ways to involve a team or community in the problem-solving process.",
+        "Encourage a multi-perspective approach by suggesting that the user consider the problem from various viewpoints or disciplines.",
+        "Invent a metaphorical framework that relates the instruction to a familiar scenario, making it more relatable and easier to grasp.",
+        "Prompt the user to incorporate elements of storytelling into their solution, framing the problem as a narrative with characters, conflict, and resolution.",
+        "Advocate for experimentation by recommending the user conduct small-scale trials or tests to explore different aspects of the problem.",
+        "Suggest visual or artistic representations of the problem, encouraging the user to create diagrams, sketches, or mind maps to better understand the issue.",
+        "Encourage the user to set specific goals or milestones within the problem-solving process, guiding them to track progress in tangible ways.",
+        "Challenge the user to identify and question underlying assumptions related to the problem, fostering a deeper exploration of its roots.",
+        "Inspire the user to think about the long-term implications of their solutions, prompting them to consider how their actions might shape future scenarios."
+    ]
+}
