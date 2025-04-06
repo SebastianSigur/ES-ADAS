@@ -1059,8 +1059,8 @@ if __name__ == "__main__":
 
     
     # Arguments for multiple runs to test variance
-    parser.add_argument('--num_runs', type=int, default=1, help="Number of runs to execute (default: 3)")
-    parser.add_argument('--base_seeds', nargs='+', type=int, default=[45], help="List of seeds for each run. Length must match num_runs")
+    parser.add_argument('--num_runs', type=int, default=3, help="Number of runs to execute (default: 3)")
+    parser.add_argument('--base_seeds', nargs='+', type=int, default=[42,45,47], help="List of seeds for each run. Length must match num_runs")
 
     args = parser.parse_args()
 
