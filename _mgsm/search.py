@@ -406,11 +406,37 @@ if __name__ == "__main__":
     parser.add_argument('--max_agents', type=int, default=5)
 
 
-    args = parser.parse_args()
-    # search
-    SEARCHING_MODE = True
-    search(args)
+    # Arguments for multiple runs to test variance
+    parser.add_argument('--num_runs', type=int, default=3, help="Number of runs to execute (default: 3)")
+    parser.add_argument('--base_seeds', nargs='+', type=int, default=[42,45,47], help="List of seeds for each run. Length must match num_runs")
 
-    # evaluate
-    SEARCHING_MODE = False
-    evaluate(args)
+    args = parser.parse_args()
+
+    # Validate seed configuration
+    if len(args.base_seeds) != args.num_runs:
+        args.base_seeds = args.base_seeds[:args.num_runs]
+
+    original_expr_name = args.expr_name
+
+    for run_idx, seed in enumerate(args.base_seeds):
+        # Generate consistent folder name based on parameters
+        args.save_dir = f"mgsm_new__gen{args.n_generation}_seed{seed}"
+        os.makedirs(args.save_dir, exist_ok=True)
+        
+        # Set seeds
+        random.seed(seed)
+        np.random.seed(seed)
+        
+        # Update experiment name
+        args.expr_name = f"run{run_idx+1}_{original_expr_name}"
+        
+        print(f"Starting run {run_idx+1}/{args.num_runs} with seed {seed}")
+        print(f"Save directory: {args.save_dir}")
+        print(f"Experiment name: {args.expr_name}\n")
+
+        # Run search and evaluation
+        SEARCHING_MODE = True
+        search(args)
+        
+        SEARCHING_MODE = False
+        evaluate(args)
