@@ -4,16 +4,45 @@
 Autonomous, Open-Ended Evolutionary Search</b><br>
 </h1>
 
+DUNE builds on the Automated Design of Agentic Systems (ADAS) framework by integrating evolutionary search techniques to discover more diverse, higher-performing LLM agent architectures.
 
-DUNE proposes an improvement to the original ADAS framework with the integration of a evolutionary search algorithms, encouraging diversity by looking at different domain features, such as structure and scale.
+Our research addresses the challenge of automating agent design without incurring the steep costs and manual engineering associated with existing methods. By combining ADAS’s meta-agent search with quality-diversity algorithms and prompt evolution, DUNE consistently produces stronger LLM agents while dramatically reducing search costs compared to the original ADAS in popular benchmarks such as ARC, Drop, GPQA, MGSM, and MMLU. DUNE is open-ended, as it continues to learn new reasoning approaches throughout the evolutionary search.
 
-DUNE is open-ended, being applicable to multiple domains. Dune generates more powerful agents compared to the original ADAS in popular benchmarks such as arc, drop, gpqa, mgsm, and mmlu. Dune reduces the costof automatic agent search by a significant amount compared to ADAS, allowing more independentresearch in this field
-
-We take alot of inspiration from the ADAS work, and recognize that our work would not be possible without the work from the ADAS team. Their paper can be found [here](https://arxiv.org/abs/2408.08435) and their repository [here](https://github.com/ShengranHu/ADAS)
+We take a lot of inspiration from the NeurIPS 2024 Outstanding Paper “Autonomous Design of Agentic Systems” and recognize that our work would not be possible without the ADAS team. Their paper and repository can be found [here](https://arxiv.org/abs/2408.08435) and [here](https://github.com/ShengranHu/ADAS), respectively.
 
 <p align="center">
 <img src="misc/ESADAS.drawio.png"/></a><br>
 </p>
+
+## Our Method
+
+DUNE consists of two complementary algorithms that build on ADAS's Meta Agent Search:
+
+### 1. MAPADAS (MAP-Elites + ADAS)
+
+**Key Idea:** Leverage the MAP-Elites quality-diversity algorithm to systematically explore and preserve a grid of diverse agent architectures.
+
+#### Niche Dimensions:
+- **Structural Complexity** (e.g., Chain-of-Thought, Tree-of-Thought, Multi-Agent Reasoning)
+- **LLM API Call Frequency** (Few ≤ 5 calls vs. Many ≥ 6 calls)
+
+#### Evolutionary Loop:
+1. **Parent Sampling:** Choose a parent agent from the current archive, favoring high-fitness elites.
+2. **Target Niche Selection:** Sample a niche (structure × API calls), weighting low-fitness niches to encourage exploration.
+3. **Mutation via Meta-Agent:** Prompt the meta-agent (LLM) to mutate the parent toward the target niche.
+4. **Evaluation & Archiving:** Classify the new candidate into a niche using an LLM-based classifier. If it outperforms the existing niche elite, replace it.
+
+**Cost Savings:** By replacing GPT-3.5 with a smaller LLM (e.g., Gemini 1.5.flash-8b) for evaluation and only evaluating the top 5 candidates per iteration, MAPADAS achieves a ≈ 250× reduction in API spend compared to vanilla ADAS.
+
+### 2. ADAS-Breeder (Prompt Evolution in ADAS)
+
+**Key Idea:** Evolve the meta-agent's task prompt itself, rather than using a fixed prompt across all iterations, inspired by Promptbreeder.
+
+#### Mutation Prompts:
+1. Begin with a seed set of mutation prompts (from Promptbreeder).
+2. On each iteration, generate new mutation prompts using the LLM and sample from them based on their historical performance in generating high-fitness agents.
+3. Mutate both the task prompt and the mutation-prompt pool to steadily improve prompt quality.
+
 
 ## Setup
 ```bash
