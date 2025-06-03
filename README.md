@@ -1,6 +1,6 @@
 <h1 align="center">
   <img src="misc/ESADAS.png" width="400" /></a><br>
-  <b>Domain-Agnostic Universal Novel Agent Design through
+  <b>DUNE: Domain-Agnostic Universal Novel Agent Design through
 Autonomous, Open-Ended Evolutionary Search</b><br>
 </h1>
 
